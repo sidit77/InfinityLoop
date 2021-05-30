@@ -21,7 +21,7 @@ features = [
   'Node',
   'Window',
   'WebGlBuffer',
-  'WebGlRenderingContext',
+  'WebGl2RenderingContext',
   'WebGlProgram',
   'WebGlShader',
 ]
