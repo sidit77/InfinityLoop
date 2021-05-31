@@ -15,6 +15,7 @@ fn request_animation_frame(f: &Closure<dyn FnMut()>) {
         .expect("should register `requestAnimationFrame` OK");
 }
 
+#[allow(unused_macros)]
 macro_rules! console_log {
     ($($t:tt)*) => (web_sys::console::log_1(&format_args!($($t)*).to_string().into()))
 }
@@ -83,6 +84,9 @@ pub fn start() -> Result<(), JsValue>{
 
         gl.clear_color(0.5 + 0.5 * f32::sin(0.2 * i), 0.0, 0.0, 1.0);
         gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
+
+        camera.position.x = f32::sin(0.04 * i);
+        gl.uniform_matrix4fv_with_f32_array(Some(&mvp_location), false, &camera.to_matrix().to_cols_array());
 
         gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, (vertices.len() / 2) as i32);
 
