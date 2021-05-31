@@ -27,5 +27,6 @@ features = [
   'WebGlUniformLocation',
   'WebGlProgram',
   'WebGlShader',
-  'console'
+  'console',
+  'MouseEvent',
 ]
