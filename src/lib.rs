@@ -1,13 +1,16 @@
-mod shader;
-mod camera;
-
-use wasm_bindgen::prelude::*;
-use wasm_bindgen::JsCast;
 use std::cell::RefCell;
 use std::rc::Rc;
-use web_sys::{WebGl2RenderingContext, console};
-use crate::shader::compile_program;
+
+use glam::{Mat4, Vec3};
+use wasm_bindgen::JsCast;
+use wasm_bindgen::prelude::*;
+use web_sys::WebGl2RenderingContext;
+
 use crate::camera::Camera;
+use crate::shader::compile_program;
+
+mod shader;
+mod camera;
 
 fn request_animation_frame(f: &Closure<dyn FnMut()>) {
     web_sys::window().unwrap()
@@ -57,7 +60,8 @@ pub fn start() -> Result<(), JsValue>{
         ..Camera::default()
     };
 
-    let mvp_location = gl.get_uniform_location(&program, "mvp").unwrap();
+    let mvp_location = gl.get_uniform_location(&program, "cam").unwrap();
+    let obj_location = gl.get_uniform_location(&program, "obj").unwrap();
 
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
@@ -85,8 +89,8 @@ pub fn start() -> Result<(), JsValue>{
         gl.clear_color(0.5 + 0.5 * f32::sin(0.2 * i), 0.0, 0.0, 1.0);
         gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 
-        camera.position.x = f32::sin(0.04 * i);
-        gl.uniform_matrix4fv_with_f32_array(Some(&mvp_location), false, &camera.to_matrix().to_cols_array());
+        let obj_mat = Mat4::from_rotation_z(0.04 * i);
+        gl.uniform_matrix4fv_with_f32_array(Some(&obj_location), false, &obj_mat.to_cols_array());
 
         gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, (vertices.len() / 2) as i32);
 

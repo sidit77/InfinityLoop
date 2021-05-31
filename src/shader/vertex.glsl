@@ -2,8 +2,9 @@
 
 layout(location = 0) in vec2 position;
 
-uniform mat4 mvp;
+uniform mat4 cam;
+uniform mat4 obj;
 
 void main() {
-    gl_Position = mvp * vec4(position, 0, 1);
+    gl_Position = cam * obj * vec4(position, 0, 1);
 }
