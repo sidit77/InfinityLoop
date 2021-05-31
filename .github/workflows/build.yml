@@ -20,6 +20,8 @@ jobs:
       
     - name: Install and Build
       run: |
+        curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
+        rustup target add wasm32-unknown-unknown
         npm install
         npm run build
         
