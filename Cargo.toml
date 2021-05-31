@@ -27,4 +27,5 @@ features = [
   'WebGlUniformLocation',
   'WebGlProgram',
   'WebGlShader',
+  'console'
 ]

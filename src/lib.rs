@@ -5,7 +5,7 @@ use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use std::cell::RefCell;
 use std::rc::Rc;
-use web_sys::{WebGl2RenderingContext};
+use web_sys::{WebGl2RenderingContext, console};
 use crate::shader::compile_program;
 use crate::camera::Camera;
 
@@ -13,6 +13,10 @@ fn request_animation_frame(f: &Closure<dyn FnMut()>) {
     web_sys::window().unwrap()
         .request_animation_frame(f.as_ref().unchecked_ref())
         .expect("should register `requestAnimationFrame` OK");
+}
+
+macro_rules! console_log {
+    ($($t:tt)*) => (web_sys::console::log_1(&format_args!($($t)*).to_string().into()))
 }
 
 #[wasm_bindgen(start)]
@@ -59,11 +63,21 @@ pub fn start() -> Result<(), JsValue>{
 
     let mut i = 0.0;
     *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
-        canvas.set_width(window.inner_width().unwrap().as_f64().unwrap() as u32);
-        canvas.set_height(window.inner_height().unwrap().as_f64().unwrap() as u32);
-        gl.viewport(0, 0, canvas.width() as i32, canvas.height() as i32);
-        camera.calc_aspect(canvas.width(), canvas.height());
-        gl.uniform_matrix4fv_with_f32_array(Some(&mvp_location), false, &camera.to_matrix().to_cols_array());
+        {
+            let width = canvas.client_width() as u32;
+            let height = canvas.client_height() as u32;
+
+            if width != canvas.width() || height != canvas.height(){
+                canvas.set_width(width);
+                canvas.set_height(height);
+                gl.viewport(0, 0, width as i32, height as i32);
+
+                camera.calc_aspect(width, height);
+                gl.uniform_matrix4fv_with_f32_array(Some(&mvp_location), false, &camera.to_matrix().to_cols_array());
+            }
+        }
+
+
         i += 0.1;
 
 
