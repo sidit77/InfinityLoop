@@ -34,7 +34,14 @@ pub fn start() -> Result<(), JsValue>{
     {
         let last_click = last_click.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
-            last_click.set(Vec2::new(event.client_x() as f32, event.client_y() as f32));
+            let canvas = event
+                .current_target()
+                .unwrap()
+                .dyn_into::<web_sys::HtmlCanvasElement>()
+                .unwrap();
+            last_click.set(Vec2::new(
+                event.client_x() as f32 / canvas.width() as f32,
+                event.client_y() as f32 / canvas.height() as f32));
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback("mousedown", closure.as_ref().unchecked_ref())?;
         closure.forget();
@@ -100,7 +107,7 @@ pub fn start() -> Result<(), JsValue>{
         gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 
         let point = last_click.get();
-        let point = Vec2::new(point.x / canvas.width() as f32, point.y / canvas.height() as f32);
+        //let point = Vec2::new(point.x / canvas.width() as f32, point.y / canvas.height() as f32);
         let point = Vec2::new(2.0 * point.x - 1.0, 2.0 * (1.0 - point.y) - 1.0);
         let point = camera.to_matrix().inverse().transform_point3(point.extend(0.0));
         let obj_mat = Mat4::from_rotation_translation(
