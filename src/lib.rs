@@ -5,6 +5,10 @@ use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use web_sys::WebGl2RenderingContext;
 
+#[cfg(feature = "wee_alloc")]
+#[global_allocator]
+static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
+
 #[allow(unused_macros)]
 #[macro_export]
 macro_rules! console_log {
@@ -24,9 +28,10 @@ fn request_animation_frame(f: &Closure<dyn FnMut()>) {
 }
 
 
-
 #[wasm_bindgen(start)]
-pub fn start() -> Result<(), JsValue>{
+pub fn main_js() -> Result<(), JsValue> {
+    #[cfg(debug)]
+    console_error_panic_hook::set_once();
 
     let window = web_sys::window().unwrap();
     let canvas = window.document().unwrap().get_element_by_id("canvas").unwrap().dyn_into::<web_sys::HtmlCanvasElement>()?;
@@ -79,4 +84,3 @@ pub fn start() -> Result<(), JsValue>{
 
     Ok(())
 }
-
