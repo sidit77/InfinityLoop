@@ -1,17 +1,96 @@
 use crate::camera::Camera;
 use web_sys::{WebGl2RenderingContext, WebGlUniformLocation};
 use crate::shader::compile_program;
-use glam::{Vec3, Quat, Mat4};
+use glam::{Quat, Mat4, Vec2, Vec3Swizzles, Vec3};
+use bytemuck::{Pod, Zeroable};
 
-const VERTICES: [f32; 6] = [-0.7, -0.7, 0.7, -0.7, 0.0, 0.7];
+struct Triangle(Vec2, Vec2, Vec2);
+
+impl Triangle {
+    fn contains(&self, point: Vec2) -> bool{
+        let d_x = point.x - self.2.x;
+        let d_y = point.y - self.2.y;
+        let d_x21 = self.2.x - self.1.x;
+        let d_y12 = self.1.y - self.2.y;
+        let d = d_y12 * (self.0.x - self.2.x) + d_x21 * (self.0.y - self.2.y);
+        let s = d_y12 * d_x + d_x21 * d_y;
+        let t = (self.2.y - self.0.y) * d_x + (self.0.x - self.2.x) * d_y;
+        if d < 0.0 {
+            return s <= 0.0 && t <= 0.0 && s + t >= d;
+        }
+        return s >= 0.0 && t >= 0.0 && s+t <= d;
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone, Pod, Zeroable)]
+struct Vertex {
+    x: f32,
+    y: f32
+}
+
+struct Hexagon {
+    position: Vec2,
+    rotation: f32,
+    radius: f32
+}
+
+impl Default for Hexagon {
+    fn default() -> Self {
+        Self {
+            position: Vec2::new(0.0,0.0),
+            rotation: 0.0,
+            radius: 1.0
+        }
+    }
+}
+
+impl Hexagon {
+    fn as_vertices(&self) -> [Vertex; 12] {
+        let mut vertices = [Vertex::default(); 12];
+        let from_id = |i: u32|{
+            let (sin, cos) = f32::sin_cos(-self.rotation + std::f32::consts::FRAC_PI_3 * i as f32);
+            Vertex {
+                x: self.position.x + self.radius * sin,
+                y: self.position.y + self.radius * cos,
+            }
+        };
+
+        for i in 0u32..4 {
+            vertices[i as usize * 3 + 0] = from_id(0);
+            vertices[i as usize * 3 + 1] = from_id(i + 1);
+            vertices[i as usize * 3 + 2] = from_id(i + 2);
+        }
+
+        vertices
+    }
+
+    fn contains(&self, point: Vec2) -> bool {
+        if (point - self.position).length_squared() > self.radius {
+            return false;
+        }
+
+        let from_id = |i: u32|{
+            let (sin, cos) = f32::sin_cos(-self.rotation + std::f32::consts::FRAC_PI_3 * i as f32);
+            Vec2::new(self.position.x + self.radius * sin, self.position.y + self.radius * cos)
+        };
+
+        for i in 0u32..4 {
+            if Triangle(from_id(0), from_id(i + 1), from_id(i + 2)).contains(point){
+                return true
+            }
+        }
+        false
+    }
+
+}
 
 pub struct Game {
     gl: WebGl2RenderingContext,
     camera: Camera,
     mvp_location: WebGlUniformLocation,
     obj_location: WebGlUniformLocation,
-    i: f32,
-    point: Vec3
+    hexagon: Hexagon
 }
 
 impl Game {
@@ -26,15 +105,11 @@ impl Game {
         let buffer = gl.create_buffer().ok_or("failed to create buffer")?;
         gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&buffer));
 
-        unsafe {
-            let vert_array = js_sys::Float32Array::view(&VERTICES);
-
-            gl.buffer_data_with_array_buffer_view(
-                WebGl2RenderingContext::ARRAY_BUFFER,
-                &vert_array,
-                WebGl2RenderingContext::STATIC_DRAW,
-            );
-        }
+        gl.buffer_data_with_u8_array(
+            WebGl2RenderingContext::ARRAY_BUFFER,
+            bytemuck::cast_slice(&Hexagon::default().as_vertices()),
+            WebGl2RenderingContext::STATIC_DRAW,
+        );
 
         gl.vertex_attrib_pointer_with_i32(0, 2, WebGl2RenderingContext::FLOAT, false, 0, 0);
         gl.enable_vertex_attrib_array(0);
@@ -53,8 +128,7 @@ impl Game {
             camera,
             mvp_location,
             obj_location,
-            i: 0.0,
-            point: Vec3::new(0.0,0.0, 0.0)
+            hexagon: Default::default()
         })
     }
 
@@ -68,22 +142,22 @@ impl Game {
     pub fn mouse_down(&mut self, x: f32, y: f32) {
         let point = Vec3::new(2.0 * x - 1.0, 2.0 * (1.0 - y) - 1.0, 0.0);
         let point = self.camera.to_matrix().inverse().transform_point3(point);
-        self.point = point;
+        if self.hexagon.contains(point.xy()){
+            self.hexagon.rotation -= 0.1;
+        }
     }
 
     pub fn render(&mut self) {
-        self.i += 0.1;
-
-
-        self.gl.clear_color(0.5 + 0.5 * f32::sin(0.2 * self.i), 0.0, 0.0, 1.0);
+        self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
         self.gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 
-        let obj_mat = Mat4::from_rotation_translation(
-            Quat::from_rotation_z(0.04 * self.i),
-            self.point);
+        let obj_mat = Mat4::from_scale_rotation_translation(
+            Vec3::new(self.hexagon.radius, self.hexagon.radius, self.hexagon.radius),
+            Quat::from_rotation_z(self.hexagon.rotation),
+            self.hexagon.position.extend(0.0));
         self.gl.uniform_matrix4fv_with_f32_array(Some(&self.obj_location), false, &obj_mat.to_cols_array());
 
-        self.gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, (VERTICES.len() / 2) as i32);
+        self.gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, 12);
     }
 
 }
