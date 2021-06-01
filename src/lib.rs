@@ -35,6 +35,7 @@ pub fn main_js() -> Result<(), JsValue> {
 
     let window = web_sys::window().unwrap();
     let canvas = window.document().unwrap().get_element_by_id("canvas").unwrap().dyn_into::<web_sys::HtmlCanvasElement>()?;
+    let performance = window.performance().unwrap();
 
     let game = Rc::new(RefCell::new(Game::new(
         canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>()?
@@ -60,7 +61,7 @@ pub fn main_js() -> Result<(), JsValue> {
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
 
-
+    let mut time = performance.now();
     *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
         {
             let width = canvas.client_width() as u32;
@@ -75,7 +76,10 @@ pub fn main_js() -> Result<(), JsValue> {
             }
         }
 
-        game.borrow_mut().render();
+        let dt = performance.now() - time;
+        time = performance.now();
+
+        game.borrow_mut().render(dt);
 
         request_animation_frame(f.borrow().as_ref().unwrap());
     }) as Box<dyn FnMut()>));

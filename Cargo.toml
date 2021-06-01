@@ -43,6 +43,7 @@ features = [
   'WebGlShader',
   'console',
   'MouseEvent',
+  'Performance'
 ]
 
 

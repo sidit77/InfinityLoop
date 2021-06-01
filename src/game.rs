@@ -147,7 +147,7 @@ impl Game {
         }
     }
 
-    pub fn render(&mut self) {
+    pub fn render(&mut self, time: f64) {
         self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
         self.gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 
