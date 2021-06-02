@@ -74,6 +74,7 @@ pub struct Game {
     camera: Camera,
     mvp_location: WebGlUniformLocation,
     obj_location: WebGlUniformLocation,
+    color_location: WebGlUniformLocation,
     hexagon: Hexagon
 }
 
@@ -107,12 +108,14 @@ impl Game {
 
         let mvp_location = gl.get_uniform_location(&program, "cam").unwrap();
         let obj_location = gl.get_uniform_location(&program, "obj").unwrap();
+        let color_location = gl.get_uniform_location(&program, "color").unwrap();
 
         Ok(Self {
             gl,
             camera,
             mvp_location,
             obj_location,
+            color_location,
             hexagon: Default::default()
         })
     }
@@ -136,13 +139,18 @@ impl Game {
         self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
         self.gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 
-        let obj_mat = Mat4::from_scale_rotation_translation(
-            Vec3::new(self.hexagon.radius, self.hexagon.radius, self.hexagon.radius),
-            Quat::from_rotation_z(self.hexagon.rotation),
-            self.hexagon.position.extend(0.0));
+        //let obj_mat = Mat4::from_scale_rotation_translation(
+        //    Vec3::new(self.hexagon.radius, self.hexagon.radius, self.hexagon.radius),
+        //    Quat::from_rotation_z(self.hexagon.rotation),
+        //    self.hexagon.position.extend(0.0));
+        let obj_mat = Mat4::IDENTITY;
         self.gl.uniform_matrix4fv_with_f32_array(Some(&self.obj_location), false, &obj_mat.to_cols_array());
+        self.gl.uniform4f(Some(&self.color_location), 1.0, 0.8, 0.8, 1.0);
 
         self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
+
+        self.gl.uniform4f(Some(&self.color_location), 0.8, 1.0, 0.8, 1.0);
+        self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::MODEL1);
     }
 
 }
