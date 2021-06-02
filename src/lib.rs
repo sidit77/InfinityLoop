@@ -20,13 +20,13 @@ use crate::game::Game;
 mod shader;
 mod camera;
 mod game;
+mod meshes;
 
 fn request_animation_frame(f: &Closure<dyn FnMut()>) {
     web_sys::window().unwrap()
         .request_animation_frame(f.as_ref().unchecked_ref())
         .expect("should register `requestAnimationFrame` OK");
 }
-
 
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {

@@ -3,6 +3,8 @@ use web_sys::{WebGl2RenderingContext, WebGlUniformLocation};
 use crate::shader::compile_program;
 use glam::{Quat, Mat4, Vec2, Vec3Swizzles, Vec3};
 use bytemuck::{Pod, Zeroable};
+use crate::meshes;
+use std::ops::Range;
 
 struct Triangle(Vec2, Vec2, Vec2);
 
@@ -46,24 +48,6 @@ impl Default for Hexagon {
 }
 
 impl Hexagon {
-    fn as_vertices(&self) -> [Vertex; 12] {
-        let mut vertices = [Vertex::default(); 12];
-        let from_id = |i: u32|{
-            let (sin, cos) = f32::sin_cos(-self.rotation + std::f32::consts::FRAC_PI_3 * i as f32);
-            Vertex {
-                x: self.position.x + self.radius * sin,
-                y: self.position.y + self.radius * cos,
-            }
-        };
-
-        for i in 0u32..4 {
-            vertices[i as usize * 3 + 0] = from_id(0);
-            vertices[i as usize * 3 + 1] = from_id(i + 1);
-            vertices[i as usize * 3 + 2] = from_id(i + 2);
-        }
-
-        vertices
-    }
 
     fn contains(&self, point: Vec2) -> bool {
         if (point - self.position).length_squared() > self.radius {
@@ -107,13 +91,14 @@ impl Game {
 
         gl.buffer_data_with_u8_array(
             WebGl2RenderingContext::ARRAY_BUFFER,
-            bytemuck::cast_slice(&Hexagon::default().as_vertices()),
+            meshes::VERTEX_DATA,
             WebGl2RenderingContext::STATIC_DRAW,
         );
-
         gl.vertex_attrib_pointer_with_i32(0, 2, WebGl2RenderingContext::FLOAT, false, 0, 0);
         gl.enable_vertex_attrib_array(0);
 
+
+        //console_log!("{:?}", crate::renderer::meshes::MODEL1);
 
         let camera = Camera {
             scale: 2.0,
@@ -147,7 +132,7 @@ impl Game {
         }
     }
 
-    pub fn render(&mut self, time: f64) {
+    pub fn render(&mut self, _time: f64) {
         self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
         self.gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 
@@ -157,7 +142,17 @@ impl Game {
             self.hexagon.position.extend(0.0));
         self.gl.uniform_matrix4fv_with_f32_array(Some(&self.obj_location), false, &obj_mat.to_cols_array());
 
-        self.gl.draw_arrays(WebGl2RenderingContext::TRIANGLES, 0, 12);
+        self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
     }
 
+}
+
+trait DrawRange {
+    fn draw_array_range(&self, mode: u32, range: std::ops::Range<i32>);
+}
+
+impl DrawRange for WebGl2RenderingContext {
+    fn draw_array_range(&self, mode: u32, range: Range<i32>) {
+        self.draw_arrays(mode, range.start, range.len() as i32);
+    }
 }
