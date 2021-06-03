@@ -68,13 +68,94 @@ impl Hexagon {
     }
 }
 
+#[derive(Debug, Default, Copy, Clone)]
+struct WorldElement {
+    rotation: u8
+}
+
+#[derive(Debug)]
+struct World {
+    rows: u32,
+    width: u32,
+    elements: Box<[WorldElement]>
+}
+
+impl World {
+    fn new(rows: u32, width: u32) -> Self {
+        Self {
+            rows,
+            width,
+            elements: vec![Default::default(); (rows * width + (rows / 2)) as usize].into_boxed_slice()
+        }
+    }
+
+}
+
+impl<'a> IntoIterator for &'a World {
+    type Item = (Vec2, &'a WorldElement);
+    type IntoIter = WorldIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        WorldIter::new(self)
+    }
+}
+
+#[derive(Debug)]
+struct WorldIter<'a>{
+    world: &'a World,
+    index: usize,
+    x: u32,
+    y: u32
+}
+
+impl<'a> WorldIter<'a> {
+    fn new(world: &'a World) -> Self {
+        Self {
+            world,
+            index: 0,
+            x: 0,
+            y: 0
+        }
+    }
+}
+
+static TEST: WorldElement = WorldElement {
+    rotation: 0
+};
+
+impl<'a> Iterator for WorldIter<'a> {
+    type Item = (Vec2, &'a WorldElement);
+
+    fn next(&mut self) -> Option<Self::Item> {
+
+        if self.x >= self.world.width + (self.y % 2) {
+            self.x = 0;
+            self.y += 1;
+        }
+        if self.y >= self.world.rows {
+            return None
+        }
+
+        let offset = -((self.y % 2) as f32) * f32::cos(std::f32::consts::FRAC_PI_6);
+        let pos = Vec2::new(
+            offset + (2.0 * f32::cos(std::f32::consts::FRAC_PI_6)) * self.x as f32,
+            (1.0 + f32::sin(std::f32::consts::FRAC_PI_6)) * self.y as f32
+        );
+        self.x += 1;
+        let elem = &self.world.elements[self.index];
+        self.index += 1;
+        Some((pos, elem))
+    }
+}
+
 pub struct Game {
     gl: WebGl2RenderingContext,
     camera: Camera,
     mvp_location: WebGlUniformLocation,
     obj_location: WebGlUniformLocation,
     color_location: WebGlUniformLocation,
-    hexagon: Hexagon
+    hexagon: Hexagon,
+    world: World
 }
 
 impl Game {
@@ -115,7 +196,8 @@ impl Game {
             mvp_location,
             obj_location,
             color_location,
-            hexagon: Default::default()
+            hexagon: Default::default(),
+            world: World::new(7, 5)
         })
     }
 
@@ -149,18 +231,26 @@ impl Game {
        //self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
 
         let rng = fastrand::Rng::with_seed(1337);
-        for y in -7..=7 {
-            let offset = (y & 1) as f32 * f32::cos(std::f32::consts::FRAC_PI_6);
-            for x in -(5 + (y & 1))..=5 {
-                let obj_mat = Mat4::from_translation(Vec3::new(
-                    offset + (2.0 * f32::cos(std::f32::consts::FRAC_PI_6)) * x as f32,
-                    (1.0 + f32::sin(std::f32::consts::FRAC_PI_6)) * y as f32,
-                    0.0));
-                self.gl.uniform_matrix4fv_with_f32_array(Some(&self.obj_location), false, &obj_mat.to_cols_array());
-                self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
+        //for y in -6..=6 {
+        //    let offset = (y & 1) as f32 * f32::cos(std::f32::consts::FRAC_PI_6);
+        //    for x in -(5 + (y & 1))..=5 {
+        //        let obj_mat = Mat4::from_translation(Vec3::new(
+        //            offset + (2.0 * f32::cos(std::f32::consts::FRAC_PI_6)) * x as f32,
+        //            (1.0 + f32::sin(std::f32::consts::FRAC_PI_6)) * y as f32,
+        //            0.0));
+        //        self.gl.uniform_matrix4fv_with_f32_array(Some(&self.obj_location), false, &obj_mat.to_cols_array());
+        //        self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
+//
+        //        self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
+        //    }
+        //}
 
-                self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
-            }
+        for (pos, _) in &self.world {
+            let obj_mat = Mat4::from_translation(pos.extend(0.0));
+            self.gl.uniform_matrix4fv_with_f32_array(Some(&self.obj_location), false, &obj_mat.to_cols_array());
+            self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
+
+            self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
         }
 
         //self.gl.uniform4f(Some(&self.color_location), 0.8, 1.0, 0.8, 1.0);
