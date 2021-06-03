@@ -130,6 +130,7 @@ impl Game {
         ])?;
         gl.use_program(Some(&program));
 
+
         let buffer = gl.create_buffer().ok_or("failed to create buffer")?;
         gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&buffer));
 
@@ -202,7 +203,11 @@ impl Game {
             self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
             self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
             self.gl.uniform4f(Some(&self.color_location), 0.0, 0.0, 0.0, 1.0);
-            self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::MODEL1);
+            self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, match rng.u8(0..2) {
+                0 => meshes::MODEL1,
+                1 => meshes::MODEL2,
+                _ => meshes::HEXAGON
+            });
         }
     }
 
