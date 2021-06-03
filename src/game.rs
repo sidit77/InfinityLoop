@@ -145,8 +145,11 @@ impl Game {
 
         //console_log!("{:?}", crate::renderer::meshes::MODEL1);
 
-        let world = World::new(7,5);
-        let camera = Camera::default();
+        let world = World::new(9,5);
+        let camera = Camera{
+            position: Vec2::new(0.0, 1.0),
+            ..Camera::default()
+        };
 
         let mvp_location = gl.get_uniform_location(&program, "mvp").unwrap();
         let color_location = gl.get_uniform_location(&program, "color").unwrap();
@@ -165,8 +168,8 @@ impl Game {
 
         self.camera.calc_aspect(width, height);
         self.camera.scale = {
-            let (_, h) = self.world.get_size();
-            h * 0.65
+            let (w, h) = self.world.get_size();
+            f32::max((w / self.camera.aspect) * 0.7, h * 0.6)
         };
         //self.gl.uniform_matrix4fv_with_f32_array(Some(&self.mvp_location), false, &self.camera.to_matrix().to_cols_array());
     }
