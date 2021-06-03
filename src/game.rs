@@ -66,7 +66,6 @@ impl Hexagon {
         }
         false
     }
-
 }
 
 pub struct Game {
@@ -102,7 +101,7 @@ impl Game {
         //console_log!("{:?}", crate::renderer::meshes::MODEL1);
 
         let camera = Camera {
-            scale: 2.0,
+            scale: 12.0,
             ..Camera::default()
         };
 
@@ -143,14 +142,29 @@ impl Game {
         //    Vec3::new(self.hexagon.radius, self.hexagon.radius, self.hexagon.radius),
         //    Quat::from_rotation_z(self.hexagon.rotation),
         //    self.hexagon.position.extend(0.0));
-        let obj_mat = Mat4::IDENTITY;
-        self.gl.uniform_matrix4fv_with_f32_array(Some(&self.obj_location), false, &obj_mat.to_cols_array());
-        self.gl.uniform4f(Some(&self.color_location), 1.0, 0.8, 0.8, 1.0);
+       //let obj_mat = Mat4::IDENTITY;
+       //self.gl.uniform_matrix4fv_with_f32_array(Some(&self.obj_location), false, &obj_mat.to_cols_array());
+       //self.gl.uniform4f(Some(&self.color_location), 1.0, 0.8, 0.8, 1.0);
 
-        self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
+       //self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
 
-        self.gl.uniform4f(Some(&self.color_location), 0.8, 1.0, 0.8, 1.0);
-        self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::MODEL1);
+        let rng = fastrand::Rng::with_seed(1337);
+        for y in -7..=7 {
+            let offset = (y & 1) as f32 * f32::cos(std::f32::consts::FRAC_PI_6);
+            for x in -(5 + (y & 1))..=5 {
+                let obj_mat = Mat4::from_translation(Vec3::new(
+                    offset + (2.0 * f32::cos(std::f32::consts::FRAC_PI_6)) * x as f32,
+                    (1.0 + f32::sin(std::f32::consts::FRAC_PI_6)) * y as f32,
+                    0.0));
+                self.gl.uniform_matrix4fv_with_f32_array(Some(&self.obj_location), false, &obj_mat.to_cols_array());
+                self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
+
+                self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
+            }
+        }
+
+        //self.gl.uniform4f(Some(&self.color_location), 0.8, 1.0, 0.8, 1.0);
+        //self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::MODEL1);
     }
 
 }

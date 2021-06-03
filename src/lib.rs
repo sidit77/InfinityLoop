@@ -75,7 +75,6 @@ pub fn main_js() -> Result<(), JsValue> {
                 game.borrow_mut().resize(width, height);
             }
         }
-
         let dt = performance.now() - time;
         time = performance.now();
 
