@@ -2,9 +2,11 @@ use crate::camera::Camera;
 use web_sys::{WebGl2RenderingContext, WebGlUniformLocation};
 use crate::shader::compile_program;
 use glam::{Quat, Mat4, Vec2, Vec3Swizzles, Vec3};
-use bytemuck::{Pod, Zeroable};
 use crate::meshes;
 use std::ops::Range;
+
+const SIN_FRAC_PI_6: f32 = 0.5;
+const COS_FRAC_PI_6: f32 = 0.86602540378;
 
 struct Triangle(Vec2, Vec2, Vec2);
 
@@ -22,13 +24,6 @@ impl Triangle {
         }
         return s >= 0.0 && t >= 0.0 && s+t <= d;
     }
-}
-
-#[repr(C)]
-#[derive(Debug, Default, Copy, Clone, Pod, Zeroable)]
-struct Vertex {
-    x: f32,
-    y: f32
 }
 
 struct Hexagon {
@@ -81,6 +76,7 @@ struct World {
 }
 
 impl World {
+
     fn new(rows: u32, width: u32) -> Self {
         Self {
             rows,
@@ -92,30 +88,25 @@ impl World {
         0..self.elements.len()
     }
     fn get_xy(&self, index: usize) -> (u32, u32) {
-        let mut x = index as u32;
-        let mut i = 0;
-        loop {
-            if x < self.width {
-                return (x, i);
-            } else {
-                i += 1;
-                x -= self.width;
-            }
-            if x < self.width + 1 {
-                return (x, i);
-            } else {
-                i += 1;
-                x -= self.width + 1;
-            }
+        let div = index as u32 / (2 * self.width + 1);
+        let rem = index as u32 % (2 * self.width + 1);
+
+        if rem < self.width {
+            (rem, 2 * div)
+        } else {
+            (rem - self.width, 2 * div + 1)
         }
     }
     fn get_position(&self, index: usize) -> Vec2{
         let (x, y) = self.get_xy(index);
-        let offset = -((y % 2) as f32) * f32::cos(std::f32::consts::FRAC_PI_6);
+        let offset = -((y % 2) as f32) * COS_FRAC_PI_6;
         Vec2::new(
-            offset + (2.0 * f32::cos(std::f32::consts::FRAC_PI_6)) * x as f32,
-            (1.0 + f32::sin(std::f32::consts::FRAC_PI_6)) * y as f32
+            (-0.5 * self.width as f32 - 1.0) + (2.0 * COS_FRAC_PI_6) * x as f32 + offset,
+            (-0.5 * self.rows  as f32 - 1.0) + (1.0 + SIN_FRAC_PI_6) * y as f32
         )
+    }
+    fn get_size(&self) -> (f32, f32) {
+        ((2.0 * COS_FRAC_PI_6) * self.width as f32, (1.0 + SIN_FRAC_PI_6) * self.rows as f32)
     }
     fn get_element(&mut self, index: usize) -> &mut WorldElement {
         &mut self.elements[index]
@@ -126,7 +117,6 @@ pub struct Game {
     gl: WebGl2RenderingContext,
     camera: Camera,
     mvp_location: WebGlUniformLocation,
-    obj_location: WebGlUniformLocation,
     color_location: WebGlUniformLocation,
     world: World
 }
@@ -154,22 +144,18 @@ impl Game {
 
         //console_log!("{:?}", crate::renderer::meshes::MODEL1);
 
-        let camera = Camera {
-            scale: 12.0,
-            ..Camera::default()
-        };
+        let world = World::new(7,5);
+        let camera = Camera::default();
 
-        let mvp_location = gl.get_uniform_location(&program, "cam").unwrap();
-        let obj_location = gl.get_uniform_location(&program, "obj").unwrap();
+        let mvp_location = gl.get_uniform_location(&program, "mvp").unwrap();
         let color_location = gl.get_uniform_location(&program, "color").unwrap();
 
         Ok(Self {
             gl,
             camera,
             mvp_location,
-            obj_location,
             color_location,
-            world: World::new(7, 5)
+            world
         })
     }
 
@@ -177,15 +163,17 @@ impl Game {
         self.gl.viewport(0, 0, width as i32, height as i32);
 
         self.camera.calc_aspect(width, height);
-        self.gl.uniform_matrix4fv_with_f32_array(Some(&self.mvp_location), false, &self.camera.to_matrix().to_cols_array());
+        self.camera.scale = {
+            let (_, h) = self.world.get_size();
+            h * 0.65
+        };
+        //self.gl.uniform_matrix4fv_with_f32_array(Some(&self.mvp_location), false, &self.camera.to_matrix().to_cols_array());
     }
 
     pub fn mouse_down(&mut self, x: f32, y: f32) {
         let point = Vec3::new(2.0 * x - 1.0, 2.0 * (1.0 - y) - 1.0, 0.0);
         let point = self.camera.to_matrix().inverse().transform_point3(point);
-        //if self.hexagon.contains(point.xy()){
-        //    self.hexagon.rotation -= 0.1;
-        //}
+
         for i in self.world.indices() {
             let hex = Hexagon{
                 position: self.world.get_position(i),
@@ -202,45 +190,20 @@ impl Game {
         self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
         self.gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 
-        //let obj_mat = Mat4::from_scale_rotation_translation(
-        //    Vec3::new(self.hexagon.radius, self.hexagon.radius, self.hexagon.radius),
-        //    Quat::from_rotation_z(self.hexagon.rotation),
-        //    self.hexagon.position.extend(0.0));
-       //let obj_mat = Mat4::IDENTITY;
-       //self.gl.uniform_matrix4fv_with_f32_array(Some(&self.obj_location), false, &obj_mat.to_cols_array());
-       //self.gl.uniform4f(Some(&self.color_location), 1.0, 0.8, 0.8, 1.0);
-
-       //self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
 
         let rng = fastrand::Rng::with_seed(1337);
-        //for y in -6..=6 {
-        //    let offset = (y & 1) as f32 * f32::cos(std::f32::consts::FRAC_PI_6);
-        //    for x in -(5 + (y & 1))..=5 {
-        //        let obj_mat = Mat4::from_translation(Vec3::new(
-        //            offset + (2.0 * f32::cos(std::f32::consts::FRAC_PI_6)) * x as f32,
-        //            (1.0 + f32::sin(std::f32::consts::FRAC_PI_6)) * y as f32,
-        //            0.0));
-        //        self.gl.uniform_matrix4fv_with_f32_array(Some(&self.obj_location), false, &obj_mat.to_cols_array());
-        //        self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
-//
-        //        self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
-        //    }
-        //}
 
         for i in self.world.indices() {
-            let obj_mat = Mat4::from_rotation_translation(
+            let obj_mat = self.camera.to_matrix() * Mat4::from_rotation_translation(
                 Quat::from_rotation_z(-std::f32::consts::FRAC_PI_3 * self.world.get_element(i).rotation as f32),
                 self.world.get_position(i).extend(0.0)
             );
-            self.gl.uniform_matrix4fv_with_f32_array(Some(&self.obj_location), false, &obj_mat.to_cols_array());
+            self.gl.uniform_matrix4fv_with_f32_array(Some(&self.mvp_location), false, &obj_mat.to_cols_array());
             self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
             self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
             self.gl.uniform4f(Some(&self.color_location), 0.0, 0.0, 0.0, 1.0);
             self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::MODEL1);
         }
-
-        //self.gl.uniform4f(Some(&self.color_location), 0.8, 1.0, 0.8, 1.0);
-        //self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::MODEL1);
     }
 
 }
