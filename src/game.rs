@@ -88,63 +88,37 @@ impl World {
             elements: vec![Default::default(); (rows * width + (rows / 2)) as usize].into_boxed_slice()
         }
     }
-
-}
-
-impl<'a> IntoIterator for &'a World {
-    type Item = (Vec2, &'a WorldElement);
-    type IntoIter = WorldIter<'a>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        WorldIter::new(self)
+    fn indices(&self) -> Range<usize> {
+        0..self.elements.len()
     }
-}
-
-#[derive(Debug)]
-struct WorldIter<'a>{
-    world: &'a World,
-    index: usize,
-    x: u32,
-    y: u32
-}
-
-impl<'a> WorldIter<'a> {
-    fn new(world: &'a World) -> Self {
-        Self {
-            world,
-            index: 0,
-            x: 0,
-            y: 0
+    fn get_xy(&self, index: usize) -> (u32, u32) {
+        let mut x = index as u32;
+        let mut i = 0;
+        loop {
+            if x < self.width {
+                return (x, i);
+            } else {
+                i += 1;
+                x -= self.width;
+            }
+            if x < self.width + 1 {
+                return (x, i);
+            } else {
+                i += 1;
+                x -= self.width + 1;
+            }
         }
     }
-}
-
-static TEST: WorldElement = WorldElement {
-    rotation: 0
-};
-
-impl<'a> Iterator for WorldIter<'a> {
-    type Item = (Vec2, &'a WorldElement);
-
-    fn next(&mut self) -> Option<Self::Item> {
-
-        if self.x >= self.world.width + (self.y % 2) {
-            self.x = 0;
-            self.y += 1;
-        }
-        if self.y >= self.world.rows {
-            return None
-        }
-
-        let offset = -((self.y % 2) as f32) * f32::cos(std::f32::consts::FRAC_PI_6);
-        let pos = Vec2::new(
-            offset + (2.0 * f32::cos(std::f32::consts::FRAC_PI_6)) * self.x as f32,
-            (1.0 + f32::sin(std::f32::consts::FRAC_PI_6)) * self.y as f32
-        );
-        self.x += 1;
-        let elem = &self.world.elements[self.index];
-        self.index += 1;
-        Some((pos, elem))
+    fn get_position(&self, index: usize) -> Vec2{
+        let (x, y) = self.get_xy(index);
+        let offset = -((y % 2) as f32) * f32::cos(std::f32::consts::FRAC_PI_6);
+        Vec2::new(
+            offset + (2.0 * f32::cos(std::f32::consts::FRAC_PI_6)) * x as f32,
+            (1.0 + f32::sin(std::f32::consts::FRAC_PI_6)) * y as f32
+        )
+    }
+    fn get_element(&mut self, index: usize) -> &mut WorldElement {
+        &mut self.elements[index]
     }
 }
 
@@ -154,7 +128,6 @@ pub struct Game {
     mvp_location: WebGlUniformLocation,
     obj_location: WebGlUniformLocation,
     color_location: WebGlUniformLocation,
-    hexagon: Hexagon,
     world: World
 }
 
@@ -196,7 +169,6 @@ impl Game {
             mvp_location,
             obj_location,
             color_location,
-            hexagon: Default::default(),
             world: World::new(7, 5)
         })
     }
@@ -211,8 +183,18 @@ impl Game {
     pub fn mouse_down(&mut self, x: f32, y: f32) {
         let point = Vec3::new(2.0 * x - 1.0, 2.0 * (1.0 - y) - 1.0, 0.0);
         let point = self.camera.to_matrix().inverse().transform_point3(point);
-        if self.hexagon.contains(point.xy()){
-            self.hexagon.rotation -= 0.1;
+        //if self.hexagon.contains(point.xy()){
+        //    self.hexagon.rotation -= 0.1;
+        //}
+        for i in self.world.indices() {
+            let hex = Hexagon{
+                position: self.world.get_position(i),
+                rotation: 0.0,
+                radius: 1.0
+            };
+            if hex.contains(point.xy()) {
+                self.world.get_element(i).rotation += 1;
+            }
         }
     }
 
@@ -245,12 +227,16 @@ impl Game {
         //    }
         //}
 
-        for (pos, _) in &self.world {
-            let obj_mat = Mat4::from_translation(pos.extend(0.0));
+        for i in self.world.indices() {
+            let obj_mat = Mat4::from_rotation_translation(
+                Quat::from_rotation_z(-std::f32::consts::FRAC_PI_3 * self.world.get_element(i).rotation as f32),
+                self.world.get_position(i).extend(0.0)
+            );
             self.gl.uniform_matrix4fv_with_f32_array(Some(&self.obj_location), false, &obj_mat.to_cols_array());
             self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
-
             self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
+            self.gl.uniform4f(Some(&self.color_location), 0.0, 0.0, 0.0, 1.0);
+            self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::MODEL1);
         }
 
         //self.gl.uniform4f(Some(&self.color_location), 0.8, 1.0, 0.8, 1.0);
