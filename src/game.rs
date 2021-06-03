@@ -194,15 +194,16 @@ impl Game {
 
         let rng = fastrand::Rng::with_seed(1337);
 
+        self.gl.uniform4f(Some(&self.color_location), 0.9, 0.9, 0.9, 1.0);
         for i in self.world.indices() {
             let obj_mat = self.camera.to_matrix() * Mat4::from_rotation_translation(
                 Quat::from_rotation_z(-std::f32::consts::FRAC_PI_3 * self.world.get_element(i).rotation as f32),
                 self.world.get_position(i).extend(0.0)
             );
             self.gl.uniform_matrix4fv_with_f32_array(Some(&self.mvp_location), false, &obj_mat.to_cols_array());
-            self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
-            self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
-            self.gl.uniform4f(Some(&self.color_location), 0.0, 0.0, 0.0, 1.0);
+            //self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
+            //self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
+            //self.gl.uniform4f(Some(&self.color_location), 0.0, 0.0, 0.0, 1.0);
             self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, match rng.u8(0..2) {
                 0 => meshes::MODEL1,
                 1 => meshes::MODEL2,
