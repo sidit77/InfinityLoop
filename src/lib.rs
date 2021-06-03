@@ -50,8 +50,8 @@ pub fn main_js() -> Result<(), JsValue> {
                 .dyn_into::<web_sys::HtmlCanvasElement>()
                 .unwrap();
             game.borrow_mut().mouse_down(
-                event.client_x() as f32 / canvas.width() as f32,
-                event.client_y() as f32 / canvas.height() as f32
+                event.client_x() as f32 / canvas.client_width() as f32,
+                event.client_y() as f32 / canvas.client_height() as f32
             );
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback("mousedown", closure.as_ref().unchecked_ref())?;
@@ -64,8 +64,9 @@ pub fn main_js() -> Result<(), JsValue> {
     let mut time = performance.now();
     *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
         {
-            let width = canvas.client_width() as u32;
-            let height = canvas.client_height() as u32;
+            let dpi = window.device_pixel_ratio() as f32;
+            let width = (canvas.client_width() as f32 * dpi) as u32;
+            let height = (canvas.client_height() as f32 * dpi) as u32 ;
 
             if width != canvas.width() || height != canvas.height(){
                 canvas.set_width(width);
