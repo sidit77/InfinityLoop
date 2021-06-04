@@ -5,3 +5,4 @@ pub const HEXAGON: std::ops::Range<i32> = 0..12;
 pub const MODEL1: std::ops::Range<i32> = 12..204;
 pub const MODEL2: std::ops::Range<i32> = 204..390;
 pub const MODEL3: std::ops::Range<i32> = 390..396;
+pub const MODEL4: std::ops::Range<i32> = 396..768;

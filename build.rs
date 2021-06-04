@@ -92,6 +92,22 @@ fn main() -> Result<()> {
         writeln!(module_file, "pub const MODEL3: std::ops::Range<i32> = {}..{};", start, index)?;
     }
 
+    {
+        let start = index;
+
+        let radius = (hexagon_corner(0) - hexagon_corner(1)).length() * 0.5;
+
+        let circle = draw_arc(hexagon_corner(1), radius, PI..=(1.65 * PI), LINE_THICKNESS, 30);
+        index += circle.len();
+        mesh_file.write_all(bytemuck::cast_slice(circle.as_slice()))?;
+
+        let circle = draw_arc(hexagon_corner(2), radius, (4.0/3.0 * PI)..=(2.0 * PI), LINE_THICKNESS, 30);
+        index += circle.len();
+        mesh_file.write_all(bytemuck::cast_slice(circle.as_slice()))?;
+
+        writeln!(module_file, "pub const MODEL4: std::ops::Range<i32> = {}..{};", start, index)?;
+    }
+
     println!("cargo:rerun-if-changed=build.rs");
     Ok(())
 }
