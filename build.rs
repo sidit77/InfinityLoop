@@ -72,6 +72,26 @@ fn main() -> Result<()> {
         writeln!(module_file, "pub const MODEL2: std::ops::Range<i32> = {}..{};", start, index)?;
     }
 
+    {
+        let start = index;
+
+        let line_1 = (hexagon_corner(0) + hexagon_corner(1)) / 2.0;
+        let line_2 = (hexagon_corner(3) + hexagon_corner(4)) / 2.0;
+        let extrude = (hexagon_corner(0) - hexagon_corner(1)).normalize() * (LINE_THICKNESS * 0.5);
+
+        mesh_file.write_all(bytemuck::bytes_of(&(line_1 - extrude)))?;
+        mesh_file.write_all(bytemuck::bytes_of(&(line_1 + extrude)))?;
+        mesh_file.write_all(bytemuck::bytes_of(&(line_2 + extrude)))?;
+        index += 3;
+
+        mesh_file.write_all(bytemuck::bytes_of(&(line_1 - extrude)))?;
+        mesh_file.write_all(bytemuck::bytes_of(&(line_2 + extrude)))?;
+        mesh_file.write_all(bytemuck::bytes_of(&(line_2 - extrude)))?;
+        index += 3;
+
+        writeln!(module_file, "pub const MODEL3: std::ops::Range<i32> = {}..{};", start, index)?;
+    }
+
     println!("cargo:rerun-if-changed=build.rs");
     Ok(())
 }
