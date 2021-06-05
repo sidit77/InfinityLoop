@@ -204,9 +204,9 @@ impl Game {
                 self.world.get_position(i).extend(0.0)
             );
             self.gl.uniform_matrix4fv_with_f32_array(Some(&self.mvp_location), false, &obj_mat.to_cols_array());
-            self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
-            self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
-            self.gl.uniform4f(Some(&self.color_location), 0.0, 0.0, 0.0, 1.0);
+            //self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
+            //self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
+            //self.gl.uniform4f(Some(&self.color_location), 0.0, 0.0, 0.0, 1.0);
             self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, match rng.u8(0..7) {
                 0 => meshes::MODEL1,
                 1 => meshes::MODEL2,
