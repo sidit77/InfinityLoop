@@ -7,3 +7,4 @@ pub const MODEL2: std::ops::Range<i32> = 204..390;
 pub const MODEL3: std::ops::Range<i32> = 390..396;
 pub const MODEL4: std::ops::Range<i32> = 396..768;
 pub const MODEL5: std::ops::Range<i32> = 768..1512;
+pub const MODEL6: std::ops::Range<i32> = 1512..1698;
