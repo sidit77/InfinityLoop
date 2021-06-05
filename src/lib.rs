@@ -21,6 +21,8 @@ mod shader;
 mod camera;
 mod game;
 mod meshes;
+mod intersection;
+mod world;
 
 fn request_animation_frame(f: &Closure<dyn FnMut()>) {
     web_sys::window().unwrap()
