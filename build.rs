@@ -108,21 +108,54 @@ fn main() -> Result<()> {
         writeln!(module_file, "pub const MODEL4: std::ops::Range<i32> = {}..{};", start, index)?;
     }
 
+    {
+        let start = index;
+
+        let radius = (hexagon_corner(0) - hexagon_corner(1)).length() * 0.5;
+
+        let circle = draw_arc(hexagon_corner(1), radius, PI..=(1.65 * PI), LINE_THICKNESS, 30);
+        index += circle.len();
+        mesh_file.write_all(bytemuck::cast_slice(circle.as_slice()))?;
+
+        let circle = draw_arc(hexagon_corner(4), radius, 0.0..=(2.0 / 3.0 * PI), LINE_THICKNESS, 30);
+        index += circle.len();
+        mesh_file.write_all(bytemuck::cast_slice(circle.as_slice()))?;
+
+        let circle = draw_arc(
+            hexagon_corner(2) + hexagon_corner(3),
+            1.0 + radius, (5.0 / 3.0 * PI)..=(2.0 * PI), LINE_THICKNESS, 30);
+        index += circle.len();
+        mesh_file.write_all(bytemuck::cast_slice(circle.as_slice()))?;
+
+        let circle = draw_arc(
+            hexagon_corner(5) + hexagon_corner(0),
+            1.0 + radius, (2.0 / 3.0 * PI)..=(1.0 * PI), LINE_THICKNESS, 30);
+        index += circle.len();
+        mesh_file.write_all(bytemuck::cast_slice(circle.as_slice()))?;
+
+        writeln!(module_file, "pub const MODEL5: std::ops::Range<i32> = {}..{};", start, index)?;
+    }
+
     println!("cargo:rerun-if-changed=build.rs");
     Ok(())
 }
 
 fn draw_arc(center: Vec2, radius: f32, angle: RangeInclusive<f32>, thickness: f32, steps: u32) -> Vec<Vec2> {
     let mut result = Vec::new();
-    let advance = (angle.end() - angle.start()) / steps as f32;
 
-    let mut current = *angle.start();
-    for _ in 0..=steps {
+    let pos = | i | {
+        if i == steps {
+            *angle.end()
+        } else {
+            angle.start() + (angle.end() - angle.start()) * (i as f32 / steps as f32)
+        }
+    };
 
-        let p_0 = center + Vec2::from(f32::sin_cos(current + 0.0 * advance)) * (radius + thickness * 0.5);
-        let p_1 = center + Vec2::from(f32::sin_cos(current + 1.0 * advance)) * (radius + thickness * 0.5);
-        let p_2 = center + Vec2::from(f32::sin_cos(current + 1.0 * advance)) * (radius - thickness * 0.5);
-        let p_3 = center + Vec2::from(f32::sin_cos(current + 0.0 * advance)) * (radius - thickness * 0.5);
+    for i in 0..=steps {
+        let p_0 = center + Vec2::from(f32::sin_cos(pos(i + 0))) * (radius + thickness * 0.5);
+        let p_1 = center + Vec2::from(f32::sin_cos(pos(i + 1))) * (radius + thickness * 0.5);
+        let p_2 = center + Vec2::from(f32::sin_cos(pos(i + 1))) * (radius - thickness * 0.5);
+        let p_3 = center + Vec2::from(f32::sin_cos(pos(i + 0))) * (radius - thickness * 0.5);
 
         result.push(p_0);
         result.push(p_1);
@@ -132,7 +165,6 @@ fn draw_arc(center: Vec2, radius: f32, angle: RangeInclusive<f32>, thickness: f3
         result.push(p_2);
         result.push(p_3);
 
-        current += advance;
     }
 
     result
