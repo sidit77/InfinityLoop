@@ -207,13 +207,14 @@ impl Game {
             self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
             self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
             self.gl.uniform4f(Some(&self.color_location), 0.0, 0.0, 0.0, 1.0);
-            self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, match rng.u8(0..6) {
+            self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, match rng.u8(0..7) {
                 0 => meshes::MODEL1,
                 1 => meshes::MODEL2,
                 2 => meshes::MODEL3,
                 3 => meshes::MODEL4,
                 4 => meshes::MODEL5,
                 5 => meshes::MODEL6,
+                6 => meshes::MODEL7,
                 _ => meshes::HEXAGON
             });
         }
