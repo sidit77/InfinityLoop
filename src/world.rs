@@ -29,6 +29,17 @@ impl TileType {
             TileType::Tile0134 => MODEL5
         }
     }
+    pub fn endings(&self) -> [bool; 6] {
+        match self {
+            TileType::Tile0 => [true, false, false, false, false, false],
+            TileType::Tile01 => [true, true, false, false, false, false],
+            TileType::Tile02 => [true, false, true, false, false, false],
+            TileType::Tile03 => [true, false, false, true, false, false],
+            TileType::Tile012 => [true, true, true, false, false, false],
+            TileType::Tile024 => [true, false, true, false, true, false],
+            TileType::Tile0134 => [true, true, false, true, true, false],
+        }
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -44,6 +55,92 @@ pub struct World {
     elements: Box<[Option<WorldElement>]>
 }
 
+fn build_symmetries(tile_type: TileType) -> Vec<u8> {
+    let endings = tile_type.endings();
+    let mut result = Vec::new();
+    for i in 0..endings.len() {
+        if !result.iter().any(|j| {
+            for x in 0..endings.len() {
+                if endings[(x + i as usize) % endings.len()] != endings[(x + *j as usize) % endings.len()]{
+                    return false;
+                }
+            }
+            true
+        }) {
+            result.push(i as u8);
+        }
+    }
+    result
+}
+
+fn build_table() -> Vec<Option<WorldElement>>{
+    let tile_types = [
+        TileType::Tile0,
+        TileType::Tile01,
+        TileType::Tile02,
+        TileType::Tile03,
+        TileType::Tile012,
+        TileType::Tile024,
+        TileType::Tile0134
+    ];
+
+    let mut result = Vec::new();
+
+    for tile_type in &tile_types {
+        let tile_type = *tile_type;
+        for rotation in build_symmetries(tile_type) {
+            result.push(Some(WorldElement {
+                tile_type,
+                rotation
+            }))
+        }
+    }
+    result.push(None);
+
+    result
+}
+
+fn get_endings(elem: Option<WorldElement>) -> [bool; 6] {
+    match elem {
+        None => [false; 6],
+        Some(elem) => {
+            let mut result = [false; 6];
+            let endings = elem.tile_type.endings();
+            for i in 0..6 {
+                result[(i + elem.rotation as usize) % result.len()] = endings[i];
+            }
+            result
+        }
+    }
+}
+
+fn build_adjacency_lists(table: &Vec<Option<WorldElement>>) -> Vec<[Vec<usize>; 6]>{
+
+    let mut result = Vec::new();
+
+    for i in 0..table.len() {
+        let mut lists: [Vec<_>; 6] = Default::default();
+
+        for j in 0..lists.len() {
+
+            for k in 0..table.len() {
+
+                let elem1 = get_endings(table[i]);
+                let elem2 = get_endings(table[k]);
+
+                if elem1[j] == elem2[(j + 3) % elem2.len()]{
+                    lists[j].push(k);
+                }
+            }
+
+        }
+
+        result.push(lists);
+    }
+
+    result
+}
+
 impl World {
 
     fn new(rows: u32, width: u32) -> Self {
@@ -57,6 +154,29 @@ impl World {
     pub fn from_seed(seed: u64) -> Self{
         let rng = fastrand::Rng::with_seed(seed);
         let mut world = World::new(9, 5);
+
+        let table = build_table();
+        let adjacency_lists = build_adjacency_lists(&table);
+
+        //for i in 0..table.len() {
+        //    console_log!("{}: {:?}", i, table[i]);
+        //}
+
+        let elem= world.elements.len() / 2;
+        let item = rng.usize(0..table.len());
+        //console_log!("current element: {}", item);
+        *world.get_element(elem) = table[item];
+        //console_log!("endings: {:?}", get_endings(table[item]));
+        for (i, n) in world.get_neighbors(elem).iter().enumerate() {
+            if let Some(n) = *n {
+                let al = &adjacency_lists[item][i];
+                //console_log!("al {}: {:?}", i, al);
+                let select = al[rng.usize(0..al.len())];
+                //console_log!("picked {}", select);
+                *world.get_element(n) = table[select];
+            }
+        }
+
 
         //for i in world.indices() {
         //    *world.get_element(i) = Some(WorldElement {
@@ -74,6 +194,7 @@ impl World {
         //    });
         //}
 
+        /*
         let mut visited = HashSet::new();
         let mut queue = VecDeque::new();
         queue.push_back(world.elements.len() / 2);
@@ -82,26 +203,26 @@ impl World {
             match queue.pop_front() {
                 None => break,
                 Some(elem) => {
-                    *world.get_element(elem) = Some(WorldElement {
-                        tile_type: match rng.u8(0..7) {
-                            0 => TileType::Tile0,
-                            1 => TileType::Tile01,
-                            2 => TileType::Tile02,
-                            3 => TileType::Tile03,
-                            4 => TileType::Tile012,
-                            5 => TileType::Tile024,
-                            6 => TileType::Tile0134,
-                            _ => unreachable!()
-                        },
-                        rotation: 0
-                    });
-                    visited.insert(elem);
-                    let (x,y) = world.get_xy(elem);
-                    let (x, y) = (x as i32, y as i32);
-                    let dx = -2 * (y & 1) as i32 + 1;
-                    for (nx, ny) in &[(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1), (x + dx, y + 1), (x + dx, y - 1)] {
-                        if let Some(i) = world.get_index(*nx, *ny) {
-                            if !visited.contains(&i) {
+                    if !visited.contains(&elem) {
+                        *world.get_element(elem) = Some(WorldElement {
+                            tile_type: match rng.u8(0..7) {
+                                0 => TileType::Tile0,
+                                1 => TileType::Tile01,
+                                2 => TileType::Tile02,
+                                3 => TileType::Tile03,
+                                4 => TileType::Tile012,
+                                5 => TileType::Tile024,
+                                6 => TileType::Tile0134,
+                                _ => unreachable!()
+                            },
+                            rotation: 0
+                        });
+                        visited.insert(elem);
+                        let (x,y) = world.get_xy(elem);
+                        let (x, y) = (x as i32, y as i32);
+                        let dx = -2 * (y & 1) as i32 + 1;
+                        for (nx, ny) in &[(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1), (x + dx, y + 1), (x + dx, y - 1)] {
+                            if let Some(i) = world.get_index(*nx, *ny) {
                                 queue.push_back(i);
                             }
                         }
@@ -109,11 +230,32 @@ impl World {
                 }
             }
         }
-
+        */
         world
     }
 
-
+    pub fn get_neighbors(&self, index: usize) -> [Option<usize>; 6] {
+        let (x, y) = self.get_xy(index);
+        if y % 2 == 0 {
+            [
+                self.get_index(x + 1, y + 1),
+                self.get_index(x + 1, y),
+                self.get_index(x + 1, y - 1),
+                self.get_index(x, y - 1),
+                self.get_index(x - 1, y),
+                self.get_index(x, y + 1)
+            ]
+        } else {
+            [
+                self.get_index(x, y + 1),
+                self.get_index(x + 1, y),
+                self.get_index(x, y - 1),
+                self.get_index(x - 1, y - 1),
+                self.get_index(x - 1, y),
+                self.get_index(x - 1, y + 1)
+            ]
+        }
+    }
     pub fn indices(&self) -> Range<usize> {
         0..self.elements.len()
     }
@@ -128,14 +270,14 @@ impl World {
             None
         }
     }
-    pub fn get_xy(&self, index: usize) -> (u32, u32) {
-        let div = index as u32 / (2 * self.width + 1);
-        let rem = index as u32 % (2 * self.width + 1);
+    pub fn get_xy(&self, index: usize) -> (i32, i32) {
+        let div = index as i32 / (2 * self.width as i32 + 1);
+        let rem = index as i32 % (2 * self.width as i32 + 1);
 
-        if rem < self.width {
+        if rem < self.width as i32 {
             (rem, 2 * div)
         } else {
-            (rem - self.width, 2 * div + 1)
+            (rem - self.width as i32, 2 * div + 1)
         }
     }
     pub fn get_position(&self, index: usize) -> Vec2{

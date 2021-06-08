@@ -12,7 +12,8 @@ pub struct Game {
     camera: Camera,
     mvp_location: WebGlUniformLocation,
     color_location: WebGlUniformLocation,
-    world: World
+    world: World,
+    rng: fastrand::Rng
 }
 
 impl Game {
@@ -53,7 +54,8 @@ impl Game {
             camera,
             mvp_location,
             color_location,
-            world
+            world,
+            rng: fastrand::Rng::with_seed(1337)
         })
     }
 
@@ -69,6 +71,7 @@ impl Game {
     }
 
     pub fn mouse_down(&mut self, x: f32, y: f32) {
+        /*
         let point = Vec3::new(2.0 * x - 1.0, 2.0 * (1.0 - y) - 1.0, 0.0);
         let point = self.camera.to_matrix().inverse().transform_point3(point);
 
@@ -86,6 +89,8 @@ impl Game {
             }
 
         }
+        */
+        self.world = World::from_seed(self.rng.u64(0..9999))
     }
 
     pub fn render(&mut self, _time: f64) {
