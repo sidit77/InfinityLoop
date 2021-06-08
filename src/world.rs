@@ -97,6 +97,8 @@ fn build_table() -> Vec<Option<WorldElement>>{
     }
     result.push(None);
 
+    fastrand::Rng::with_seed(0).shuffle(result.as_mut_slice());
+
     result
 }
 
@@ -177,6 +179,85 @@ impl World {
             }
         }
 
+        let mut possibilities = {
+            let mut vec = Vec::new();
+            for _ in world.indices() {
+                let mut v = Vec::new();
+                for i in 0..table.len() {
+                    v.push(i);
+                }
+                vec.push(v);
+            }
+            vec
+        };
+
+        let lowest_entropy = |vec: &Vec<Vec<usize>>| {
+            let mut set = Vec::new();
+            let mut min = usize::MAX;
+            for i in 0..vec.len() {
+                let l = vec[i].len();
+                if l > 1 {
+                    if l < min {
+                        set.clear();
+                        min = l;
+                    }
+                    if l == min {
+                        set.push(i);
+                    }
+                }
+            }
+            if set.len() == 0 {
+                None
+            } else {
+                Some(set[rng.usize(0..set.len())])
+            }
+        };
+
+        let mut stack = VecDeque::new();
+        loop
+        {
+            match lowest_entropy(&possibilities){
+                None => break,
+                Some(field) => {
+                    let selected = possibilities[field][rng.usize(0..possibilities[field].len())];
+                    possibilities[field].clear();
+                    possibilities[field].push(selected);
+
+                    stack.clear();
+                    stack.push_back(field);
+
+                    console_log!("Collapsed {}", field);
+
+                    loop {
+                        match stack.pop_front() {
+                            None => break,
+                            Some(index) => {
+                                console_log!("Propagating {}", index);
+                                let id = *possibilities[index].first().unwrap();
+                                for (i, n) in world.get_neighbors(index).iter().enumerate() {
+                                    if let Some(n) = *n {
+                                        let prl = possibilities[n].len();
+                                        possibilities[n].retain(|g| adjacency_lists[id][i].contains(g));
+                                        if prl != possibilities[n].len() {
+                                            stack.push_back(n);
+                                        }
+                                    }
+                                }
+
+                            }
+                        }
+                    }
+
+                }
+            }
+
+        }
+
+        console_log!("{:?}", possibilities.iter().map(|v|v.len()).collect::<Vec<usize>>());
+
+        for (i, e) in world.elements.iter_mut().enumerate(){
+            *e = table[*possibilities[i].first().unwrap()];
+        }
 
         //for i in world.indices() {
         //    *world.get_element(i) = Some(WorldElement {
