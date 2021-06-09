@@ -75,11 +75,7 @@ impl Game {
     }
 
     pub fn scramble_level(&mut self) {
-        for i in self.world.indices() {
-            if let Some(elem) = self.world.get_element(i) {
-                elem.rotation = self.rng.u8(0..6);
-            }
-        }
+        self.world.scramble(&self.rng);
     }
 
     pub fn mouse_down(&mut self, x: f32, y: f32) {

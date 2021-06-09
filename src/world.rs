@@ -107,6 +107,13 @@ impl World {
     pub fn get_element(&mut self, index: usize) -> &mut Option<WorldElement> {
         &mut self.elements[index]
     }
+    pub fn scramble(&mut self, rng: &fastrand::Rng){
+        for e in &mut self.elements {
+            if let Some(e) = e {
+                e.rotation = rng.u8(0..6);
+            }
+        }
+    }
 }
 
 
