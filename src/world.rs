@@ -97,8 +97,6 @@ fn build_table() -> Vec<Option<WorldElement>>{
     }
     result.push(None);
 
-    fastrand::Rng::with_seed(0).shuffle(result.as_mut_slice());
-
     result
 }
 
@@ -157,7 +155,11 @@ impl World {
         let rng = fastrand::Rng::with_seed(seed);
         let mut world = World::new(9, 5);
 
-        let table = build_table();
+        let table = {
+            let mut v = build_table();
+            rng.shuffle(v.as_mut_slice());
+            v
+        };
         let adjacency_lists = build_adjacency_lists(&table);
 
         //for i in 0..table.len() {
