@@ -52,7 +52,8 @@ features = [
   'console',
   'MouseEvent',
   'Performance',
-  'CssStyleDeclaration'
+  'CssStyleDeclaration',
+  'HtmlSpanElement'
 ]
 
 

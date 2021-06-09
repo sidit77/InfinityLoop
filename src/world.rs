@@ -52,6 +52,7 @@ pub struct WorldElement {
 
 #[derive(Debug)]
 pub struct World {
+    seed: u64,
     rows: u32,
     width: u32,
     elements: Vec<Option<WorldElement>>
@@ -114,11 +115,15 @@ impl World {
             }
         }
     }
+    pub fn seed(&self) -> u64 {
+        self.seed
+    }
 }
 
 
 #[derive(Debug)]
 struct WaveCollapseWorld {
+    seed: u64,
     rng: fastrand::Rng,
     propagation_stack: VecDeque<usize>,
     rows: u32,
@@ -131,6 +136,7 @@ impl WaveCollapseWorld {
     fn new(rows: u32, width: u32, seed: u64) -> Self {
         let rng = fastrand::Rng::with_seed(seed);
         Self {
+            seed,
             rng,
             propagation_stack: VecDeque::new(),
             rows,
@@ -232,6 +238,7 @@ impl WaveCollapseWorld {
 impl Into<World> for WaveCollapseWorld {
     fn into(self) -> World {
         World {
+            seed: self.seed,
             rows: self.rows,
             width: self.width,
             elements: self.elements

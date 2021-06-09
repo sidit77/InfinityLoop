@@ -39,8 +39,8 @@ pub fn main_js() -> Result<(), JsValue> {
     let window = web_sys::window().unwrap();
     let canvas = window.document().unwrap().get_element_by_id("canvas").unwrap().dyn_into::<web_sys::HtmlCanvasElement>()?;
     let performance = window.performance().unwrap();
-
     let css = window.get_computed_style(&canvas)?.unwrap();
+    let level_span = window.document().unwrap().get_element_by_id("current-level").unwrap().dyn_into::<web_sys::HtmlSpanElement>()?;
 
     let game = Rc::new(RefCell::new(Game::new(
         canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>()?,
@@ -105,6 +105,7 @@ pub fn main_js() -> Result<(), JsValue> {
     let g = f.clone();
 
     let mut time = performance.now();
+    let mut level = None;
     *g.borrow_mut() = Some(Closure::wrap(Box::new(move || {
         {
             let dpi = window.device_pixel_ratio() as f32;
@@ -115,7 +116,6 @@ pub fn main_js() -> Result<(), JsValue> {
                 canvas.set_width(width);
                 canvas.set_height(height);
 
-
                 game.borrow_mut().resize(width, height);
             }
         }
@@ -123,6 +123,14 @@ pub fn main_js() -> Result<(), JsValue> {
         time = performance.now();
 
         game.borrow_mut().render(dt);
+
+        {
+            let nl = Some(game.borrow_mut().world().seed());
+            if nl != level {
+                level = nl;
+                level_span.set_inner_text(format!("#{}", level.unwrap()).as_str());
+            }
+        }
 
         request_animation_frame(f.borrow().as_ref().unwrap());
     }) as Box<dyn FnMut()>));

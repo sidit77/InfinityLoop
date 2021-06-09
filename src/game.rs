@@ -132,6 +132,10 @@ impl Game {
         }
     }
 
+    pub fn world(&self) -> &World {
+        &self.world
+    }
+
 }
 
 trait DrawRange {
