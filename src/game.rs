@@ -70,8 +70,19 @@ impl Game {
         //self.gl.uniform_matrix4fv_with_f32_array(Some(&self.mvp_location), false, &self.camera.to_matrix().to_cols_array());
     }
 
+    pub fn new_level(&mut self){
+        self.world = World::from_seed(self.rng.u64(0..9999));
+    }
+
+    pub fn scramble_level(&mut self) {
+        for i in self.world.indices() {
+            if let Some(elem) = self.world.get_element(i) {
+                elem.rotation = self.rng.u8(0..6);
+            }
+        }
+    }
+
     pub fn mouse_down(&mut self, x: f32, y: f32) {
-        /*
         let point = Vec3::new(2.0 * x - 1.0, 2.0 * (1.0 - y) - 1.0, 0.0);
         let point = self.camera.to_matrix().inverse().transform_point3(point);
 
@@ -89,8 +100,6 @@ impl Game {
             }
 
         }
-        */
-        self.world = World::from_seed(self.rng.u64(0..9999))
     }
 
     pub fn render(&mut self, _time: f64) {

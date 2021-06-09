@@ -1,7 +1,7 @@
 use std::ops::Range;
 use glam::Vec2;
 use crate::meshes::{MODEL1, MODEL2, MODEL6, MODEL3, MODEL4, MODEL7, MODEL5};
-use std::collections::{VecDeque, HashSet};
+use std::collections::VecDeque;
 
 const SIN_FRAC_PI_6: f32 = 0.5;
 const COS_FRAC_PI_6: f32 = 0.86602540378;

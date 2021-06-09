@@ -55,10 +55,44 @@ pub fn main_js() -> Result<(), JsValue> {
                 event.client_x() as f32 / canvas.client_width() as f32,
                 event.client_y() as f32 / canvas.client_height() as f32
             );
+            event.prevent_default();
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback("mousedown", closure.as_ref().unchecked_ref())?;
         closure.forget();
     }
+
+    {
+        let game = game.clone();
+        let closure = Closure::wrap(Box::new(move || {
+            game.borrow_mut().new_level();
+        }) as Box<dyn FnMut()>);
+        window
+            .document()
+            .expect("should be a document")
+            .get_element_by_id("new-button")
+            .expect("should have a button on the page")
+            .dyn_ref::<web_sys::HtmlElement>()
+            .expect("#new-button be an `HtmlElement`")
+            .set_onclick(Some(closure.as_ref().unchecked_ref()));
+        closure.forget();
+    }
+
+    {
+        let game = game.clone();
+        let closure = Closure::wrap(Box::new(move || {
+            game.borrow_mut().scramble_level();
+        }) as Box<dyn FnMut()>);
+        window
+            .document()
+            .expect("should be a document")
+            .get_element_by_id("scramble-button")
+            .expect("should have a button on the page")
+            .dyn_ref::<web_sys::HtmlElement>()
+            .expect("#scramble-button be an `HtmlElement`")
+            .set_onclick(Some(closure.as_ref().unchecked_ref()));
+        closure.forget();
+    }
+
 
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
