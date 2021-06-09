@@ -60,21 +60,31 @@ impl World {
 
     pub fn from_seed(seed: u64) -> Self{
         let mut wfc = WaveCollapseWorld::new(9, 5, seed);
-        wfc.prepare();
-        loop
-        {
-            match wfc.lowest_entropy(){
-                None => break,
-                Some(index) => {
-                    wfc.collapse(index);
-                    assert!(wfc.valid())
-                }
+
+        'outer: for _ in 0..20 {
+            wfc.prepare();
+            //console_log!("{:?}", wfc.elements.iter().map(|x|x.len()).collect::<Vec<_>>());
+            //assert!(wfc.valid());
+            if !wfc.valid() {
+                continue 'outer;
             }
 
+            loop
+            {
+                match wfc.lowest_entropy(){
+                    None => break,
+                    Some(index) => {
+                        wfc.collapse(index);
+                        if !wfc.valid() {
+                            continue 'outer;
+                        }
+                    }
+                }
+            }
+            return wfc.into()
         }
 
-        wfc.into()
-
+        unreachable!()
     }
 
     pub fn indices(&self) -> Range<usize> {
@@ -127,14 +137,32 @@ impl WaveCollapseWorld {
     }
 
     fn prepare(&mut self) {
+        let empty_element = self.table
+            .iter()
+            .position(|x|x.is_none())
+            .expect("Cannot find the empty element in table");
         self.elements.clear();
-        for _ in 0..(self.rows * self.width + (self.rows / 2)) {
-            let mut v = IndexSet::empty();
-            for i in 0..self.table.len() {
-                v = v.insert(i as u8);
+        let complete_set = (0..self.table.len())
+            .into_iter()
+            .map(|x|IndexSet::singleton(x as u8))
+            .fold(IndexSet::empty(), |acc, x|acc.union(x));
+        for i in 0..(self.rows * self.width + (self.rows / 2)) {
+            let set = self
+                .get_neighbors(i as usize)
+                .iter()
+                .enumerate()
+                .map(|(d, n)| if n.is_none() {
+                    self.adjacency_lists[empty_element][(d + 3) % 6]
+                } else {
+                    complete_set
+                })
+                .fold(IndexSet::full(), |acc, x| acc.inter(x));
+            if set != complete_set {
+                self.propagation_stack.push_back(i as usize);
             }
-            self.elements.push(v);
+            self.elements.push(set);
         }
+        self.propagate();
     }
 
     fn valid(&self) -> bool {
