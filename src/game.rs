@@ -21,6 +21,7 @@ pub struct Game {
     color_location: WebGlUniformLocation,
     world: World,
     rng: fastrand::Rng,
+    finished: bool
 }
 
 impl Game {
@@ -58,6 +59,8 @@ impl Game {
         let mvp_location = gl.get_uniform_location(&program, "mvp").unwrap();
         let color_location = gl.get_uniform_location(&program, "color").unwrap();
 
+        let finished = world.is_completed();
+
         Ok(Self {
             gl,
             style,
@@ -65,7 +68,8 @@ impl Game {
             mvp_location,
             color_location,
             world,
-            rng
+            rng,
+            finished,
         })
     }
 
@@ -82,16 +86,19 @@ impl Game {
 
     pub fn new_level(&mut self){
         self.world = World::from_seed(self.world.seed());
+        self.finished = self.world.is_completed();
     }
 
     pub fn scramble_level(&mut self) {
         self.world.scramble(&self.rng);
+        self.finished = self.world.is_completed();
     }
 
     pub fn mouse_down(&mut self, x: f32, y: f32) {
-        if self.world.is_completed() {
+        if self.finished {
             self.world = World::from_seed(self.world.seed() + 1);
             self.world.scramble(&self.rng);
+            self.finished = self.world.is_completed();
         } else {
             let point = Vec3::new(2.0 * x - 1.0, 2.0 * (1.0 - y) - 1.0, 0.0);
             let point = self.camera.to_matrix().inverse().transform_point3(point);
@@ -110,20 +117,30 @@ impl Game {
                 }
 
             }
+
+            self.finished = self.world.is_completed();
         }
 
     }
 
     pub fn render(&mut self, _time: f64) {
         {
-            let c = self.style.background.as_f32();
-            self.gl.clear_color(c[0], c[1], c[2], c[3]);
+            let bc = self.style.background.as_f32();
+            let fc = self.style.foreground.as_f32();
+            if self.finished {
+                self.gl.clear_color(1.0 - bc[0], 1.0 - bc[1], 1.0 - bc[2], bc[3]);
+                self.gl.uniform4f(Some(&self.color_location), 1.0 - fc[0], 1.0 - fc[1], 1.0 - fc[2], fc[3]);
+            } else {
+                self.gl.clear_color(bc[0], bc[1], bc[2], bc[3]);
+                self.gl.uniform4f(Some(&self.color_location), fc[0], fc[1], fc[2], fc[3]);
+            }
+
         }
         self.gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 
         //let rng = fastrand::Rng::with_seed(1337);
 
-        self.gl.uniform4fv_with_f32_array(Some(&self.color_location), &self.style.foreground.as_f32());
+
         for i in self.world.indices() {
             let position = self.world.get_position(i);
             if let Some(elem) = self.world.get_element(i).as_ref() {
@@ -142,6 +159,10 @@ impl Game {
 
     pub fn world(&self) -> &World {
         &self.world
+    }
+
+    pub fn finished(&self) -> bool {
+        self.finished
     }
 
 }
