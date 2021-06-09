@@ -44,10 +44,12 @@ impl Game {
         gl.vertex_attrib_pointer_with_i32(0, 2, WebGl2RenderingContext::FLOAT, false, 0, 0);
         gl.enable_vertex_attrib_array(0);
 
-
+        let rng = fastrand::Rng::with_seed(1337);
         //console_log!("{:?}", crate::renderer::meshes::MODEL1);
 
-        let world = World::from_seed(1337);
+        let mut world = World::from_seed(1);
+        world.scramble(&rng);
+
         let camera = Camera{
             position: Vec2::new(0.0, 1.0),
             ..Camera::default()
@@ -63,7 +65,7 @@ impl Game {
             mvp_location,
             color_location,
             world,
-            rng: fastrand::Rng::with_seed(1337)
+            rng
         })
     }
 
@@ -79,7 +81,7 @@ impl Game {
     }
 
     pub fn new_level(&mut self){
-        self.world = World::from_seed(self.rng.u64(0..9999));
+        self.world = World::from_seed(self.world.seed());
     }
 
     pub fn scramble_level(&mut self) {
@@ -87,23 +89,29 @@ impl Game {
     }
 
     pub fn mouse_down(&mut self, x: f32, y: f32) {
-        let point = Vec3::new(2.0 * x - 1.0, 2.0 * (1.0 - y) - 1.0, 0.0);
-        let point = self.camera.to_matrix().inverse().transform_point3(point);
+        if self.world.is_completed() {
+            self.world = World::from_seed(self.world.seed() + 1);
+            self.world.scramble(&self.rng);
+        } else {
+            let point = Vec3::new(2.0 * x - 1.0, 2.0 * (1.0 - y) - 1.0, 0.0);
+            let point = self.camera.to_matrix().inverse().transform_point3(point);
 
-        for i in self.world.indices() {
-            let position = self.world.get_position(i);
-            if let Some(elem) = self.world.get_element(i) {
-                let hex = Hexagon{
-                    position,
-                    rotation: 0.0,
-                    radius: 1.0
-                };
-                if hex.contains(point.xy()) {
-                    elem.rotation += 1;
+            for i in self.world.indices() {
+                let position = self.world.get_position(i);
+                if let Some(elem) = self.world.get_element(i) {
+                    let hex = Hexagon{
+                        position,
+                        rotation: 0.0,
+                        radius: 1.0
+                    };
+                    if hex.contains(point.xy()) {
+                        elem.rotation += 1;
+                    }
                 }
-            }
 
+            }
         }
+
     }
 
     pub fn render(&mut self, _time: f64) {

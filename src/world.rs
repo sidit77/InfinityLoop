@@ -1,9 +1,9 @@
-use std::ops::Range;
-use glam::Vec2;
-use crate::meshes::{MODEL1, MODEL2, MODEL6, MODEL3, MODEL4, MODEL7, MODEL5};
-use std::collections::VecDeque;
-use lazy_static::lazy_static;
+use crate::meshes::{MODEL1, MODEL2, MODEL3, MODEL4, MODEL5, MODEL6, MODEL7};
 use enum_iterator::IntoEnumIterator;
+use glam::Vec2;
+use lazy_static::lazy_static;
+use std::collections::VecDeque;
+use std::ops::Range;
 
 const SIN_FRAC_PI_6: f32 = 0.5;
 const COS_FRAC_PI_6: f32 = 0.86602540378;
@@ -28,7 +28,7 @@ impl TileType {
             TileType::Tile03 => MODEL3,
             TileType::Tile012 => MODEL4,
             TileType::Tile024 => MODEL7,
-            TileType::Tile0134 => MODEL5
+            TileType::Tile0134 => MODEL5,
         }
     }
     pub fn endings(&self) -> [bool; 6] {
@@ -47,7 +47,7 @@ impl TileType {
 #[derive(Debug, Copy, Clone)]
 pub struct WorldElement {
     pub tile_type: TileType,
-    pub rotation: u8
+    pub rotation: u8,
 }
 
 #[derive(Debug)]
@@ -55,13 +55,11 @@ pub struct World {
     seed: u64,
     rows: u32,
     width: u32,
-    elements: Vec<Option<WorldElement>>
+    elements: Vec<Option<WorldElement>>,
 }
 
-
 impl World {
-
-    pub fn from_seed(seed: u64) -> Self{
+    pub fn from_seed(seed: u64) -> Self {
         let mut wfc = WaveCollapseWorld::new(9, 5, seed);
 
         'outer: for _ in 0..20 {
@@ -72,9 +70,8 @@ impl World {
                 continue 'outer;
             }
 
-            loop
-            {
-                match wfc.lowest_entropy(){
+            loop {
+                match wfc.lowest_entropy() {
                     None => break,
                     Some(index) => {
                         wfc.collapse(index);
@@ -84,7 +81,7 @@ impl World {
                     }
                 }
             }
-            return wfc.into()
+            return wfc.into();
         }
 
         unreachable!()
@@ -94,21 +91,24 @@ impl World {
         0..self.elements.len()
     }
 
-    pub fn get_position(&self, index: usize) -> Vec2{
+    pub fn get_position(&self, index: usize) -> Vec2 {
         let (x, y) = self.get_xy(index);
         let offset = -((y % 2) as f32) * COS_FRAC_PI_6;
         Vec2::new(
             (-0.5 * self.width as f32 - 1.0) + (2.0 * COS_FRAC_PI_6) * x as f32 + offset,
-            (-0.5 * self.rows  as f32 - 1.0) + (1.0 + SIN_FRAC_PI_6) * y as f32
+            (-0.5 * self.rows as f32 - 1.0) + (1.0 + SIN_FRAC_PI_6) * y as f32,
         )
     }
     pub fn get_size(&self) -> (f32, f32) {
-        ((2.0 * COS_FRAC_PI_6) * self.width as f32, (1.0 + SIN_FRAC_PI_6) * self.rows as f32)
+        (
+            (2.0 * COS_FRAC_PI_6) * self.width as f32,
+            (1.0 + SIN_FRAC_PI_6) * self.rows as f32,
+        )
     }
     pub fn get_element(&mut self, index: usize) -> &mut Option<WorldElement> {
         &mut self.elements[index]
     }
-    pub fn scramble(&mut self, rng: &fastrand::Rng){
+    pub fn scramble(&mut self, rng: &fastrand::Rng) {
         for e in &mut self.elements {
             if let Some(e) = e {
                 e.rotation = rng.u8(0..6);
@@ -118,8 +118,19 @@ impl World {
     pub fn seed(&self) -> u64 {
         self.seed
     }
+    pub fn is_completed(&self) -> bool {
+        for i in self.indices() {
+            let local_config = get_endings(self.elements[i]);
+            for (j, n) in self.get_neighbors(i).iter().enumerate(){
+                let n_config = get_endings(n.and_then(|k|self.elements[k]));
+                if local_config[j] != n_config[(j + 3) % n_config.len()] {
+                    return false;
+                }
+            }
+        }
+        true
+    }
 }
-
 
 #[derive(Debug)]
 struct WaveCollapseWorld {
@@ -128,11 +139,10 @@ struct WaveCollapseWorld {
     propagation_stack: VecDeque<usize>,
     rows: u32,
     width: u32,
-    elements: Vec<IndexSet>
+    elements: Vec<IndexSet>,
 }
 
 impl WaveCollapseWorld {
-
     fn new(rows: u32, width: u32, seed: u64) -> Self {
         let rng = fastrand::Rng::with_seed(seed);
         Self {
@@ -141,29 +151,31 @@ impl WaveCollapseWorld {
             propagation_stack: VecDeque::new(),
             rows,
             width,
-            elements: Vec::new()
+            elements: Vec::new(),
         }
     }
 
     fn prepare(&mut self) {
         let empty_element = ELEMENT_TABLE
             .iter()
-            .position(|x|x.is_none())
+            .position(|x| x.is_none())
             .expect("Cannot find the empty element in table");
         self.elements.clear();
         let complete_set = (0..ELEMENT_TABLE.len())
             .into_iter()
-            .map(|x|IndexSet::singleton(x as u8))
-            .fold(IndexSet::empty(), |acc, x|acc.union(x));
+            .map(|x| IndexSet::singleton(x as u8))
+            .fold(IndexSet::empty(), |acc, x| acc.union(x));
         for i in 0..(self.rows * self.width + (self.rows / 2)) {
             let set = self
                 .get_neighbors(i as usize)
                 .iter()
                 .enumerate()
-                .map(|(d, n)| if n.is_none() {
-                    ADJACENCY_LISTS[empty_element][(d + 3) % 6]
-                } else {
-                    complete_set
+                .map(|(d, n)| {
+                    if n.is_none() {
+                        ADJACENCY_LISTS[empty_element][(d + 3) % 6]
+                    } else {
+                        complete_set
+                    }
                 })
                 .fold(IndexSet::full(), |acc, x| acc.inter(x));
             if set != complete_set {
@@ -175,7 +187,7 @@ impl WaveCollapseWorld {
     }
 
     fn valid(&self) -> bool {
-        !self.elements.iter().any(|x|x.is_empty())
+        !self.elements.iter().any(|x| x.is_empty())
     }
 
     fn lowest_entropy(&self) -> Option<usize> {
@@ -201,7 +213,10 @@ impl WaveCollapseWorld {
     }
 
     fn collapse(&mut self, index: usize) {
-        let selected = self.elements[index].iter().nth(self.rng.usize(0..self.elements[index].len())).unwrap();
+        let selected = self.elements[index]
+            .iter()
+            .nth(self.rng.usize(0..self.elements[index].len()))
+            .unwrap();
         self.elements[index] = IndexSet::singleton(selected);
         self.propagation_stack.push_back(index);
         self.propagate();
@@ -215,11 +230,10 @@ impl WaveCollapseWorld {
                     //let id = self.elements[index].iter().nth(0).unwrap();
                     for (i, n) in self.get_neighbors(index).iter().enumerate() {
                         if let Some(n) = *n {
-                            let adl = self
-                                .elements[index]
+                            let adl = self.elements[index]
                                 .iter()
-                                .map(|x|ADJACENCY_LISTS[x as usize][i])
-                                .fold(IndexSet::empty(), | acc, x| acc.union(x));
+                                .map(|x| ADJACENCY_LISTS[x as usize][i])
+                                .fold(IndexSet::empty(), |acc, x| acc.union(x));
                             let prl = self.elements[n].inter(adl);
                             if prl != self.elements[n] {
                                 self.elements[n] = prl;
@@ -227,12 +241,10 @@ impl WaveCollapseWorld {
                             }
                         }
                     }
-
                 }
             }
         }
     }
-
 }
 
 impl Into<World> for WaveCollapseWorld {
@@ -241,11 +253,12 @@ impl Into<World> for WaveCollapseWorld {
             seed: self.seed,
             rows: self.rows,
             width: self.width,
-            elements: self.elements
+            elements: self
+                .elements
                 .iter()
-                .map(|x|x.iter().nth(0).unwrap())
-                .map(|x|ELEMENT_TABLE[x as usize])
-                .collect()
+                .map(|x| x.iter().nth(0).unwrap())
+                .map(|x| ELEMENT_TABLE[x as usize])
+                .collect(),
         }
     }
 }
@@ -257,7 +270,7 @@ trait HexWorld {
         if x < 0 || y < 0 {
             return None;
         }
-        let (x,y) = (x as u32, y as u32);
+        let (x, y) = (x as u32, y as u32);
         if y < self.rows() && x < (self.width() + (y % 2)) {
             Some((y * self.width() + (y / 2) + x) as usize)
         } else {
@@ -283,7 +296,7 @@ trait HexWorld {
                 self.get_index(x + 1, y - 1),
                 self.get_index(x, y - 1),
                 self.get_index(x - 1, y),
-                self.get_index(x, y + 1)
+                self.get_index(x, y + 1),
             ]
         } else {
             [
@@ -292,7 +305,7 @@ trait HexWorld {
                 self.get_index(x, y - 1),
                 self.get_index(x - 1, y - 1),
                 self.get_index(x - 1, y),
-                self.get_index(x - 1, y + 1)
+                self.get_index(x - 1, y + 1),
             ]
         }
     }
@@ -318,6 +331,20 @@ impl HexWorld for World {
 
 type IndexSet = smallbitset::Set64;
 
+fn get_endings(elem: Option<WorldElement>) -> [bool; 6] {
+    match elem {
+        None => [false; 6],
+        Some(elem) => {
+            let mut result = [false; 6];
+            let endings = elem.tile_type.endings();
+            for i in 0..6 {
+                result[(i + elem.rotation as usize) % result.len()] = endings[i];
+            }
+            result
+        }
+    }
+}
+
 lazy_static! {
     static ref ELEMENT_TABLE: Vec<Option<WorldElement>> = {
         let mut result = Vec::new();
@@ -325,7 +352,7 @@ lazy_static! {
             for rotation in 0..6 {
                 result.push(Some(WorldElement {
                     tile_type,
-                    rotation
+                    rotation,
                 }))
             }
         }
@@ -334,21 +361,6 @@ lazy_static! {
     };
     static ref ADJACENCY_LISTS: Vec<[IndexSet; 6]> = {
         assert!(ELEMENT_TABLE.len() <= IndexSet::full().len());
-
-        let get_endings = |elem: Option<WorldElement>| {
-            match elem {
-                None => [false; 6],
-                Some(elem) => {
-                    let mut result = [false; 6];
-                    let endings = elem.tile_type.endings();
-                    for i in 0..6 {
-                        result[(i + elem.rotation as usize) % result.len()] = endings[i];
-                    }
-                    result
-                }
-            }
-        };
-
         let mut result = Vec::new();
         for i in 0..ELEMENT_TABLE.len() {
             let mut lists = [IndexSet::empty(); 6];
@@ -357,7 +369,7 @@ lazy_static! {
                     let elem1 = get_endings(ELEMENT_TABLE[i]);
                     let elem2 = get_endings(ELEMENT_TABLE[k]);
 
-                    if elem1[j] == elem2[(j + 3) % elem2.len()]{
+                    if elem1[j] == elem2[(j + 3) % elem2.len()] {
                         lists[j] = lists[j].insert(k as u8);
                     }
                 }
@@ -367,6 +379,3 @@ lazy_static! {
         result
     };
 }
-
-
-
