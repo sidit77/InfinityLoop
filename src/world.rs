@@ -52,8 +52,114 @@ pub struct WorldElement {
 pub struct World {
     rows: u32,
     width: u32,
-    elements: Box<[Option<WorldElement>]>
+    elements: Vec<Option<WorldElement>>
 }
+
+
+impl World {
+
+    pub fn from_seed(seed: u64) -> Self{
+        let mut wfc = WaveCollapseWorld::new(9, 5, seed);
+        wfc.prepare();
+        loop
+        {
+            match wfc.lowest_entropy(){
+                None => break,
+                Some(field) => {
+                    wfc.collapse(field);
+
+                    wfc.propagate(field);
+
+                }
+            }
+
+        }
+
+
+        wfc.into()
+
+    }
+
+    pub fn indices(&self) -> Range<usize> {
+        0..self.elements.len()
+    }
+
+    pub fn get_position(&self, index: usize) -> Vec2{
+        let (x, y) = self.get_xy(index);
+        let offset = -((y % 2) as f32) * COS_FRAC_PI_6;
+        Vec2::new(
+            (-0.5 * self.width as f32 - 1.0) + (2.0 * COS_FRAC_PI_6) * x as f32 + offset,
+            (-0.5 * self.rows  as f32 - 1.0) + (1.0 + SIN_FRAC_PI_6) * y as f32
+        )
+    }
+    pub fn get_size(&self) -> (f32, f32) {
+        ((2.0 * COS_FRAC_PI_6) * self.width as f32, (1.0 + SIN_FRAC_PI_6) * self.rows as f32)
+    }
+    pub fn get_element(&mut self, index: usize) -> &mut Option<WorldElement> {
+        &mut self.elements[index]
+    }
+}
+
+
+
+impl HexWorld for World {
+    fn width(&self) -> u32 {
+        self.width
+    }
+
+    fn rows(&self) -> u32 {
+        self.rows
+    }
+}
+
+trait HexWorld {
+    fn width(&self) -> u32;
+    fn rows(&self) -> u32;
+    fn get_index(&self, x: i32, y: i32) -> Option<usize> {
+        if x < 0 || y < 0 {
+            return None;
+        }
+        let (x,y) = (x as u32, y as u32);
+        if y < self.rows() && x < (self.width() + (y % 2)) {
+            Some((y * self.width() + (y / 2) + x) as usize)
+        } else {
+            None
+        }
+    }
+    fn get_xy(&self, index: usize) -> (i32, i32) {
+        let div = index as i32 / (2 * self.width() as i32 + 1);
+        let rem = index as i32 % (2 * self.width() as i32 + 1);
+
+        if rem < self.width() as i32 {
+            (rem, 2 * div)
+        } else {
+            (rem - self.width() as i32, 2 * div + 1)
+        }
+    }
+    fn get_neighbors(&self, index: usize) -> [Option<usize>; 6] {
+        let (x, y) = self.get_xy(index);
+        if y % 2 == 0 {
+            [
+                self.get_index(x + 1, y + 1),
+                self.get_index(x + 1, y),
+                self.get_index(x + 1, y - 1),
+                self.get_index(x, y - 1),
+                self.get_index(x - 1, y),
+                self.get_index(x, y + 1)
+            ]
+        } else {
+            [
+                self.get_index(x, y + 1),
+                self.get_index(x + 1, y),
+                self.get_index(x, y - 1),
+                self.get_index(x - 1, y - 1),
+                self.get_index(x - 1, y),
+                self.get_index(x - 1, y + 1)
+            ]
+        }
+    }
+}
+
 
 fn build_symmetries(tile_type: TileType) -> Vec<u8> {
     let endings = tile_type.endings();
@@ -141,240 +247,122 @@ fn build_adjacency_lists(table: &Vec<Option<WorldElement>>) -> Vec<[Vec<usize>; 
     result
 }
 
-impl World {
+#[derive(Debug)]
+struct WaveCollapseWorld {
+    table: Vec<Option<WorldElement>>,
+    adjacency_lists: Vec<[Vec<usize>; 6]>,
+    rng: fastrand::Rng,
+    rows: u32,
+    width: u32,
+    elements: Vec<Vec<usize>>
+}
 
-    fn new(rows: u32, width: u32) -> Self {
-        Self {
-            rows,
-            width,
-            elements: vec![None; (rows * width + (rows / 2)) as usize].into_boxed_slice()
-        }
-    }
+impl WaveCollapseWorld {
 
-    pub fn from_seed(seed: u64) -> Self{
+    fn new(rows: u32, width: u32, seed: u64) -> Self {
         let rng = fastrand::Rng::with_seed(seed);
-        let mut world = World::new(9, 5);
-
         let table = {
             let mut v = build_table();
             rng.shuffle(v.as_mut_slice());
             v
         };
         let adjacency_lists = build_adjacency_lists(&table);
+        Self {
+            table,
+            adjacency_lists,
+            rng,
+            rows,
+            width,
+            elements: Vec::new()
+        }
+    }
 
-        //for i in 0..table.len() {
-        //    console_log!("{}: {:?}", i, table[i]);
-        //}
+    fn prepare(&mut self) {
+        self.elements.clear();
+        for _ in 0..(self.rows * self.width + (self.rows / 2)) {
+            let mut v = Vec::new();
+            for i in 0..self.table.len() {
+                v.push(i);
+            }
+            self.elements.push(v);
+        }
+    }
 
-        let elem= world.elements.len() / 2;
-        let item = rng.usize(0..table.len());
-        //console_log!("current element: {}", item);
-        *world.get_element(elem) = table[item];
-        //console_log!("endings: {:?}", get_endings(table[item]));
-        for (i, n) in world.get_neighbors(elem).iter().enumerate() {
-            if let Some(n) = *n {
-                let al = &adjacency_lists[item][i];
-                //console_log!("al {}: {:?}", i, al);
-                let select = al[rng.usize(0..al.len())];
-                //console_log!("picked {}", select);
-                *world.get_element(n) = table[select];
+    fn lowest_entropy(&self) -> Option<usize> {
+        let mut set = Vec::new();
+        let mut min = usize::MAX;
+        for i in 0..self.elements.len() {
+            let l = self.elements[i].len();
+            if l > 1 {
+                if l < min {
+                    set.clear();
+                    min = l;
+                }
+                if l == min {
+                    set.push(i);
+                }
             }
         }
+        if set.len() == 0 {
+            None
+        } else {
+            Some(set[self.rng.usize(0..set.len())])
+        }
+    }
 
-        let mut possibilities = {
-            let mut vec = Vec::new();
-            for _ in world.indices() {
-                let mut v = Vec::new();
-                for i in 0..table.len() {
-                    v.push(i);
-                }
-                vec.push(v);
-            }
-            vec
-        };
+    fn collapse(&mut self, index: usize) {
+        let selected = self.elements[index][self.rng.usize(0..self.elements[index].len())];
+        self.elements[index].clear();
+        self.elements[index].push(selected);
+    }
 
-        let lowest_entropy = |vec: &Vec<Vec<usize>>| {
-            let mut set = Vec::new();
-            let mut min = usize::MAX;
-            for i in 0..vec.len() {
-                let l = vec[i].len();
-                if l > 1 {
-                    if l < min {
-                        set.clear();
-                        min = l;
-                    }
-                    if l == min {
-                        set.push(i);
-                    }
-                }
-            }
-            if set.len() == 0 {
-                None
-            } else {
-                Some(set[rng.usize(0..set.len())])
-            }
-        };
-
+    fn propagate(&mut self, field: usize) {
         let mut stack = VecDeque::new();
-        loop
-        {
-            match lowest_entropy(&possibilities){
-                None => break,
-                Some(field) => {
-                    let selected = possibilities[field][rng.usize(0..possibilities[field].len())];
-                    possibilities[field].clear();
-                    possibilities[field].push(selected);
-
-                    stack.clear();
-                    stack.push_back(field);
-
-                    console_log!("Collapsed {}", field);
-
-                    loop {
-                        match stack.pop_front() {
-                            None => break,
-                            Some(index) => {
-                                console_log!("Propagating {}", index);
-                                let id = *possibilities[index].first().unwrap();
-                                for (i, n) in world.get_neighbors(index).iter().enumerate() {
-                                    if let Some(n) = *n {
-                                        let prl = possibilities[n].len();
-                                        possibilities[n].retain(|g| adjacency_lists[id][i].contains(g));
-                                        if prl != possibilities[n].len() {
-                                            stack.push_back(n);
-                                        }
-                                    }
-                                }
-
-                            }
-                        }
-                    }
-
-                }
-            }
-
-        }
-
-        console_log!("{:?}", possibilities.iter().map(|v|v.len()).collect::<Vec<usize>>());
-
-        for (i, e) in world.elements.iter_mut().enumerate(){
-            *e = table[*possibilities[i].first().unwrap()];
-        }
-
-        //for i in world.indices() {
-        //    *world.get_element(i) = Some(WorldElement {
-        //        tile_type: match rng.u8(0..7) {
-        //            0 => TileType::Tile0,
-        //            1 => TileType::Tile01,
-        //            2 => TileType::Tile02,
-        //            3 => TileType::Tile03,
-        //            4 => TileType::Tile012,
-        //            5 => TileType::Tile024,
-        //            6 => TileType::Tile0134,
-        //            _ => unreachable!()
-        //        },
-        //        rotation: 0
-        //    });
-        //}
-
-        /*
-        let mut visited = HashSet::new();
-        let mut queue = VecDeque::new();
-        queue.push_back(world.elements.len() / 2);
+        stack.push_back(field);
 
         loop {
-            match queue.pop_front() {
+            match stack.pop_front() {
                 None => break,
-                Some(elem) => {
-                    if !visited.contains(&elem) {
-                        *world.get_element(elem) = Some(WorldElement {
-                            tile_type: match rng.u8(0..7) {
-                                0 => TileType::Tile0,
-                                1 => TileType::Tile01,
-                                2 => TileType::Tile02,
-                                3 => TileType::Tile03,
-                                4 => TileType::Tile012,
-                                5 => TileType::Tile024,
-                                6 => TileType::Tile0134,
-                                _ => unreachable!()
-                            },
-                            rotation: 0
-                        });
-                        visited.insert(elem);
-                        let (x,y) = world.get_xy(elem);
-                        let (x, y) = (x as i32, y as i32);
-                        let dx = -2 * (y & 1) as i32 + 1;
-                        for (nx, ny) in &[(x - 1, y), (x + 1, y), (x, y - 1), (x, y + 1), (x + dx, y + 1), (x + dx, y - 1)] {
-                            if let Some(i) = world.get_index(*nx, *ny) {
-                                queue.push_back(i);
+                Some(index) => {
+                    let id = *self.elements[index].first().unwrap();
+                    for (i, n) in self.get_neighbors(index).iter().enumerate() {
+                        if let Some(n) = *n {
+                            let prl = self.elements[n].len();
+                            let adl = &self.adjacency_lists[id][i];
+                            self.elements[n].retain(|g| adl.contains(g));
+                            if prl != self.elements[n].len() {
+                                stack.push_back(n);
                             }
                         }
                     }
+
                 }
             }
         }
-        */
-        world
     }
 
-    pub fn get_neighbors(&self, index: usize) -> [Option<usize>; 6] {
-        let (x, y) = self.get_xy(index);
-        if y % 2 == 0 {
-            [
-                self.get_index(x + 1, y + 1),
-                self.get_index(x + 1, y),
-                self.get_index(x + 1, y - 1),
-                self.get_index(x, y - 1),
-                self.get_index(x - 1, y),
-                self.get_index(x, y + 1)
-            ]
-        } else {
-            [
-                self.get_index(x, y + 1),
-                self.get_index(x + 1, y),
-                self.get_index(x, y - 1),
-                self.get_index(x - 1, y - 1),
-                self.get_index(x - 1, y),
-                self.get_index(x - 1, y + 1)
-            ]
-        }
-    }
-    pub fn indices(&self) -> Range<usize> {
-        0..self.elements.len()
-    }
-    pub fn get_index(&self, x: i32, y: i32) -> Option<usize> {
-        if x < 0 || y < 0 {
-            return None;
-        }
-        let (x,y) = (x as u32, y as u32);
-        if y < self.rows && x < (self.width + (y % 2)) {
-            Some((y * self.width + (y / 2) + x) as usize)
-        } else {
-            None
-        }
-    }
-    pub fn get_xy(&self, index: usize) -> (i32, i32) {
-        let div = index as i32 / (2 * self.width as i32 + 1);
-        let rem = index as i32 % (2 * self.width as i32 + 1);
+}
 
-        if rem < self.width as i32 {
-            (rem, 2 * div)
-        } else {
-            (rem - self.width as i32, 2 * div + 1)
+impl Into<World> for WaveCollapseWorld {
+    fn into(self) -> World {
+        World {
+            rows: self.rows,
+            width: self.width,
+            elements: self.elements
+                .iter()
+                .map(|x|x.first().unwrap())
+                .map(|x|self.table[*x])
+                .collect()
         }
     }
-    pub fn get_position(&self, index: usize) -> Vec2{
-        let (x, y) = self.get_xy(index);
-        let offset = -((y % 2) as f32) * COS_FRAC_PI_6;
-        Vec2::new(
-            (-0.5 * self.width as f32 - 1.0) + (2.0 * COS_FRAC_PI_6) * x as f32 + offset,
-            (-0.5 * self.rows  as f32 - 1.0) + (1.0 + SIN_FRAC_PI_6) * y as f32
-        )
+}
+
+impl HexWorld for WaveCollapseWorld {
+    fn width(&self) -> u32 {
+        self.width
     }
-    pub fn get_size(&self) -> (f32, f32) {
-        ((2.0 * COS_FRAC_PI_6) * self.width as f32, (1.0 + SIN_FRAC_PI_6) * self.rows as f32)
-    }
-    pub fn get_element(&mut self, index: usize) -> &mut Option<WorldElement> {
-        &mut self.elements[index]
+
+    fn rows(&self) -> u32 {
+        self.rows
     }
 }
