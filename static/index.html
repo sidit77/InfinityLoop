@@ -14,11 +14,24 @@
         height: 100%;
         z-index: -1;
         position: absolute;
+        background-color: darkslategrey;
+        color: bisque;
       }
       button {
         padding: 5px;
         margin-left: 10px;
         margin-top: 10px;
+      }
+      #current-level{
+        position: absolute;
+        width: 100%;
+        top: 1vh;
+        text-align: center;
+        font-size: 7vh;
+        font-family: monospace;
+        color: bisque;
+        user-select: none;
+        pointer-events: none;
       }
     </style>
   </head>
@@ -26,6 +39,7 @@
     <script src="index.js"></script>
 
     <canvas id="canvas"></canvas>
+    <span id="current-level">#1230</span>
     <button id="new-button" type="button">New Level</button>
     <button id="scramble-button" type="button">Scramble</button>
   </body>

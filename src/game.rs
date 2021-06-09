@@ -6,19 +6,26 @@ use crate::meshes;
 use crate::intersection::Hexagon;
 use std::ops::Range;
 use crate::world::World;
+use css_color_parser::Color;
+
+pub struct GameStyle {
+    pub foreground: Color,
+    pub background: Color
+}
 
 pub struct Game {
     gl: WebGl2RenderingContext,
+    style: GameStyle,
     camera: Camera,
     mvp_location: WebGlUniformLocation,
     color_location: WebGlUniformLocation,
     world: World,
-    rng: fastrand::Rng
+    rng: fastrand::Rng,
 }
 
 impl Game {
 
-    pub fn new(gl: WebGl2RenderingContext) -> Result<Self, String> {
+    pub fn new(gl: WebGl2RenderingContext, style: GameStyle) -> Result<Self, String> {
         let program = compile_program(&gl, &[
             (WebGl2RenderingContext::VERTEX_SHADER, include_str!("shader/vertex.glsl")),
             (WebGl2RenderingContext::FRAGMENT_SHADER, include_str!("shader/fragment.glsl"))
@@ -51,6 +58,7 @@ impl Game {
 
         Ok(Self {
             gl,
+            style,
             camera,
             mvp_location,
             color_location,
@@ -99,12 +107,15 @@ impl Game {
     }
 
     pub fn render(&mut self, _time: f64) {
-        self.gl.clear_color(0.2, 0.2, 0.2, 1.0);
+        {
+            let c = self.style.background.as_f32();
+            self.gl.clear_color(c[0], c[1], c[2], c[3]);
+        }
         self.gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 
         //let rng = fastrand::Rng::with_seed(1337);
 
-        self.gl.uniform4f(Some(&self.color_location), 0.9, 0.9, 0.9, 1.0);
+        self.gl.uniform4fv_with_f32_array(Some(&self.color_location), &self.style.foreground.as_f32());
         for i in self.world.indices() {
             let position = self.world.get_position(i);
             if let Some(elem) = self.world.get_element(i).as_ref() {
@@ -130,5 +141,20 @@ trait DrawRange {
 impl DrawRange for WebGl2RenderingContext {
     fn draw_array_range(&self, mode: u32, range: Range<i32>) {
         self.draw_arrays(mode, range.start, range.len() as i32);
+    }
+}
+
+trait AsF32 {
+    fn as_f32(&self) -> [f32; 4];
+}
+
+impl AsF32 for Color {
+    fn as_f32(&self) -> [f32; 4] {
+        [
+            self.r as f32 / u8::MAX as f32,
+            self.g as f32 / u8::MAX as f32,
+            self.b as f32 / u8::MAX as f32,
+            self.a
+        ]
     }
 }

@@ -4,6 +4,7 @@ use std::rc::Rc;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use web_sys::WebGl2RenderingContext;
+use css_color_parser::Color;
 
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
@@ -15,7 +16,7 @@ macro_rules! console_log {
     ($($t:tt)*) => (web_sys::console::log_1(&format_args!($($t)*).to_string().into()))
 }
 
-use crate::game::Game;
+use crate::game::{Game, GameStyle};
 
 mod shader;
 mod camera;
@@ -39,8 +40,14 @@ pub fn main_js() -> Result<(), JsValue> {
     let canvas = window.document().unwrap().get_element_by_id("canvas").unwrap().dyn_into::<web_sys::HtmlCanvasElement>()?;
     let performance = window.performance().unwrap();
 
+    let css = window.get_computed_style(&canvas)?.unwrap();
+
     let game = Rc::new(RefCell::new(Game::new(
-        canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>()?
+        canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>()?,
+        GameStyle {
+            foreground: css.get_property_value("color")?.parse::<Color>().unwrap(),
+            background: css.get_property_value("background-color")?.parse::<Color>().unwrap()
+        }
     )?));
 
     {
