@@ -260,26 +260,6 @@ trait HexWorld {
     }
 }
 
-type IndexSet = smallbitset::Set64;
-
-fn build_symmetries(tile_type: TileType) -> Vec<u8> {
-    let endings = tile_type.endings();
-    let mut result = Vec::new();
-    for i in 0..endings.len() {
-        if !result.iter().any(|j| {
-            for x in 0..endings.len() {
-                if endings[(x + i as usize) % endings.len()] != endings[(x + *j as usize) % endings.len()]{
-                    return false;
-                }
-            }
-            true
-        }) {
-            result.push(i as u8);
-        }
-    }
-    result
-}
-
 impl HexWorld for WaveCollapseWorld {
     fn width(&self) -> u32 {
         self.width
@@ -298,6 +278,26 @@ impl HexWorld for World {
     }
 }
 
+type IndexSet = smallbitset::Set64;
+
+fn build_symmetries(_tile_type: TileType) -> Vec<u8> {
+    //let endings = tile_type.endings();
+    //let mut result = Vec::new();
+    //for i in 0..endings.len() {
+    //    if !result.iter().any(|j| {
+    //        for x in 0..endings.len() {
+    //            if endings[(x + i as usize) % endings.len()] != endings[(x + *j as usize) % endings.len()]{
+    //                return false;
+    //            }
+    //        }
+    //        true
+    //    }) {
+    //        result.push(i as u8);
+    //    }
+    //}
+    //result
+    (0..6).into_iter().collect()
+}
 
 fn build_table() -> Vec<Option<WorldElement>>{
     let tile_types = [
