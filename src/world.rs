@@ -69,12 +69,10 @@ impl World {
                     wfc.collapse(field);
 
                     wfc.propagate(field);
-
                 }
             }
 
         }
-
 
         wfc.into()
 
@@ -160,6 +158,7 @@ trait HexWorld {
     }
 }
 
+type IndexSet = smallbitset::Set64;
 
 fn build_symmetries(tile_type: TileType) -> Vec<u8> {
     let endings = tile_type.endings();
@@ -220,12 +219,14 @@ fn get_endings(elem: Option<WorldElement>) -> [bool; 6] {
     }
 }
 
-fn build_adjacency_lists(table: &Vec<Option<WorldElement>>) -> Vec<[Vec<usize>; 6]>{
+fn build_adjacency_lists(table: &Vec<Option<WorldElement>>) -> Vec<[IndexSet; 6]>{
+
+    assert!(table.len() <= IndexSet::full().len());
 
     let mut result = Vec::new();
 
     for i in 0..table.len() {
-        let mut lists: [Vec<_>; 6] = Default::default();
+        let mut lists = [IndexSet::empty(); 6];
 
         for j in 0..lists.len() {
 
@@ -235,7 +236,7 @@ fn build_adjacency_lists(table: &Vec<Option<WorldElement>>) -> Vec<[Vec<usize>; 
                 let elem2 = get_endings(table[k]);
 
                 if elem1[j] == elem2[(j + 3) % elem2.len()]{
-                    lists[j].push(k);
+                    lists[j] = lists[j].insert(k as u8);
                 }
             }
 
@@ -250,22 +251,18 @@ fn build_adjacency_lists(table: &Vec<Option<WorldElement>>) -> Vec<[Vec<usize>; 
 #[derive(Debug)]
 struct WaveCollapseWorld {
     table: Vec<Option<WorldElement>>,
-    adjacency_lists: Vec<[Vec<usize>; 6]>,
+    adjacency_lists: Vec<[IndexSet; 6]>,
     rng: fastrand::Rng,
     rows: u32,
     width: u32,
-    elements: Vec<Vec<usize>>
+    elements: Vec<IndexSet>
 }
 
 impl WaveCollapseWorld {
 
     fn new(rows: u32, width: u32, seed: u64) -> Self {
         let rng = fastrand::Rng::with_seed(seed);
-        let table = {
-            let mut v = build_table();
-            rng.shuffle(v.as_mut_slice());
-            v
-        };
+        let table =  build_table();
         let adjacency_lists = build_adjacency_lists(&table);
         Self {
             table,
@@ -280,9 +277,9 @@ impl WaveCollapseWorld {
     fn prepare(&mut self) {
         self.elements.clear();
         for _ in 0..(self.rows * self.width + (self.rows / 2)) {
-            let mut v = Vec::new();
+            let mut v = IndexSet::empty();
             for i in 0..self.table.len() {
-                v.push(i);
+                v = v.insert(i as u8);
             }
             self.elements.push(v);
         }
@@ -311,9 +308,8 @@ impl WaveCollapseWorld {
     }
 
     fn collapse(&mut self, index: usize) {
-        let selected = self.elements[index][self.rng.usize(0..self.elements[index].len())];
-        self.elements[index].clear();
-        self.elements[index].push(selected);
+        let selected = self.elements[index].iter().nth(self.rng.usize(0..self.elements[index].len())).unwrap();
+        self.elements[index] = IndexSet::singleton(selected);
     }
 
     fn propagate(&mut self, field: usize) {
@@ -324,12 +320,16 @@ impl WaveCollapseWorld {
             match stack.pop_front() {
                 None => break,
                 Some(index) => {
-                    let id = *self.elements[index].first().unwrap();
+                    //let id = self.elements[index].iter().nth(0).unwrap();
                     for (i, n) in self.get_neighbors(index).iter().enumerate() {
                         if let Some(n) = *n {
                             let prl = self.elements[n].len();
-                            let adl = &self.adjacency_lists[id][i];
-                            self.elements[n].retain(|g| adl.contains(g));
+                            let adl = self
+                                .elements[index]
+                                .iter()
+                                .map(|x|self.adjacency_lists[x as usize][i])
+                                .fold(IndexSet::empty(), | acc, x| acc.union(x));
+                            self.elements[n] = self.elements[n].inter(adl);
                             if prl != self.elements[n].len() {
                                 stack.push_back(n);
                             }
@@ -350,8 +350,8 @@ impl Into<World> for WaveCollapseWorld {
             width: self.width,
             elements: self.elements
                 .iter()
-                .map(|x|x.first().unwrap())
-                .map(|x|self.table[*x])
+                .map(|x|x.iter().nth(0).unwrap())
+                .map(|x|self.table[x as usize])
                 .collect()
         }
     }
