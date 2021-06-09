@@ -2,11 +2,13 @@ use std::ops::Range;
 use glam::Vec2;
 use crate::meshes::{MODEL1, MODEL2, MODEL6, MODEL3, MODEL4, MODEL7, MODEL5};
 use std::collections::VecDeque;
+use lazy_static::lazy_static;
+use enum_iterator::IntoEnumIterator;
 
 const SIN_FRAC_PI_6: f32 = 0.5;
 const COS_FRAC_PI_6: f32 = 0.86602540378;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, IntoEnumIterator, Copy, Clone)]
 pub enum TileType {
     Tile0,
     Tile01,
@@ -110,8 +112,6 @@ impl World {
 
 #[derive(Debug)]
 struct WaveCollapseWorld {
-    table: Vec<Option<WorldElement>>,
-    adjacency_lists: Vec<[IndexSet; 6]>,
     rng: fastrand::Rng,
     propagation_stack: VecDeque<usize>,
     rows: u32,
@@ -123,11 +123,7 @@ impl WaveCollapseWorld {
 
     fn new(rows: u32, width: u32, seed: u64) -> Self {
         let rng = fastrand::Rng::with_seed(seed);
-        let table =  build_table();
-        let adjacency_lists = build_adjacency_lists(&table);
         Self {
-            table,
-            adjacency_lists,
             rng,
             propagation_stack: VecDeque::new(),
             rows,
@@ -137,12 +133,12 @@ impl WaveCollapseWorld {
     }
 
     fn prepare(&mut self) {
-        let empty_element = self.table
+        let empty_element = ELEMENT_TABLE
             .iter()
             .position(|x|x.is_none())
             .expect("Cannot find the empty element in table");
         self.elements.clear();
-        let complete_set = (0..self.table.len())
+        let complete_set = (0..ELEMENT_TABLE.len())
             .into_iter()
             .map(|x|IndexSet::singleton(x as u8))
             .fold(IndexSet::empty(), |acc, x|acc.union(x));
@@ -152,7 +148,7 @@ impl WaveCollapseWorld {
                 .iter()
                 .enumerate()
                 .map(|(d, n)| if n.is_none() {
-                    self.adjacency_lists[empty_element][(d + 3) % 6]
+                    ADJACENCY_LISTS[empty_element][(d + 3) % 6]
                 } else {
                     complete_set
                 })
@@ -209,7 +205,7 @@ impl WaveCollapseWorld {
                             let adl = self
                                 .elements[index]
                                 .iter()
-                                .map(|x|self.adjacency_lists[x as usize][i])
+                                .map(|x|ADJACENCY_LISTS[x as usize][i])
                                 .fold(IndexSet::empty(), | acc, x| acc.union(x));
                             let prl = self.elements[n].inter(adl);
                             if prl != self.elements[n] {
@@ -234,7 +230,7 @@ impl Into<World> for WaveCollapseWorld {
             elements: self.elements
                 .iter()
                 .map(|x|x.iter().nth(0).unwrap())
-                .map(|x|self.table[x as usize])
+                .map(|x|ELEMENT_TABLE[x as usize])
                 .collect()
         }
     }
@@ -308,92 +304,55 @@ impl HexWorld for World {
 
 type IndexSet = smallbitset::Set64;
 
-fn build_symmetries(_tile_type: TileType) -> Vec<u8> {
-    //let endings = tile_type.endings();
-    //let mut result = Vec::new();
-    //for i in 0..endings.len() {
-    //    if !result.iter().any(|j| {
-    //        for x in 0..endings.len() {
-    //            if endings[(x + i as usize) % endings.len()] != endings[(x + *j as usize) % endings.len()]{
-    //                return false;
-    //            }
-    //        }
-    //        true
-    //    }) {
-    //        result.push(i as u8);
-    //    }
-    //}
-    //result
-    (0..6).into_iter().collect()
-}
-
-fn build_table() -> Vec<Option<WorldElement>>{
-    let tile_types = [
-        TileType::Tile0,
-        TileType::Tile01,
-        TileType::Tile02,
-        TileType::Tile03,
-        TileType::Tile012,
-        TileType::Tile024,
-        TileType::Tile0134
-    ];
-
-    let mut result = Vec::new();
-
-    for tile_type in &tile_types {
-        let tile_type = *tile_type;
-        for rotation in build_symmetries(tile_type) {
-            result.push(Some(WorldElement {
-                tile_type,
-                rotation
-            }))
-        }
-    }
-    result.push(None);
-
-    result
-}
-
-fn get_endings(elem: Option<WorldElement>) -> [bool; 6] {
-    match elem {
-        None => [false; 6],
-        Some(elem) => {
-            let mut result = [false; 6];
-            let endings = elem.tile_type.endings();
-            for i in 0..6 {
-                result[(i + elem.rotation as usize) % result.len()] = endings[i];
+lazy_static! {
+    static ref ELEMENT_TABLE: Vec<Option<WorldElement>> = {
+        let mut result = Vec::new();
+        for tile_type in TileType::into_enum_iter() {
+            for rotation in 0..6 {
+                result.push(Some(WorldElement {
+                    tile_type,
+                    rotation
+                }))
             }
-            result
         }
-    }
-}
+        result.push(None);
+        result
+    };
+    static ref ADJACENCY_LISTS: Vec<[IndexSet; 6]> = {
+        assert!(ELEMENT_TABLE.len() <= IndexSet::full().len());
 
-fn build_adjacency_lists(table: &Vec<Option<WorldElement>>) -> Vec<[IndexSet; 6]>{
-
-    assert!(table.len() <= IndexSet::full().len());
-
-    let mut result = Vec::new();
-
-    for i in 0..table.len() {
-        let mut lists = [IndexSet::empty(); 6];
-
-        for j in 0..lists.len() {
-
-            for k in 0..table.len() {
-
-                let elem1 = get_endings(table[i]);
-                let elem2 = get_endings(table[k]);
-
-                if elem1[j] == elem2[(j + 3) % elem2.len()]{
-                    lists[j] = lists[j].insert(k as u8);
+        let get_endings = |elem: Option<WorldElement>| {
+            match elem {
+                None => [false; 6],
+                Some(elem) => {
+                    let mut result = [false; 6];
+                    let endings = elem.tile_type.endings();
+                    for i in 0..6 {
+                        result[(i + elem.rotation as usize) % result.len()] = endings[i];
+                    }
+                    result
                 }
             }
+        };
 
+        let mut result = Vec::new();
+        for i in 0..ELEMENT_TABLE.len() {
+            let mut lists = [IndexSet::empty(); 6];
+            for j in 0..lists.len() {
+                for k in 0..ELEMENT_TABLE.len() {
+                    let elem1 = get_endings(ELEMENT_TABLE[i]);
+                    let elem2 = get_endings(ELEMENT_TABLE[k]);
+
+                    if elem1[j] == elem2[(j + 3) % elem2.len()]{
+                        lists[j] = lists[j].insert(k as u8);
+                    }
+                }
+            }
+            result.push(lists);
         }
-
-        result.push(lists);
-    }
-
-    result
+        result
+    };
 }
+
+
 
