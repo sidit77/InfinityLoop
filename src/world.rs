@@ -65,10 +65,9 @@ impl World {
         {
             match wfc.lowest_entropy(){
                 None => break,
-                Some(field) => {
-                    wfc.collapse(field);
-
-                    wfc.propagate(field);
+                Some(index) => {
+                    wfc.collapse(index);
+                    assert!(wfc.valid())
                 }
             }
 
@@ -99,14 +98,117 @@ impl World {
 }
 
 
+#[derive(Debug)]
+struct WaveCollapseWorld {
+    table: Vec<Option<WorldElement>>,
+    adjacency_lists: Vec<[IndexSet; 6]>,
+    rng: fastrand::Rng,
+    propagation_stack: VecDeque<usize>,
+    rows: u32,
+    width: u32,
+    elements: Vec<IndexSet>
+}
 
-impl HexWorld for World {
-    fn width(&self) -> u32 {
-        self.width
+impl WaveCollapseWorld {
+
+    fn new(rows: u32, width: u32, seed: u64) -> Self {
+        let rng = fastrand::Rng::with_seed(seed);
+        let table =  build_table();
+        let adjacency_lists = build_adjacency_lists(&table);
+        Self {
+            table,
+            adjacency_lists,
+            rng,
+            propagation_stack: VecDeque::new(),
+            rows,
+            width,
+            elements: Vec::new()
+        }
     }
 
-    fn rows(&self) -> u32 {
-        self.rows
+    fn prepare(&mut self) {
+        self.elements.clear();
+        for _ in 0..(self.rows * self.width + (self.rows / 2)) {
+            let mut v = IndexSet::empty();
+            for i in 0..self.table.len() {
+                v = v.insert(i as u8);
+            }
+            self.elements.push(v);
+        }
+    }
+
+    fn valid(&self) -> bool {
+        !self.elements.iter().any(|x|x.is_empty())
+    }
+
+    fn lowest_entropy(&self) -> Option<usize> {
+        let mut set = Vec::new();
+        let mut min = usize::MAX;
+        for i in 0..self.elements.len() {
+            let l = self.elements[i].len();
+            if l > 1 {
+                if l < min {
+                    set.clear();
+                    min = l;
+                }
+                if l == min {
+                    set.push(i);
+                }
+            }
+        }
+        if set.len() == 0 {
+            None
+        } else {
+            Some(set[self.rng.usize(0..set.len())])
+        }
+    }
+
+    fn collapse(&mut self, index: usize) {
+        let selected = self.elements[index].iter().nth(self.rng.usize(0..self.elements[index].len())).unwrap();
+        self.elements[index] = IndexSet::singleton(selected);
+        self.propagation_stack.push_back(index);
+        self.propagate();
+    }
+
+    fn propagate(&mut self) {
+        loop {
+            match self.propagation_stack.pop_front() {
+                None => break,
+                Some(index) => {
+                    //let id = self.elements[index].iter().nth(0).unwrap();
+                    for (i, n) in self.get_neighbors(index).iter().enumerate() {
+                        if let Some(n) = *n {
+                            let adl = self
+                                .elements[index]
+                                .iter()
+                                .map(|x|self.adjacency_lists[x as usize][i])
+                                .fold(IndexSet::empty(), | acc, x| acc.union(x));
+                            let prl = self.elements[n].inter(adl);
+                            if prl != self.elements[n] {
+                                self.elements[n] = prl;
+                                self.propagation_stack.push_back(n);
+                            }
+                        }
+                    }
+
+                }
+            }
+        }
+    }
+
+}
+
+impl Into<World> for WaveCollapseWorld {
+    fn into(self) -> World {
+        World {
+            rows: self.rows,
+            width: self.width,
+            elements: self.elements
+                .iter()
+                .map(|x|x.iter().nth(0).unwrap())
+                .map(|x|self.table[x as usize])
+                .collect()
+        }
     }
 }
 
@@ -178,6 +280,25 @@ fn build_symmetries(tile_type: TileType) -> Vec<u8> {
     result
 }
 
+impl HexWorld for WaveCollapseWorld {
+    fn width(&self) -> u32 {
+        self.width
+    }
+    fn rows(&self) -> u32 {
+        self.rows
+    }
+}
+
+impl HexWorld for World {
+    fn width(&self) -> u32 {
+        self.width
+    }
+    fn rows(&self) -> u32 {
+        self.rows
+    }
+}
+
+
 fn build_table() -> Vec<Option<WorldElement>>{
     let tile_types = [
         TileType::Tile0,
@@ -248,121 +369,3 @@ fn build_adjacency_lists(table: &Vec<Option<WorldElement>>) -> Vec<[IndexSet; 6]
     result
 }
 
-#[derive(Debug)]
-struct WaveCollapseWorld {
-    table: Vec<Option<WorldElement>>,
-    adjacency_lists: Vec<[IndexSet; 6]>,
-    rng: fastrand::Rng,
-    rows: u32,
-    width: u32,
-    elements: Vec<IndexSet>
-}
-
-impl WaveCollapseWorld {
-
-    fn new(rows: u32, width: u32, seed: u64) -> Self {
-        let rng = fastrand::Rng::with_seed(seed);
-        let table =  build_table();
-        let adjacency_lists = build_adjacency_lists(&table);
-        Self {
-            table,
-            adjacency_lists,
-            rng,
-            rows,
-            width,
-            elements: Vec::new()
-        }
-    }
-
-    fn prepare(&mut self) {
-        self.elements.clear();
-        for _ in 0..(self.rows * self.width + (self.rows / 2)) {
-            let mut v = IndexSet::empty();
-            for i in 0..self.table.len() {
-                v = v.insert(i as u8);
-            }
-            self.elements.push(v);
-        }
-    }
-
-    fn lowest_entropy(&self) -> Option<usize> {
-        let mut set = Vec::new();
-        let mut min = usize::MAX;
-        for i in 0..self.elements.len() {
-            let l = self.elements[i].len();
-            if l > 1 {
-                if l < min {
-                    set.clear();
-                    min = l;
-                }
-                if l == min {
-                    set.push(i);
-                }
-            }
-        }
-        if set.len() == 0 {
-            None
-        } else {
-            Some(set[self.rng.usize(0..set.len())])
-        }
-    }
-
-    fn collapse(&mut self, index: usize) {
-        let selected = self.elements[index].iter().nth(self.rng.usize(0..self.elements[index].len())).unwrap();
-        self.elements[index] = IndexSet::singleton(selected);
-    }
-
-    fn propagate(&mut self, field: usize) {
-        let mut stack = VecDeque::new();
-        stack.push_back(field);
-
-        loop {
-            match stack.pop_front() {
-                None => break,
-                Some(index) => {
-                    //let id = self.elements[index].iter().nth(0).unwrap();
-                    for (i, n) in self.get_neighbors(index).iter().enumerate() {
-                        if let Some(n) = *n {
-                            let prl = self.elements[n].len();
-                            let adl = self
-                                .elements[index]
-                                .iter()
-                                .map(|x|self.adjacency_lists[x as usize][i])
-                                .fold(IndexSet::empty(), | acc, x| acc.union(x));
-                            self.elements[n] = self.elements[n].inter(adl);
-                            if prl != self.elements[n].len() {
-                                stack.push_back(n);
-                            }
-                        }
-                    }
-
-                }
-            }
-        }
-    }
-
-}
-
-impl Into<World> for WaveCollapseWorld {
-    fn into(self) -> World {
-        World {
-            rows: self.rows,
-            width: self.width,
-            elements: self.elements
-                .iter()
-                .map(|x|x.iter().nth(0).unwrap())
-                .map(|x|self.table[x as usize])
-                .collect()
-        }
-    }
-}
-
-impl HexWorld for WaveCollapseWorld {
-    fn width(&self) -> u32 {
-        self.width
-    }
-
-    fn rows(&self) -> u32 {
-        self.rows
-    }
-}
