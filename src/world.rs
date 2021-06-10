@@ -4,6 +4,9 @@ use glam::Vec2;
 use lazy_static::lazy_static;
 use std::collections::VecDeque;
 use std::ops::Range;
+use std::fmt::{Display, Formatter};
+use std::str::FromStr;
+use std::error::Error;
 
 const SIN_FRAC_PI_6: f32 = 0.5;
 const COS_FRAC_PI_6: f32 = 0.86602540378;
@@ -121,8 +124,8 @@ impl World {
     pub fn is_completed(&self) -> bool {
         for i in self.indices() {
             let local_config = get_endings(self.elements[i]);
-            for (j, n) in self.get_neighbors(i).iter().enumerate(){
-                let n_config = get_endings(n.and_then(|k|self.elements[k]));
+            for (j, n) in self.get_neighbors(i).iter().enumerate() {
+                let n_config = get_endings(n.and_then(|k| self.elements[k]));
                 if local_config[j] != n_config[(j + 3) % n_config.len()] {
                     return false;
                 }
@@ -326,6 +329,65 @@ impl HexWorld for World {
     }
     fn rows(&self) -> u32 {
         self.rows
+    }
+}
+
+#[derive(Clone, Debug, Default)]
+pub struct WorldSave {
+    seed: u64,
+    rotations: Vec<u8>,
+}
+
+impl From<&World> for WorldSave {
+    fn from(world: &World) -> Self {
+        Self {
+            seed: world.seed,
+            rotations: world
+                .elements
+                .iter()
+                .map(|x| x.map(|e| e.rotation).unwrap_or(0))
+                .collect(),
+        }
+    }
+}
+
+impl From<WorldSave> for World {
+    fn from(save: WorldSave) -> Self {
+        let mut world = World::from_seed(save.seed);
+        world.scramble(&fastrand::Rng::with_seed(save.seed));
+        for (elem, rot) in world.elements.iter_mut().zip(save.rotations){
+            if let Some(elem) = elem {
+                elem.rotation = rot;
+            }
+        }
+        world
+    }
+}
+
+impl Display for WorldSave {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{};{:?}", self.seed, self.rotations)
+    }
+}
+
+impl FromStr for WorldSave {
+    type Err = Box<dyn Error>;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let (seed, rotations) = s.split_once(';').ok_or("expected ;")?;
+        let seed = seed.parse()?;
+        let rotations = rotations
+            .strip_prefix('[')
+            .and_then(|s|s.strip_suffix(']'));
+        let rotations = rotations.ok_or("expected [...]")?;
+        let rotations = rotations
+            .split(',')
+            .map(|s|s.trim().parse::<u8>())
+            .collect::<Result<Vec<_>, _>>()?;
+        Ok(Self {
+            seed,
+            rotations
+        })
     }
 }
 

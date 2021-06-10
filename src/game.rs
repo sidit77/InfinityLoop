@@ -5,7 +5,7 @@ use glam::{Quat, Mat4, Vec2, Vec3Swizzles, Vec3};
 use crate::meshes;
 use crate::intersection::Hexagon;
 use std::ops::Range;
-use crate::world::World;
+use crate::world::{World, WorldSave};
 use css_color_parser::Color;
 
 pub struct GameStyle {
@@ -26,7 +26,7 @@ pub struct Game {
 
 impl Game {
 
-    pub fn new(gl: WebGl2RenderingContext, style: GameStyle) -> Result<Self, String> {
+    pub fn new(gl: WebGl2RenderingContext, style: GameStyle, save: Option<WorldSave>) -> Result<Self, String> {
         let program = compile_program(&gl, &[
             (WebGl2RenderingContext::VERTEX_SHADER, include_str!("shader/vertex.glsl")),
             (WebGl2RenderingContext::FRAGMENT_SHADER, include_str!("shader/fragment.glsl"))
@@ -48,8 +48,15 @@ impl Game {
         let rng = fastrand::Rng::with_seed(1337);
         //console_log!("{:?}", crate::renderer::meshes::MODEL1);
 
-        let mut world = World::from_seed(1);
-        world.scramble(&rng);
+        let world = match save {
+            None => {
+                let mut world = World::from_seed(1);
+                world.scramble(&rng);
+                world
+            }
+            Some(save) => save.into()
+        };
+
 
         let camera = Camera{
             position: Vec2::new(0.0, 1.0),

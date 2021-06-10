@@ -53,7 +53,8 @@ features = [
   'MouseEvent',
   'Performance',
   'CssStyleDeclaration',
-  'HtmlSpanElement'
+  'HtmlSpanElement',
+  'Storage'
 ]
 
 

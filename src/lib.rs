@@ -17,6 +17,7 @@ macro_rules! console_log {
 }
 
 use crate::game::{Game, GameStyle};
+use crate::world::WorldSave;
 
 mod shader;
 mod camera;
@@ -38,6 +39,26 @@ fn get_element<T: JsCast>(id: &str) -> T {
         .dyn_into::<T>().expect("can't convert the the desired type")
 }
 
+fn load_world() -> Option<WorldSave> {
+    let storage = web_sys::window().unwrap().local_storage().unwrap().unwrap();
+    let save: Option<String> = storage.get_item("current-level").unwrap();
+    match save {
+        None => None,
+        Some(save) => match save.parse::<WorldSave>() {
+            Ok(save) => Some(save),
+            Err(e) => {
+                console_log!("{}", e);
+                None
+            }
+        }
+    }
+}
+
+fn save_world(world: &WorldSave) {
+    let storage = web_sys::window().unwrap().local_storage().unwrap().unwrap();
+    storage.set_item("current-level", world.to_string().as_str()).expect("can't save");
+}
+
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
     #[cfg(debug)]
@@ -54,7 +75,8 @@ pub fn main_js() -> Result<(), JsValue> {
         GameStyle {
             foreground: css.get_property_value("color")?.parse::<Color>().unwrap(),
             background: css.get_property_value("background-color")?.parse::<Color>().unwrap()
-        }
+        },
+        load_world()
     )?));
 
     {
@@ -95,6 +117,15 @@ pub fn main_js() -> Result<(), JsValue> {
         closure.forget();
     }
 
+    {
+        let game = game.clone();
+        let closure = Closure::wrap(Box::new(move || {
+            save_world(&WorldSave::from(game.borrow_mut().world()));
+            console_log!("Saved");
+        }) as Box<dyn FnMut()>);
+        window.set_onbeforeunload(Some(closure.as_ref().unchecked_ref()));
+        closure.forget();
+    }
 
     let f = Rc::new(RefCell::new(None));
     let g = f.clone();
@@ -126,6 +157,7 @@ pub fn main_js() -> Result<(), JsValue> {
                 level = nl;
                 let (level, finished) = level.unwrap();
                 level_span.set_inner_text(format!("#{}", level).as_str());
+                save_world(&WorldSave::from(game.world()));
                 level_span.style().set_css_text(if finished {
                     "filter: invert(100%);"
                 } else {
