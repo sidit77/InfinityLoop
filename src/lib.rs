@@ -31,16 +31,23 @@ fn request_animation_frame(f: &Closure<dyn FnMut()>) {
         .expect("should register `requestAnimationFrame` OK");
 }
 
+fn get_element<T: JsCast>(id: &str) -> T {
+    web_sys::window().expect("can't find window")
+        .document().expect("can't find document")
+        .get_element_by_id(id).expect(format!("can't find element {}", id).as_str())
+        .dyn_into::<T>().expect("can't convert the the desired type")
+}
+
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
     #[cfg(debug)]
     console_error_panic_hook::set_once();
 
     let window = web_sys::window().unwrap();
-    let canvas = window.document().unwrap().get_element_by_id("canvas").unwrap().dyn_into::<web_sys::HtmlCanvasElement>()?;
+    let canvas = get_element::<web_sys::HtmlCanvasElement>("canvas");
     let performance = window.performance().unwrap();
     let css = window.get_computed_style(&canvas)?.unwrap();
-    let level_span = window.document().unwrap().get_element_by_id("current-level").unwrap().dyn_into::<web_sys::HtmlSpanElement>()?;
+    let level_span = get_element::<web_sys::HtmlSpanElement>("current-level");
 
     let game = Rc::new(RefCell::new(Game::new(
         canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>()?,
@@ -73,13 +80,7 @@ pub fn main_js() -> Result<(), JsValue> {
         let closure = Closure::wrap(Box::new(move || {
             game.borrow_mut().new_level();
         }) as Box<dyn FnMut()>);
-        window
-            .document()
-            .expect("should be a document")
-            .get_element_by_id("new-button")
-            .expect("should have a button on the page")
-            .dyn_ref::<web_sys::HtmlElement>()
-            .expect("#new-button be an `HtmlElement`")
+        get_element::<web_sys::HtmlElement>("new-button")
             .set_onclick(Some(closure.as_ref().unchecked_ref()));
         closure.forget();
     }
@@ -89,13 +90,7 @@ pub fn main_js() -> Result<(), JsValue> {
         let closure = Closure::wrap(Box::new(move || {
             game.borrow_mut().scramble_level();
         }) as Box<dyn FnMut()>);
-        window
-            .document()
-            .expect("should be a document")
-            .get_element_by_id("scramble-button")
-            .expect("should have a button on the page")
-            .dyn_ref::<web_sys::HtmlElement>()
-            .expect("#scramble-button be an `HtmlElement`")
+        get_element::<web_sys::HtmlElement>("scramble-button")
             .set_onclick(Some(closure.as_ref().unchecked_ref()));
         closure.forget();
     }
