@@ -3,15 +3,15 @@ use enum_iterator::IntoEnumIterator;
 use glam::Vec2;
 use lazy_static::lazy_static;
 use std::collections::VecDeque;
-use std::ops::Range;
-use std::fmt::{Display, Formatter};
-use std::str::FromStr;
 use std::error::Error;
+use std::fmt::{Display, Formatter};
+use std::ops::Range;
+use std::str::FromStr;
 
 const SIN_FRAC_PI_6: f32 = 0.5;
 const COS_FRAC_PI_6: f32 = 0.86602540378;
 
-#[derive(Debug, IntoEnumIterator, Copy, Clone)]
+#[derive(Debug, IntoEnumIterator, Copy, Clone, Eq, PartialEq)]
 pub enum TileType {
     Tile0,
     Tile01,
@@ -48,9 +48,31 @@ impl TileType {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct WorldElement {
-    pub tile_type: TileType,
-    pub rotation: u8,
+pub enum WorldElement {
+    Empty,
+    Tile(usize),
+}
+
+impl From<TileConfig> for WorldElement {
+    fn from(tc: TileConfig) -> Self {
+        match tc {
+            TileConfig::Empty => Self::Empty,
+            TileConfig::Tile(_, _) => Self::Tile(tc.index()),
+        }
+    }
+}
+
+impl WorldElement {
+    fn tile_config_index(&self) -> usize {
+        match self {
+            WorldElement::Empty => *EMPTY_ELEMENT_INDEX,
+            WorldElement::Tile(i) => *i,
+        }
+    }
+
+    fn as_tile_config(&self) -> TileConfig {
+        TileConfig::from(self.tile_config_index())
+    }
 }
 
 #[derive(Debug)]
@@ -58,7 +80,7 @@ pub struct World {
     seed: u64,
     rows: u32,
     width: u32,
-    elements: Vec<Option<WorldElement>>,
+    elements: Vec<WorldElement>,
 }
 
 impl World {
@@ -108,13 +130,13 @@ impl World {
             (1.0 + SIN_FRAC_PI_6) * self.rows as f32,
         )
     }
-    pub fn get_element(&mut self, index: usize) -> &mut Option<WorldElement> {
+    pub fn get_element(&mut self, index: usize) -> &mut WorldElement {
         &mut self.elements[index]
     }
     pub fn scramble(&mut self, rng: &fastrand::Rng) {
         for e in &mut self.elements {
-            if let Some(e) = e {
-                e.rotation = rng.u8(0..6);
+            if let WorldElement::Tile(index) = e {
+                *index = TileConfig::from(*index).rotate_by(rng.u8(0..6)).index();
             }
         }
     }
@@ -123,10 +145,12 @@ impl World {
     }
     pub fn is_completed(&self) -> bool {
         for i in self.indices() {
-            let local_config = get_endings(self.elements[i]);
+            let local = self.elements[i].tile_config_index();
             for (j, n) in self.get_neighbors(i).iter().enumerate() {
-                let n_config = get_endings(n.and_then(|k| self.elements[k]));
-                if local_config[j] != n_config[(j + 3) % n_config.len()] {
+                let n = n
+                    .map(|k| self.elements[k].tile_config_index())
+                    .unwrap_or(*EMPTY_ELEMENT_INDEX);
+                if !ADJACENCY_LISTS[local][j].contains(n as u8) {
                     return false;
                 }
             }
@@ -159,10 +183,7 @@ impl WaveCollapseWorld {
     }
 
     fn prepare(&mut self) {
-        let empty_element = ELEMENT_TABLE
-            .iter()
-            .position(|x| x.is_none())
-            .expect("Cannot find the empty element in table");
+        let empty_element = *EMPTY_ELEMENT_INDEX;
         self.elements.clear();
         let complete_set = (0..ELEMENT_TABLE.len())
             .into_iter()
@@ -259,8 +280,9 @@ impl Into<World> for WaveCollapseWorld {
             elements: self
                 .elements
                 .iter()
-                .map(|x| x.iter().nth(0).unwrap())
-                .map(|x| ELEMENT_TABLE[x as usize])
+                .map(|x| x.iter().nth(0).unwrap() as usize)
+                .map(|x| TileConfig::from(x))
+                .map(|x| x.into())
                 .collect(),
         }
     }
@@ -345,7 +367,7 @@ impl From<&World> for WorldSave {
             rotations: world
                 .elements
                 .iter()
-                .map(|x| x.map(|e| e.rotation).unwrap_or(0))
+                .map(|x| x.as_tile_config().rotation())
                 .collect(),
         }
     }
@@ -355,9 +377,13 @@ impl From<WorldSave> for World {
     fn from(save: WorldSave) -> Self {
         let mut world = World::from_seed(save.seed);
         world.scramble(&fastrand::Rng::with_seed(save.seed));
-        for (elem, rot) in world.elements.iter_mut().zip(save.rotations){
-            if let Some(elem) = elem {
-                elem.rotation = rot;
+        for (elem, rot) in world.elements.iter_mut().zip(save.rotations) {
+            if let WorldElement::Tile(index) = elem {
+                *index = match TileConfig::from(*index) {
+                    TileConfig::Empty => unreachable!(),
+                    TileConfig::Tile(t, _) => TileConfig::Tile(t, rot),
+                }
+                .index();
             }
         }
         world
@@ -378,48 +404,102 @@ impl FromStr for WorldSave {
         let seed = seed.parse()?;
         let rotations = rotations
             .strip_prefix('[')
-            .and_then(|s|s.strip_suffix(']'));
+            .and_then(|s| s.strip_suffix(']'));
         let rotations = rotations.ok_or("expected [...]")?;
         let rotations = rotations
             .split(',')
-            .map(|s|s.trim().parse::<u8>())
+            .map(|s| s.trim().parse::<u8>())
             .collect::<Result<Vec<_>, _>>()?;
-        Ok(Self {
-            seed,
-            rotations
-        })
+        Ok(Self { seed, rotations })
     }
 }
 
 type IndexSet = smallbitset::Set64;
 
-fn get_endings(elem: Option<WorldElement>) -> [bool; 6] {
-    match elem {
-        None => [false; 6],
-        Some(elem) => {
-            let mut result = [false; 6];
-            let endings = elem.tile_type.endings();
-            for i in 0..6 {
-                result[(i + elem.rotation as usize) % result.len()] = endings[i];
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum TileConfig {
+    Empty,
+    Tile(TileType, u8),
+}
+
+impl TileConfig {
+    pub fn from(index: usize) -> Self {
+        match ELEMENT_TABLE.get(index) {
+            None => unreachable!(),
+            Some(elem) => *elem,
+        }
+    }
+
+    pub fn endings(self) -> [bool; 6] {
+        match self {
+            TileConfig::Empty => [false; 6],
+            TileConfig::Tile(tile_type, rotation) => {
+                let mut result = [false; 6];
+                let endings = tile_type.endings();
+                for i in 0..6 {
+                    result[(i + rotation as usize) % result.len()] = endings[i];
+                }
+                result
             }
-            result
+        }
+    }
+
+    pub fn rotation(self) -> u8 {
+        match self {
+            TileConfig::Empty => 0,
+            TileConfig::Tile(_, r) => r,
+        }
+    }
+
+    pub fn radian_rotation(self) -> f32 {
+        -std::f32::consts::FRAC_PI_3 * self.rotation() as f32
+    }
+
+    pub fn normalized(self) -> Self {
+        match self {
+            TileConfig::Empty => TileConfig::Empty,
+            TileConfig::Tile(t, r) => TileConfig::Tile(t, r % 6),
+        }
+    }
+
+    pub fn rotate_by(self, d: u8) -> Self {
+        match self {
+            TileConfig::Empty => TileConfig::Empty,
+            TileConfig::Tile(t, r) => TileConfig::Tile(t, r + d).normalized(),
+        }
+    }
+
+    pub fn index(&self) -> usize {
+        match ELEMENT_TABLE.iter().position(|e| *e == self.normalized()) {
+            None => unreachable!(),
+            Some(i) => i,
+        }
+    }
+
+    pub fn model(self) -> Range<i32> {
+        match self {
+            TileConfig::Empty => panic!("TileConfig::Empty has no model"),
+            TileConfig::Tile(t, _) => t.model(),
         }
     }
 }
 
 lazy_static! {
-    static ref ELEMENT_TABLE: Vec<Option<WorldElement>> = {
+    static ref ELEMENT_TABLE: Vec<TileConfig> = {
         let mut result = Vec::new();
         for tile_type in TileType::into_enum_iter() {
             for rotation in 0..6 {
-                result.push(Some(WorldElement {
-                    tile_type,
-                    rotation,
-                }))
+                result.push(TileConfig::Tile(tile_type, rotation));
             }
         }
-        result.push(None);
+        result.push(TileConfig::Empty);
         result
+    };
+    static ref EMPTY_ELEMENT_INDEX: usize = {
+        ELEMENT_TABLE
+            .iter()
+            .position(|x| *x == TileConfig::Empty)
+            .expect("Cannot find the empty element in table")
     };
     static ref ADJACENCY_LISTS: Vec<[IndexSet; 6]> = {
         assert!(ELEMENT_TABLE.len() <= IndexSet::full().len());
@@ -428,8 +508,8 @@ lazy_static! {
             let mut lists = [IndexSet::empty(); 6];
             for j in 0..lists.len() {
                 for k in 0..ELEMENT_TABLE.len() {
-                    let elem1 = get_endings(ELEMENT_TABLE[i]);
-                    let elem2 = get_endings(ELEMENT_TABLE[k]);
+                    let elem1 = ELEMENT_TABLE[i].endings();
+                    let elem2 = ELEMENT_TABLE[k].endings();
 
                     if elem1[j] == elem2[(j + 3) % elem2.len()] {
                         lists[j] = lists[j].insert(k as u8);

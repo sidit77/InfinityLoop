@@ -5,7 +5,7 @@ use glam::{Quat, Mat4, Vec2, Vec3Swizzles, Vec3};
 use crate::meshes;
 use crate::intersection::Hexagon;
 use std::ops::Range;
-use crate::world::{World, WorldSave};
+use crate::world::{World, WorldSave, WorldElement, TileConfig};
 use css_color_parser::Color;
 
 pub struct GameStyle {
@@ -112,14 +112,14 @@ impl Game {
 
             for i in self.world.indices() {
                 let position = self.world.get_position(i);
-                if let Some(elem) = self.world.get_element(i) {
+                if let WorldElement::Tile(index) = self.world.get_element(i) {
                     let hex = Hexagon{
                         position,
                         rotation: 0.0,
                         radius: 1.0
                     };
                     if hex.contains(point.xy()) {
-                        elem.rotation += 1;
+                        *index = TileConfig::from(*index).rotate_by(1).index();
                     }
                 }
 
@@ -150,16 +150,18 @@ impl Game {
 
         for i in self.world.indices() {
             let position = self.world.get_position(i);
-            if let Some(elem) = self.world.get_element(i).as_ref() {
+            if let WorldElement::Tile(id) = self.world.get_element(i) {
+                let tile_config = TileConfig::from(*id);
+
                 let obj_mat = self.camera.to_matrix() * Mat4::from_rotation_translation(
-                    Quat::from_rotation_z(-std::f32::consts::FRAC_PI_3 * elem.rotation as f32),
+                    Quat::from_rotation_z(tile_config.radian_rotation()),
                     position.extend(0.0)
                 );
                 self.gl.uniform_matrix4fv_with_f32_array(Some(&self.mvp_location), false, &obj_mat.to_cols_array());
                 //self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
                 //self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
                 //self.gl.uniform4f(Some(&self.color_location), 0.0, 0.0, 0.0, 1.0);
-                self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, elem.tile_type.model());
+                self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, tile_config.model());
             }
         }
     }
