@@ -1,16 +1,17 @@
 use crate::camera::Camera;
-use web_sys::{WebGl2RenderingContext, WebGlUniformLocation};
-use crate::shader::compile_program;
-use glam::{Quat, Mat4, Vec2, Vec3Swizzles, Vec3};
-use crate::meshes;
 use crate::intersection::Hexagon;
-use std::ops::Range;
-use crate::world::{World, WorldSave, WorldElement, TileConfig};
+use crate::meshes;
+use crate::shader::compile_program;
+use crate::world::{TileConfig, World, WorldElement, WorldSave};
 use css_color_parser::Color;
+use glam::{Mat4, Quat, Vec2, Vec3, Vec3Swizzles};
+use std::ops::Range;
+use web_sys::{WebGl2RenderingContext, WebGlUniformLocation};
+use std::time::Duration;
 
 pub struct GameStyle {
     pub foreground: Color,
-    pub background: Color
+    pub background: Color,
 }
 
 pub struct Game {
@@ -21,18 +22,29 @@ pub struct Game {
     color_location: WebGlUniformLocation,
     world: World,
     rng: fastrand::Rng,
-    finished: bool
+    finished: bool,
 }
 
 impl Game {
-
-    pub fn new(gl: WebGl2RenderingContext, style: GameStyle, save: Option<WorldSave>) -> Result<Self, String> {
-        let program = compile_program(&gl, &[
-            (WebGl2RenderingContext::VERTEX_SHADER, include_str!("shader/vertex.glsl")),
-            (WebGl2RenderingContext::FRAGMENT_SHADER, include_str!("shader/fragment.glsl"))
-        ])?;
+    pub fn new(
+        gl: WebGl2RenderingContext,
+        style: GameStyle,
+        save: Option<WorldSave>,
+    ) -> Result<Self, String> {
+        let program = compile_program(
+            &gl,
+            &[
+                (
+                    WebGl2RenderingContext::VERTEX_SHADER,
+                    include_str!("shader/vertex.glsl"),
+                ),
+                (
+                    WebGl2RenderingContext::FRAGMENT_SHADER,
+                    include_str!("shader/fragment.glsl"),
+                ),
+            ],
+        )?;
         gl.use_program(Some(&program));
-
 
         let buffer = gl.create_buffer().ok_or("failed to create buffer")?;
         gl.bind_buffer(WebGl2RenderingContext::ARRAY_BUFFER, Some(&buffer));
@@ -54,11 +66,10 @@ impl Game {
                 world.scramble(&rng);
                 world
             }
-            Some(save) => save.into()
+            Some(save) => save.into(),
         };
 
-
-        let camera = Camera{
+        let camera = Camera {
             position: Vec2::new(0.0, 1.0),
             ..Camera::default()
         };
@@ -91,7 +102,7 @@ impl Game {
         //self.gl.uniform_matrix4fv_with_f32_array(Some(&self.mvp_location), false, &self.camera.to_matrix().to_cols_array());
     }
 
-    pub fn new_level(&mut self){
+    pub fn new_level(&mut self) {
         self.world = World::from_seed(self.world.seed());
         self.finished = self.world.is_completed();
     }
@@ -112,56 +123,71 @@ impl Game {
 
             for i in self.world.indices() {
                 let position = self.world.get_position(i);
-                if let WorldElement::Tile(index) = self.world.get_element(i) {
-                    let hex = Hexagon{
+                if let WorldElement::Tile(index, _) = self.world.get_element(i) {
+                    let hex = Hexagon {
                         position,
                         rotation: 0.0,
-                        radius: 1.0
+                        radius: 1.0,
                     };
                     if hex.contains(point.xy()) {
                         *index = TileConfig::from(*index).rotate_by(1).index();
                     }
                 }
-
             }
 
             self.finished = self.world.is_completed();
         }
-
     }
 
-    pub fn render(&mut self, _time: f64) {
+    pub fn render(&mut self, time: Duration) {
         {
             let bc = self.style.background.as_f32();
             let fc = self.style.foreground.as_f32();
             if self.finished {
-                self.gl.clear_color(1.0 - bc[0], 1.0 - bc[1], 1.0 - bc[2], bc[3]);
-                self.gl.uniform4f(Some(&self.color_location), 1.0 - fc[0], 1.0 - fc[1], 1.0 - fc[2], fc[3]);
+                self.gl
+                    .clear_color(1.0 - bc[0], 1.0 - bc[1], 1.0 - bc[2], bc[3]);
+                self.gl.uniform4f(
+                    Some(&self.color_location),
+                    1.0 - fc[0],
+                    1.0 - fc[1],
+                    1.0 - fc[2],
+                    fc[3],
+                );
             } else {
                 self.gl.clear_color(bc[0], bc[1], bc[2], bc[3]);
-                self.gl.uniform4f(Some(&self.color_location), fc[0], fc[1], fc[2], fc[3]);
+                self.gl
+                    .uniform4f(Some(&self.color_location), fc[0], fc[1], fc[2], fc[3]);
             }
-
         }
         self.gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
 
         //let rng = fastrand::Rng::with_seed(1337);
 
-
         for i in self.world.indices() {
             let position = self.world.get_position(i);
-            if let WorldElement::Tile(id) = self.world.get_element(i) {
+            if let WorldElement::Tile(id, rotation) = self.world.get_element(i) {
                 let tile_config = TileConfig::from(*id);
 
-                let obj_mat = self.camera.to_matrix() * Mat4::from_rotation_translation(
-                    Quat::from_rotation_z(tile_config.radian_rotation()),
-                    position.extend(0.0)
+                let obj_mat = self.camera.to_matrix()
+                    * Mat4::from_rotation_translation(
+                        Quat::from_rotation_z(*rotation),
+                        position.extend(0.0),
+                    );
+
+                *rotation = lerp_radians(
+                    *rotation,
+                    tile_config.radian_rotation(), 1.0 - f32::exp(-15.0 * time.as_secs_f32()));
+
+                self.gl.uniform_matrix4fv_with_f32_array(
+                    Some(&self.mvp_location),
+                    false,
+                    &obj_mat.to_cols_array(),
                 );
-                self.gl.uniform_matrix4fv_with_f32_array(Some(&self.mvp_location), false, &obj_mat.to_cols_array());
                 //self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
                 //self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
                 //self.gl.uniform4f(Some(&self.color_location), 0.0, 0.0, 0.0, 1.0);
-                self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, tile_config.model());
+                self.gl
+                    .draw_array_range(WebGl2RenderingContext::TRIANGLES, tile_config.model());
             }
         }
     }
@@ -173,7 +199,35 @@ impl Game {
     pub fn finished(&self) -> bool {
         self.finished
     }
+}
 
+fn lerp(a: f32, b: f32, lerp_factor: f32) -> f32{
+    ((1.0 - lerp_factor) * a) + (lerp_factor * b)
+}
+
+fn lerp_radians(a: f32, mut b: f32, lerp_factor: f32) -> f32 {
+    const PI: f32 = std::f32::consts::PI;
+    const PI_TIMES_TWO: f32 = PI * 2.0;
+    let diff = b - a;
+    if diff < -PI {
+        b += PI_TIMES_TWO;
+        let result = lerp(a, b, lerp_factor);
+        if result >= PI_TIMES_TWO {
+            result - PI_TIMES_TWO
+        } else {
+            result
+        }
+    } else if diff > PI {
+        b -= PI_TIMES_TWO;
+        let result = lerp(a, b, lerp_factor);
+        if result < 0.0 {
+            result + PI_TIMES_TWO
+        } else {
+            result
+        }
+    } else {
+        lerp(a, b, lerp_factor)
+    }
 }
 
 trait DrawRange {
@@ -196,7 +250,7 @@ impl AsF32 for Color {
             self.r as f32 / u8::MAX as f32,
             self.g as f32 / u8::MAX as f32,
             self.b as f32 / u8::MAX as f32,
-            self.a
+            self.a,
         ]
     }
 }

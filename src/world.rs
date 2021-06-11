@@ -50,14 +50,14 @@ impl TileType {
 #[derive(Debug, Copy, Clone)]
 pub enum WorldElement {
     Empty,
-    Tile(usize),
+    Tile(usize, f32),
 }
 
 impl From<TileConfig> for WorldElement {
     fn from(tc: TileConfig) -> Self {
         match tc {
             TileConfig::Empty => Self::Empty,
-            TileConfig::Tile(_, _) => Self::Tile(tc.index()),
+            TileConfig::Tile(_, _) => Self::Tile(tc.index(), tc.radian_rotation()),
         }
     }
 }
@@ -66,7 +66,7 @@ impl WorldElement {
     fn tile_config_index(&self) -> usize {
         match self {
             WorldElement::Empty => *EMPTY_ELEMENT_INDEX,
-            WorldElement::Tile(i) => *i,
+            WorldElement::Tile(i, _) => *i,
         }
     }
 
@@ -135,9 +135,7 @@ impl World {
     }
     pub fn scramble(&mut self, rng: &fastrand::Rng) {
         for e in &mut self.elements {
-            if let WorldElement::Tile(index) = e {
-                *index = TileConfig::from(*index).rotate_by(rng.u8(0..6)).index();
-            }
+            *e = WorldElement::from(e.as_tile_config().rotate_by(rng.u8(0..6)));
         }
     }
     pub fn seed(&self) -> u64 {
@@ -378,13 +376,7 @@ impl From<WorldSave> for World {
         let mut world = World::from_seed(save.seed);
         world.scramble(&fastrand::Rng::with_seed(save.seed));
         for (elem, rot) in world.elements.iter_mut().zip(save.rotations) {
-            if let WorldElement::Tile(index) = elem {
-                *index = match TileConfig::from(*index) {
-                    TileConfig::Empty => unreachable!(),
-                    TileConfig::Tile(t, _) => TileConfig::Tile(t, rot),
-                }
-                .index();
-            }
+            *elem = elem.as_tile_config().with_rotation(rot).into();
         }
         world
     }
@@ -459,6 +451,13 @@ impl TileConfig {
         match self {
             TileConfig::Empty => TileConfig::Empty,
             TileConfig::Tile(t, r) => TileConfig::Tile(t, r % 6),
+        }
+    }
+
+    pub fn with_rotation(self, r: u8) -> Self {
+        match self {
+            TileConfig::Empty => TileConfig::Empty,
+            TileConfig::Tile(t, _) => TileConfig::Tile(t, r)
         }
     }
 

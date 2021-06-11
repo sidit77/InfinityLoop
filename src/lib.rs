@@ -18,6 +18,7 @@ macro_rules! console_log {
 
 use crate::game::{Game, GameStyle};
 use crate::world::WorldSave;
+use std::time::Duration;
 
 mod shader;
 mod camera;
@@ -148,7 +149,7 @@ pub fn main_js() -> Result<(), JsValue> {
         let dt = performance.now() - time;
         time = performance.now();
 
-        game.borrow_mut().render(dt);
+        game.borrow_mut().render(perf_to_duration(dt));
 
         {
             let game = game.borrow_mut();
@@ -172,4 +173,10 @@ pub fn main_js() -> Result<(), JsValue> {
     request_animation_frame(g.borrow().as_ref().unwrap());
 
     Ok(())
+}
+
+fn perf_to_duration(amt: f64) -> Duration {
+    let secs = (amt as u64) / 1_000;
+    let nanos = ((amt as u32) % 1_000) * 1_000_000;
+    Duration::new(secs, nanos)
 }
