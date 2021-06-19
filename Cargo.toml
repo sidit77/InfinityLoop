@@ -32,6 +32,7 @@ smallbitset = "0.3"
 lazy_static = "1.4"
 css-color-parser = "0.1"
 enum-iterator = "0.6"
+miniserde = "0.1"
 glam = {version = "0.15"}
 wee_alloc = { version = "0.4", optional = true }
 
@@ -54,7 +55,8 @@ features = [
   'Performance',
   'CssStyleDeclaration',
   'HtmlSpanElement',
-  'Storage'
+  'Storage',
+  'CustomEvent'
 ]
 
 

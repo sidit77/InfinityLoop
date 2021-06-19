@@ -19,6 +19,7 @@ macro_rules! console_log {
 use crate::game::{Game, GameStyle};
 use crate::world::WorldSave;
 use std::time::Duration;
+use miniserde::json;
 
 mod shader;
 mod camera;
@@ -45,7 +46,7 @@ fn load_world() -> Option<WorldSave> {
     let save: Option<String> = storage.get_item("current-level").unwrap();
     match save {
         None => None,
-        Some(save) => match save.parse::<WorldSave>() {
+        Some(save) => match json::from_str(save.as_str()) {
             Ok(save) => Some(save),
             Err(e) => {
                 console_log!("{}", e);
@@ -57,7 +58,8 @@ fn load_world() -> Option<WorldSave> {
 
 fn save_world(world: &WorldSave) {
     let storage = web_sys::window().unwrap().local_storage().unwrap().unwrap();
-    storage.set_item("current-level", world.to_string().as_str()).expect("can't save");
+    storage.set_item("current-level", json::to_string(world).as_str()).expect("can't save");
+    web_sys::window().unwrap().dispatch_event(&web_sys::CustomEvent::new("saved").unwrap()).unwrap();
 }
 
 #[wasm_bindgen(start)]

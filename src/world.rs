@@ -2,11 +2,9 @@ use crate::meshes::{MODEL1, MODEL2, MODEL3, MODEL4, MODEL5, MODEL6, MODEL7};
 use enum_iterator::IntoEnumIterator;
 use glam::Vec2;
 use lazy_static::lazy_static;
+use miniserde::{Serialize, Deserialize};
 use std::collections::VecDeque;
-use std::error::Error;
-use std::fmt::{Display, Formatter};
 use std::ops::Range;
-use std::str::FromStr;
 
 const SIN_FRAC_PI_6: f32 = 0.5;
 const COS_FRAC_PI_6: f32 = 0.86602540378;
@@ -352,7 +350,7 @@ impl HexWorld for World {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct WorldSave {
     seed: u64,
     rotations: Vec<u8>,
@@ -382,29 +380,29 @@ impl From<WorldSave> for World {
     }
 }
 
-impl Display for WorldSave {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{};{:?}", self.seed, self.rotations)
-    }
-}
-
-impl FromStr for WorldSave {
-    type Err = Box<dyn Error>;
-
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let (seed, rotations) = s.split_once(';').ok_or("expected ;")?;
-        let seed = seed.parse()?;
-        let rotations = rotations
-            .strip_prefix('[')
-            .and_then(|s| s.strip_suffix(']'));
-        let rotations = rotations.ok_or("expected [...]")?;
-        let rotations = rotations
-            .split(',')
-            .map(|s| s.trim().parse::<u8>())
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(Self { seed, rotations })
-    }
-}
+//impl Display for WorldSave {
+//    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+//        write!(f, "{};{:?}", self.seed, self.rotations)
+//    }
+//}
+//
+//impl FromStr for WorldSave {
+//    type Err = Box<dyn Error>;
+//
+//    fn from_str(s: &str) -> Result<Self, Self::Err> {
+//        let (seed, rotations) = s.split_once(';').ok_or("expected ;")?;
+//        let seed = seed.parse()?;
+//        let rotations = rotations
+//            .strip_prefix('[')
+//            .and_then(|s| s.strip_suffix(']'));
+//        let rotations = rotations.ok_or("expected [...]")?;
+//        let rotations = rotations
+//            .split(',')
+//            .map(|s| s.trim().parse::<u8>())
+//            .collect::<Result<Vec<_>, _>>()?;
+//        Ok(Self { seed, rotations })
+//    }
+//}
 
 type IndexSet = smallbitset::Set64;
 
