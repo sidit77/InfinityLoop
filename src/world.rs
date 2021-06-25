@@ -352,8 +352,8 @@ impl HexWorld for World {
 
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct WorldSave {
-    seed: u64,
-    rotations: Vec<u8>,
+    pub seed: u64,
+    pub rotations: Vec<u8>,
 }
 
 impl From<&World> for WorldSave {

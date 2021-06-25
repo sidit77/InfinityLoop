@@ -56,7 +56,8 @@ features = [
   'CssStyleDeclaration',
   'HtmlSpanElement',
   'Storage',
-  'CustomEvent'
+  'CustomEvent',
+  'CustomEventInit'
 ]
 
 

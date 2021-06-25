@@ -1,6 +1,6 @@
 use crate::camera::Camera;
 use crate::intersection::Hexagon;
-use crate::meshes;
+use crate::{meshes, SaveManager};
 use crate::shader::compile_program;
 use crate::world::{TileConfig, World, WorldElement, WorldSave};
 use css_color_parser::Color;
@@ -14,6 +14,15 @@ pub struct GameStyle {
     pub background: Color,
 }
 
+pub enum GameEvent<'a> {
+    Resize(u32, u32),
+    Click(f32, f32),
+    SolveButton,
+    ScrambleButton,
+    SaveReceived(&'a str),
+    Quitting
+}
+
 pub struct Game {
     gl: WebGl2RenderingContext,
     style: GameStyle,
@@ -23,13 +32,13 @@ pub struct Game {
     world: World,
     rng: fastrand::Rng,
     finished: bool,
+    save_manager: SaveManager
 }
 
 impl Game {
     pub fn new(
         gl: WebGl2RenderingContext,
         style: GameStyle,
-        save: Option<WorldSave>,
     ) -> Result<Self, String> {
         let program = compile_program(
             &gl,
@@ -60,7 +69,9 @@ impl Game {
         let rng = fastrand::Rng::with_seed(1337);
         //console_log!("{:?}", crate::renderer::meshes::MODEL1);
 
-        let world = match save {
+        let save_manager = SaveManager::new();
+
+        let world = match save_manager.load_world() {
             None => {
                 let mut world = World::from_seed(1);
                 world.scramble(&rng);
@@ -88,54 +99,69 @@ impl Game {
             world,
             rng,
             finished,
+            save_manager
         })
     }
 
-    pub fn resize(&mut self, width: u32, height: u32) {
-        self.gl.viewport(0, 0, width as i32, height as i32);
+    pub fn on_event(&mut self, event: GameEvent){
+        match event {
+            GameEvent::Resize(width, height) => {
+                self.gl.viewport(0, 0, width as i32, height as i32);
 
-        self.camera.calc_aspect(width, height);
-        self.camera.scale = {
-            let (w, h) = self.world.get_size();
-            f32::max((w / self.camera.aspect) * 0.7, h * 0.6)
-        };
-        //self.gl.uniform_matrix4fv_with_f32_array(Some(&self.mvp_location), false, &self.camera.to_matrix().to_cols_array());
-    }
+                self.camera.calc_aspect(width, height);
+                self.camera.scale = {
+                    let (w, h) = self.world.get_size();
+                    f32::max((w / self.camera.aspect) * 0.7, h * 0.6)
+                };
+                //self.gl.uniform_matrix4fv_with_f32_array(Some(&self.mvp_location), false, &self.camera.to_matrix().to_cols_array());
+            }
+            GameEvent::Click(x, y) => {
+                if self.finished {
+                    self.world = World::from_seed(self.world.seed() + 1);
+                    self.world.scramble(&self.rng);
+                } else {
+                    let point = Vec3::new(2.0 * x - 1.0, 2.0 * (1.0 - y) - 1.0, 0.0);
+                    let point = self.camera.to_matrix().inverse().transform_point3(point);
 
-    pub fn new_level(&mut self) {
-        self.world = World::from_seed(self.world.seed());
-        self.finished = self.world.is_completed();
-    }
-
-    pub fn scramble_level(&mut self) {
-        self.world.scramble(&self.rng);
-        self.finished = self.world.is_completed();
-    }
-
-    pub fn mouse_down(&mut self, x: f32, y: f32) {
-        if self.finished {
-            self.world = World::from_seed(self.world.seed() + 1);
-            self.world.scramble(&self.rng);
-            self.finished = self.world.is_completed();
-        } else {
-            let point = Vec3::new(2.0 * x - 1.0, 2.0 * (1.0 - y) - 1.0, 0.0);
-            let point = self.camera.to_matrix().inverse().transform_point3(point);
-
-            for i in self.world.indices() {
-                let position = self.world.get_position(i);
-                if let WorldElement::Tile(index, _) = self.world.get_element(i) {
-                    let hex = Hexagon {
-                        position,
-                        rotation: 0.0,
-                        radius: 1.0,
-                    };
-                    if hex.contains(point.xy()) {
-                        *index = TileConfig::from(*index).rotate_by(1).index();
+                    for i in self.world.indices() {
+                        let position = self.world.get_position(i);
+                        if let WorldElement::Tile(index, _) = self.world.get_element(i) {
+                            let hex = Hexagon {
+                                position,
+                                rotation: 0.0,
+                                radius: 1.0,
+                            };
+                            if hex.contains(point.xy()) {
+                                *index = TileConfig::from(*index).rotate_by(1).index();
+                            }
+                        }
                     }
                 }
             }
-
-            self.finished = self.world.is_completed();
+            GameEvent::SolveButton => {
+                self.world = World::from_seed(self.world.seed());
+            }
+            GameEvent::ScrambleButton => {
+                self.world.scramble(&self.rng);
+            }
+            GameEvent::SaveReceived(save_str) => {
+                console_log!("R: {}", save_str);
+                if let Some(ws) = self.save_manager.handle_world_update(save_str){
+                    console_log!("Reloading...");
+                    self.world = ws.into();
+                }
+            }
+            GameEvent::Quitting => {
+                self.save_manager.save_world(&WorldSave::from(&self.world));
+                self.save_manager.flush();
+            }
+        }
+        {
+            let finished = self.world.is_completed();
+            if finished != self.finished {
+                self.finished = finished;
+                self.save_manager.save_world(&WorldSave::from(&self.world));
+            }
         }
     }
 

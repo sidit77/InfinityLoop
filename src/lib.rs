@@ -3,7 +3,6 @@ use std::rc::Rc;
 
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
-use web_sys::WebGl2RenderingContext;
 use css_color_parser::Color;
 
 #[cfg(feature = "wee_alloc")]
@@ -16,7 +15,7 @@ macro_rules! console_log {
     ($($t:tt)*) => (web_sys::console::log_1(&format_args!($($t)*).to_string().into()))
 }
 
-use crate::game::{Game, GameStyle};
+use crate::game::{Game, GameStyle, GameEvent};
 use crate::world::WorldSave;
 use std::time::Duration;
 use miniserde::json;
@@ -41,26 +40,7 @@ fn get_element<T: JsCast>(id: &str) -> T {
         .dyn_into::<T>().expect("can't convert the the desired type")
 }
 
-fn load_world() -> Option<WorldSave> {
-    let storage = web_sys::window().unwrap().local_storage().unwrap().unwrap();
-    let save: Option<String> = storage.get_item("current-level").unwrap();
-    match save {
-        None => None,
-        Some(save) => match json::from_str(save.as_str()) {
-            Ok(save) => Some(save),
-            Err(e) => {
-                console_log!("{}", e);
-                None
-            }
-        }
-    }
-}
 
-fn save_world(world: &WorldSave) {
-    let storage = web_sys::window().unwrap().local_storage().unwrap().unwrap();
-    storage.set_item("current-level", json::to_string(world).as_str()).expect("can't save");
-    web_sys::window().unwrap().dispatch_event(&web_sys::CustomEvent::new("saved").unwrap()).unwrap();
-}
 
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {
@@ -74,12 +54,11 @@ pub fn main_js() -> Result<(), JsValue> {
     let level_span = get_element::<web_sys::HtmlSpanElement>("current-level");
 
     let game = Rc::new(RefCell::new(Game::new(
-        canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<WebGl2RenderingContext>()?,
+        canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<web_sys::WebGl2RenderingContext>()?,
         GameStyle {
             foreground: css.get_property_value("color")?.parse::<Color>().unwrap(),
             background: css.get_property_value("background-color")?.parse::<Color>().unwrap()
-        },
-        load_world()
+        }
     )?));
 
     {
@@ -90,10 +69,10 @@ pub fn main_js() -> Result<(), JsValue> {
                 .unwrap()
                 .dyn_into::<web_sys::HtmlCanvasElement>()
                 .unwrap();
-            game.borrow_mut().mouse_down(
+            game.borrow_mut().on_event(GameEvent::Click(
                 event.client_x() as f32 / canvas.client_width() as f32,
                 event.client_y() as f32 / canvas.client_height() as f32
-            );
+            ));
             event.prevent_default();
         }) as Box<dyn FnMut(_)>);
         canvas.add_event_listener_with_callback("mousedown", closure.as_ref().unchecked_ref())?;
@@ -102,8 +81,18 @@ pub fn main_js() -> Result<(), JsValue> {
 
     {
         let game = game.clone();
+        let closure = Closure::wrap(Box::new(move |event: web_sys::CustomEvent| {
+            let detail = event.detail().as_string().unwrap();
+            game.borrow_mut().on_event(GameEvent::SaveReceived(detail.as_str()));
+        }) as Box<dyn FnMut(_)>);
+        window.add_event_listener_with_callback("save-received", closure.as_ref().unchecked_ref())?;
+        closure.forget();
+    }
+
+    {
+        let game = game.clone();
         let closure = Closure::wrap(Box::new(move || {
-            game.borrow_mut().new_level();
+            game.borrow_mut().on_event(GameEvent::SolveButton);
         }) as Box<dyn FnMut()>);
         get_element::<web_sys::HtmlElement>("new-button")
             .set_onclick(Some(closure.as_ref().unchecked_ref()));
@@ -113,7 +102,7 @@ pub fn main_js() -> Result<(), JsValue> {
     {
         let game = game.clone();
         let closure = Closure::wrap(Box::new(move || {
-            game.borrow_mut().scramble_level();
+            game.borrow_mut().on_event(GameEvent::ScrambleButton);
         }) as Box<dyn FnMut()>);
         get_element::<web_sys::HtmlElement>("scramble-button")
             .set_onclick(Some(closure.as_ref().unchecked_ref()));
@@ -123,8 +112,7 @@ pub fn main_js() -> Result<(), JsValue> {
     {
         let game = game.clone();
         let closure = Closure::wrap(Box::new(move || {
-            save_world(&WorldSave::from(game.borrow_mut().world()));
-            console_log!("Saved");
+            game.borrow_mut().on_event(GameEvent::Quitting);
         }) as Box<dyn FnMut()>);
         window.set_onbeforeunload(Some(closure.as_ref().unchecked_ref()));
         closure.forget();
@@ -145,7 +133,7 @@ pub fn main_js() -> Result<(), JsValue> {
                 canvas.set_width(width);
                 canvas.set_height(height);
 
-                game.borrow_mut().resize(width, height);
+                game.borrow_mut().on_event(GameEvent::Resize(width, height));
             }
         }
         let dt = performance.now() - time;
@@ -160,7 +148,6 @@ pub fn main_js() -> Result<(), JsValue> {
                 level = nl;
                 let (level, finished) = level.unwrap();
                 level_span.set_inner_text(format!("#{}", level).as_str());
-                save_world(&WorldSave::from(game.world()));
                 level_span.style().set_css_text(if finished {
                     "filter: invert(100%);"
                 } else {
@@ -181,4 +168,69 @@ fn perf_to_duration(amt: f64) -> Duration {
     let secs = (amt as u64) / 1_000;
     let nanos = ((amt as u32) % 1_000) * 1_000_000;
     Duration::new(secs, nanos)
+}
+
+struct SaveManager {
+    storage: web_sys::Storage
+}
+
+impl SaveManager {
+    const STORAGE_KEY: &'static str = "current-level";
+
+    pub fn new() -> Self {
+        Self {
+            storage: web_sys::window().unwrap().local_storage().unwrap().unwrap()
+        }
+    }
+
+    pub fn load_world(&self) -> Option<WorldSave> {
+        let save: Option<String> = self.storage.get_item(Self::STORAGE_KEY).unwrap();
+        match save {
+            None => None,
+            Some(save) => match json::from_str(save.as_str()) {
+                Ok(save) => Some(save),
+                Err(e) => {
+                    console_log!("{}", e);
+                    None
+                }
+            }
+        }
+    }
+
+    pub fn save_world(&self, world: &WorldSave) {
+        let world_json = json::to_string(world);
+        self.storage.set_item(Self::STORAGE_KEY, world_json.as_str()).expect("can't save");
+
+        web_sys::window().unwrap().dispatch_event(
+            &web_sys::CustomEvent::new_with_event_init_dict("saved",
+                 &web_sys::CustomEventInit::new().detail(&world_json.into())
+            ).unwrap()
+        ).unwrap();
+    }
+
+    pub fn handle_world_update(&self, world_json: &str) -> Option<WorldSave> {
+        match json::from_str::<WorldSave>(world_json) {
+            Ok(remote_save) => match self.load_world() {
+                Some(local_save) => if remote_save.seed > local_save.seed {
+                    self.save_world(&remote_save);
+                    Some(remote_save)
+                } else {
+                    None
+                },
+                None => {
+                    self.save_world(&remote_save);
+                    Some(remote_save)
+                }
+            },
+            Err(e) => {
+                console_log!("{}", e);
+                None
+            }
+        }
+    }
+
+    pub fn flush(&self) {
+
+    }
+
 }
