@@ -145,7 +145,7 @@ impl Game {
                 self.world.scramble(&self.rng);
             }
             GameEvent::SaveReceived(save_str) => {
-                console_log!("R: {}", save_str);
+                //console_log!("R: {}", save_str);
                 if let Some(ws) = self.save_manager.handle_world_update(save_str){
                     console_log!("Reloading...");
                     self.world = ws.into();

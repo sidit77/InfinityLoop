@@ -60,7 +60,7 @@ function createFileId() {
 }
 
 function onSave(e) {
-    console.log(e.detail);
+    //console.log(e.detail);
     if (window.saveFileId !== undefined && window.saveFileId !== null){
         gapi.client.request({
             path: '/upload/drive/v3/files/' + window.saveFileId,
@@ -68,7 +68,9 @@ function onSave(e) {
             params: { uploadType: 'media' },
             body: e.detail
         }).then(function (res){
-            console.log(res);
+            if (res.status !== 200) {
+                console.log(res);
+            }
         });
     }
 }
