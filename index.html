@@ -36,11 +36,13 @@
     </style>
   </head>
   <body>
-    <script src="index.js"></script>
-
     <canvas id="canvas"></canvas>
     <span id="current-level">Unknown</span>
     <button id="new-button" type="button">Solve</button>
     <button id="scramble-button" type="button">Scramble</button>
+    <button id="gdrive-button" type="button">Sign In</button>
+
+    <script src="index.js"></script>
+    <script id="gdrive-api" async defer src="https://apis.google.com/js/api.js"  onload="handleClientLoad()"></script>
   </body>
 </html>
