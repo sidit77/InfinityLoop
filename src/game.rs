@@ -69,7 +69,7 @@ impl Game {
         let rng = fastrand::Rng::with_seed(1337);
         //console_log!("{:?}", crate::renderer::meshes::MODEL1);
 
-        let save_manager = SaveManager::new();
+        let mut save_manager = SaveManager::new();
 
         let world = match save_manager.load_world() {
             None => {

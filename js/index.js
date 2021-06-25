@@ -47,54 +47,47 @@ function getFileId(){
     });
 }
 
-function getOrCreateFileId() {
-    return getFileId().then(function (id){
-       return id ||  gapi.client.drive.files
-           .create({
-               fields: 'id',
-               resource: { name: filename, parents: ['appDataFolder'] }
-           })
-           .then(function (response) {
-               let file = response.result;
-               return file ? file.id : null;
-           });
-    });
+function createFileId() {
+    return gapi.client.drive.files
+        .create({
+            fields: 'id',
+            resource: { name: filename, parents: ['appDataFolder'] }
+        })
+        .then(function (response) {
+            let file = response.result;
+            return file ? file.id : null;
+        });
 }
 
 function onSave(e) {
     console.log(e.detail);
-    let test = JSON.parse(window.localStorage.getItem('current-level').trim());
-    getOrCreateFileId().then(function(id){
-        if(id != null){
-            gapi.client.request({
-                    path: '/upload/drive/v3/files/' + id,
-                    method: 'PATCH',
-                    params: { uploadType: 'media' },
-                    body: window.localStorage.getItem('current-level')
-                }).then(function (res){
-                    console.log(res);
-            });
-        }
-    });
+    if (window.saveFileId !== undefined && window.saveFileId !== null){
+        gapi.client.request({
+            path: '/upload/drive/v3/files/' + window.saveFileId,
+            method: 'PATCH',
+            params: { uploadType: 'media' },
+            body: e.detail
+        }).then(function (res){
+            console.log(res);
+        });
+    }
 }
 
 function updateSigninStatus(isSignedIn) {
     if (isSignedIn) {
         getFileId().then(function(id){
-            if(id == null)
-                return;
-            gapi.client.drive.files
-                .get({ fileId: id, alt: 'media' })
-                .then(function (response) {
-                    window.dispatchEvent(new CustomEvent('save-received', {detail: response.body.trim()}));
-                    //let remotesave = JSON.parse(response.body.trim());
-                    //let localsave = JSON.parse(window.localStorage.getItem('current-level').trim());
-                    //console.log(remotesave);
-                    //if (remotesave.seed > localsave.seed){
-                    //    window.localStorage.setItem('current-level', response.body.trim());
-                    //    window.location.reload(false);
-                    //}save-received
+            if(id == null) {
+                createFileId().then(function (nid){
+                    window.saveFileId = nid;
                 });
+            } else {
+                gapi.client.drive.files
+                    .get({ fileId: id, alt: 'media' })
+                    .then(function (response) {
+                        window.saveFileId = id;
+                        window.dispatchEvent(new CustomEvent('save-received', {detail: response.body.trim()}));
+                    });
+            }
         });
         window.addEventListener('saved', onSave, false);
         gdriveButton.innerText = 'Log Out'

@@ -4,6 +4,10 @@ use std::rc::Rc;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use css_color_parser::Color;
+use std::time::Duration;
+use miniserde::json;
+use crate::game::{Game, GameStyle, GameEvent};
+use crate::world::WorldSave;
 
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
@@ -14,11 +18,6 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 macro_rules! console_log {
     ($($t:tt)*) => (web_sys::console::log_1(&format_args!($($t)*).to_string().into()))
 }
-
-use crate::game::{Game, GameStyle, GameEvent};
-use crate::world::WorldSave;
-use std::time::Duration;
-use miniserde::json;
 
 mod shader;
 mod camera;
@@ -171,21 +170,17 @@ fn perf_to_duration(amt: f64) -> Duration {
 }
 
 struct SaveManager {
-    storage: web_sys::Storage
+    storage: web_sys::Storage,
+    save: Option<WorldSave>
 }
 
 impl SaveManager {
     const STORAGE_KEY: &'static str = "current-level";
 
     pub fn new() -> Self {
-        Self {
-            storage: web_sys::window().unwrap().local_storage().unwrap().unwrap()
-        }
-    }
-
-    pub fn load_world(&self) -> Option<WorldSave> {
-        let save: Option<String> = self.storage.get_item(Self::STORAGE_KEY).unwrap();
-        match save {
+        let storage = web_sys::window().unwrap().local_storage().unwrap().unwrap();
+        let save: Option<String> = storage.get_item(Self::STORAGE_KEY).unwrap();
+        let save = match save {
             None => None,
             Some(save) => match json::from_str(save.as_str()) {
                 Ok(save) => Some(save),
@@ -194,21 +189,26 @@ impl SaveManager {
                     None
                 }
             }
+        };
+        Self {
+            storage,
+            save
         }
     }
 
-    pub fn save_world(&self, world: &WorldSave) {
-        let world_json = json::to_string(world);
-        self.storage.set_item(Self::STORAGE_KEY, world_json.as_str()).expect("can't save");
-
-        web_sys::window().unwrap().dispatch_event(
-            &web_sys::CustomEvent::new_with_event_init_dict("saved",
-                 &web_sys::CustomEventInit::new().detail(&world_json.into())
-            ).unwrap()
-        ).unwrap();
+    pub fn load_world(&mut self) -> Option<WorldSave> {
+        self.save.clone()
     }
 
-    pub fn handle_world_update(&self, world_json: &str) -> Option<WorldSave> {
+    pub fn save_world(&mut self, world: &WorldSave) {
+        let flush = world.seed > self.save.as_ref().map(|ws| ws.seed).unwrap_or(u64::MIN);
+        self.save = Some(world.clone());
+        if flush {
+            self.flush();
+        }
+    }
+
+    pub fn handle_world_update(&mut self, world_json: &str) -> Option<WorldSave> {
         match json::from_str::<WorldSave>(world_json) {
             Ok(remote_save) => match self.load_world() {
                 Some(local_save) => if remote_save.seed > local_save.seed {
@@ -229,7 +229,17 @@ impl SaveManager {
         }
     }
 
-    pub fn flush(&self) {
+    pub fn flush(&mut self) {
+        if let Some(world) = &self.save {
+            let world_json = json::to_string(world);
+            self.storage.set_item(Self::STORAGE_KEY, world_json.as_str()).expect("can't save");
+
+            web_sys::window().unwrap().dispatch_event(
+                &web_sys::CustomEvent::new_with_event_init_dict("saved",
+                      &web_sys::CustomEventInit::new().detail(&world_json.into())
+                ).unwrap()
+            ).unwrap();
+        }
 
     }
 
