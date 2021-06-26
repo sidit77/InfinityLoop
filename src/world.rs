@@ -9,6 +9,26 @@ use std::ops::Range;
 const SIN_FRAC_PI_6: f32 = 0.5;
 const COS_FRAC_PI_6: f32 = 0.86602540378;
 
+#[derive(Debug, Copy, Clone)]
+pub struct BoundingBox {
+    pub left: f32,
+    pub right: f32,
+    pub top: f32,
+    pub bottom: f32,
+}
+
+impl BoundingBox {
+    pub fn center(&self) -> Vec2 {
+        Vec2::new((self.right + self.left) / 2.0, (self.top + self.bottom) / 2.0)
+    }
+    pub fn width(&self) -> f32 {
+        self.right - self.left
+    }
+    pub fn height(&self) -> f32 {
+        self.top - self.bottom
+    }
+}
+
 #[derive(Debug, IntoEnumIterator, Copy, Clone, Eq, PartialEq)]
 pub enum TileType {
     Tile0,
@@ -122,11 +142,27 @@ impl World {
             (-0.5 * self.rows as f32 - 1.0) + (1.0 + SIN_FRAC_PI_6) * y as f32,
         )
     }
-    pub fn get_size(&self) -> (f32, f32) {
-        (
-            (2.0 * COS_FRAC_PI_6) * self.width as f32,
-            (1.0 + SIN_FRAC_PI_6) * self.rows as f32,
-        )
+    pub fn get_bounding_box(&self) -> BoundingBox {
+        let mut bb = BoundingBox {
+            left: f32::INFINITY,
+            right: f32::NEG_INFINITY,
+            top: f32::NEG_INFINITY,
+            bottom: f32::INFINITY
+        };
+        for i in self.indices() {
+            let position = self.get_position(i);
+            if let WorldElement::Tile(_, _) = self.elements[i] {
+                bb.left = f32::min(bb.left, position.x);
+                bb.right = f32::max(bb.right, position.x);
+                bb.bottom = f32::min(bb.bottom, position.y);
+                bb.top = f32::max(bb.top, position.y);
+            }
+        }
+        bb.left -= COS_FRAC_PI_6;
+        bb.right += COS_FRAC_PI_6;
+        bb.bottom -= 1.0;
+        bb.top += 1.0;
+        bb
     }
     pub fn get_element(&mut self, index: usize) -> &mut WorldElement {
         &mut self.elements[index]

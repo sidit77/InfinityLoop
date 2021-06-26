@@ -23,6 +23,22 @@ fn main() -> Result<()> {
     {
         let start = index;
 
+        mesh_file.write_all(bytemuck::bytes_of(&Vec2::new(-1.0, -1.0)))?;
+        mesh_file.write_all(bytemuck::bytes_of(&Vec2::new(1.0, -1.0)))?;
+        mesh_file.write_all(bytemuck::bytes_of(&Vec2::new(1.0, 1.0)))?;
+        index += 3;
+
+        mesh_file.write_all(bytemuck::bytes_of(&Vec2::new(-1.0, -1.0)))?;
+        mesh_file.write_all(bytemuck::bytes_of(&Vec2::new(1.0, 1.0)))?;
+        mesh_file.write_all(bytemuck::bytes_of(&Vec2::new(-1.0, 1.0)))?;
+        index += 3;
+
+        writeln!(module_file, "pub const QUAD: std::ops::Range<i32> = {}..{};", start, index)?;
+    }
+
+    {
+        let start = index;
+
         for i in 0u32..4 {
             mesh_file.write_all(bytemuck::bytes_of(&hexagon_corner(0)))?;
             mesh_file.write_all(bytemuck::bytes_of(&hexagon_corner(i + 1)))?;

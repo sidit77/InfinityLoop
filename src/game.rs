@@ -100,10 +100,7 @@ impl Game {
             Some(save) => save.into(),
         };
 
-        let camera = Camera {
-            position: Vec2::new(0.0, 0.5),
-            ..Camera::default()
-        };
+        let camera = Camera::default();
 
         let mut uniforms = HashMap::new();
         for u in &["camera", "model", "color", "clickPos", "radius"] {
@@ -126,22 +123,28 @@ impl Game {
         })
     }
 
+    fn center_camera(&mut self){
+        let bb = self.world.get_bounding_box();
+        self.camera.position = bb.center();
+        self.camera.scale = {
+            f32::max((bb.width() / self.camera.aspect) * 0.51, bb.height() * 0.51)
+        };
+        self.gl.uniform_matrix4fv_with_f32_array(
+            self.uniforms.get("camera"), false, &self.camera.to_matrix().to_cols_array(),
+        );
+    }
+
     pub fn on_event(&mut self, event: GameEvent){
         match event {
             GameEvent::Resize(width, height) => {
                 self.camera.calc_aspect(width, height);
-                self.camera.scale = {
-                    let (w, h) = self.world.get_size();
-                    f32::max((w / self.camera.aspect) * 0.62, h * 0.55)
-                };
+                self.center_camera();
 
                 self.gl.viewport(0, 0, width as i32, height as i32);
                 self.gl.uniform2f(self.uniforms.get("screenSize"), width as f32, height as f32);
                 self.gl.uniform1f(self.uniforms.get("aspect"), self.camera.aspect);
 
-                self.gl.uniform_matrix4fv_with_f32_array(
-                    self.uniforms.get("camera"), false, &self.camera.to_matrix().to_cols_array(),
-                );
+
 
                 //self.gl.uniform_matrix4fv_with_f32_array(Some(&self.mvp_location), false, &self.camera.to_matrix().to_cols_array());
             }
@@ -173,6 +176,7 @@ impl Game {
                     self.world = World::from_seed(self.world.seed() + 1);
                     self.world.scramble(&self.rng);
                     self.state = GameState::from_world(&self.world);
+                    self.center_camera();
                 }
                 _ => {}
             }
@@ -182,10 +186,12 @@ impl Game {
                     *index = TileConfig::from(*index).rotate_by(1).index();
                 }
                 self.state = GameState::from_world(&self.world);
+                self.center_camera();
             }
             GameEvent::ScrambleButton => {
                 self.world.scramble(&self.rng);
                 self.state = GameState::from_world(&self.world);
+                self.center_camera();
             }
             GameEvent::SaveReceived(save_str) => {
                 //console_log!("R: {}", save_str);
@@ -193,6 +199,7 @@ impl Game {
                     console_log!("Reloading...");
                     self.world = ws.into();
                     self.state = GameState::from_world(&self.world);
+                    self.center_camera();
                 }
             }
             GameEvent::Quitting => {
@@ -219,6 +226,30 @@ impl Game {
 
         //let rng = fastrand::Rng::with_seed(1337);
 
+        {
+            self.gl.uniform4f(self.uniforms.get("color"), 0.0, 0.0, 0.0, 1.0);
+            let bb = self.world.get_bounding_box();
+            let obj_mat = Mat4::from_scale_rotation_translation(
+                Vec3::new(bb.width() / 2.0,bb.height() / 2.0,1.0),
+                Quat::IDENTITY,
+                bb.center().extend(0.0),
+            );
+
+            self.gl.uniform_matrix4fv_with_f32_array(
+                self.uniforms.get("model"),
+                false,
+                &obj_mat.to_cols_array(),
+            );
+            //self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
+            self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::QUAD);
+
+            let fc = self.color.as_f32();
+            self.gl.uniform4f(self.uniforms.get("color"), fc[0], fc[1], fc[2], fc[3]);
+            //BoundingBox { left: -5.5, right: 9.222432, top: 2.5, bottom: -3.5 }
+            // Vec2(1.8612161, -0.5) 14.722432 6
+            //console_log!("{:?}\n{:?} {} {}", bb, bb.center(), bb.width(), bb.height());
+        }
+
         for i in self.world.indices() {
             let position = self.world.get_position(i);
             if let WorldElement::Tile(id, rotation) = self.world.get_element(i) {
@@ -239,12 +270,15 @@ impl Game {
                     &obj_mat.to_cols_array(),
                 );
                 //self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
-                //self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
+                self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
                 //self.gl.uniform4f(Some(&self.color_location), 0.0, 0.0, 0.0, 1.0);
                 self.gl
                     .draw_array_range(WebGl2RenderingContext::TRIANGLES, tile_config.model());
             }
         }
+
+
+
     }
 
     pub fn world(&self) -> &World {
