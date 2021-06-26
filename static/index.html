@@ -8,23 +8,30 @@
       body {
         margin: 0;
         padding: 0;
-        background-color: grey;
+        background-color: darkslategrey;
       }
-      #canvas {
+      #game-area {
         width: 100%;
         max-width: 80vh;
         height: 100%;
         padding: 0;
         margin: auto;
-        display: block;
+        display: flex;
+        flex-direction: column;
         top: 0;
         bottom: 0;
         left: 0;
         right: 0;
         z-index: -1;
         position: absolute;
+        background-color: grey;
+        filter: drop-shadow(0 0 0.75rem crimson);
+      }
+      #canvas {
+        width: 100%;
+        height: 100%;
         background-color: transparent;
-        color: bisque;
+        color: beige;
         filter: drop-shadow(0 0 0.75rem crimson);
       }
       button {
@@ -33,21 +40,23 @@
         margin-top: 10px;
       }
       #current-level{
-        position: absolute;
+        display: block;
         width: 100%;
-        top: 1vh;
         text-align: center;
-        font-size: 7vh;
+        font-size: 4rem;
         font-family: monospace;
-        color: bisque;
+        color: darkslategrey;
         user-select: none;
         pointer-events: none;
+        background-color: lightgray;
       }
     </style>
   </head>
   <body>
-    <canvas id="canvas"></canvas>
-    <span id="current-level">Unknown</span>
+    <div id="game-area">
+      <span id="current-level">Unknown</span>
+      <canvas id="canvas"></canvas>
+    </div>
     <button id="new-button" type="button">Solve</button>
     <br>
     <button id="scramble-button" type="button">Scramble</button>
