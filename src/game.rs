@@ -1,6 +1,6 @@
 use crate::camera::Camera;
 use crate::intersection::Hexagon;
-use crate::{meshes, SaveManager, vibrate, vibrate_from_label};
+use crate::{meshes, SaveManager, vibrate_once};
 use crate::shader::compile_program;
 use crate::world::{TileConfig, World, WorldElement, WorldSave};
 use css_color_parser::Color;
@@ -134,8 +134,7 @@ impl Game {
                             if hex.contains(point.xy()) {
                                 *index = TileConfig::from(*index).rotate_by(1).index();
 
-                                //vibrate(Duration::from_millis(25));
-                                vibrate_from_label();
+                                vibrate_once();
                             }
                         }
                     }

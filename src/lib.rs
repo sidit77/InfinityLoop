@@ -43,9 +43,8 @@ pub fn vibrate(duration: Duration){
     web_sys::window().unwrap().navigator().vibrate_with_duration(duration.as_millis() as u32);
 }
 
-pub fn vibrate_from_label(){
-    let ie = get_element::<web_sys::HtmlInputElement>("vdir").value_as_number();
-    vibrate(Duration::from_millis(ie as u64));
+pub fn vibrate_once(){
+    web_sys::window().unwrap().navigator().vibrate_with_duration(1);
 }
 
 #[wasm_bindgen(start)]
