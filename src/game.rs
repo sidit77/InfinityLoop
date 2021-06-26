@@ -8,6 +8,7 @@ use glam::{Mat4, Quat, Vec2, Vec3, Vec3Swizzles};
 use std::ops::Range;
 use web_sys::{WebGl2RenderingContext, WebGlUniformLocation};
 use std::time::Duration;
+use std::collections::HashMap;
 
 pub enum GameEvent<'a> {
     Resize(u32, u32),
@@ -18,15 +19,37 @@ pub enum GameEvent<'a> {
     Quitting
 }
 
+enum GameState {
+    InProgress,
+    Ending(Vec2, f32),
+    Ended
+}
+
+impl GameState {
+    fn from_world(world: &World) -> Self {
+        match world.is_completed() {
+            true => Self::Ended,
+            false => Self::InProgress
+        }
+    }
+
+    fn get_anim_radius(&self) -> f32{
+        match self {
+            GameState::InProgress => 0.0,
+            GameState::Ending(_, r) => *r,
+            GameState::Ended => f32::INFINITY
+        }
+    }
+}
+
 pub struct Game {
     gl: WebGl2RenderingContext,
     color: Color,
     camera: Camera,
-    mvp_location: WebGlUniformLocation,
-    color_location: WebGlUniformLocation,
+    uniforms: HashMap<&'static str, WebGlUniformLocation>,
     world: World,
     rng: fastrand::Rng,
-    finished: bool,
+    state: GameState,
     save_manager: SaveManager
 }
 
@@ -82,20 +105,23 @@ impl Game {
             ..Camera::default()
         };
 
-        let mvp_location = gl.get_uniform_location(&program, "mvp").unwrap();
-        let color_location = gl.get_uniform_location(&program, "color").unwrap();
+        let mut uniforms = HashMap::new();
+        for u in &["camera", "model", "color", "clickPos", "radius"] {
+            if let Some(loc) = gl.get_uniform_location(&program, *u){
+                uniforms.insert(*u, loc);
+            }
+        }
 
-        let finished = world.is_completed();
+        let state = GameState::from_world(&world);
 
         Ok(Self {
             gl,
             color,
             camera,
-            mvp_location,
-            color_location,
+            uniforms,
             world,
             rng,
-            finished,
+            state,
             save_manager
         })
     }
@@ -103,20 +129,24 @@ impl Game {
     pub fn on_event(&mut self, event: GameEvent){
         match event {
             GameEvent::Resize(width, height) => {
-                self.gl.viewport(0, 0, width as i32, height as i32);
-
                 self.camera.calc_aspect(width, height);
                 self.camera.scale = {
                     let (w, h) = self.world.get_size();
                     f32::max((w / self.camera.aspect) * 0.62, h * 0.6)
                 };
+
+                self.gl.viewport(0, 0, width as i32, height as i32);
+                self.gl.uniform2f(self.uniforms.get("screenSize"), width as f32, height as f32);
+                self.gl.uniform1f(self.uniforms.get("aspect"), self.camera.aspect);
+
+                self.gl.uniform_matrix4fv_with_f32_array(
+                    self.uniforms.get("camera"), false, &self.camera.to_matrix().to_cols_array(),
+                );
+
                 //self.gl.uniform_matrix4fv_with_f32_array(Some(&self.mvp_location), false, &self.camera.to_matrix().to_cols_array());
             }
-            GameEvent::Click(x, y) => {
-                if self.finished {
-                    self.world = World::from_seed(self.world.seed() + 1);
-                    self.world.scramble(&self.rng);
-                } else {
+            GameEvent::Click(x, y) => match self.state {
+                GameState::InProgress => {
                     let point = Vec3::new(2.0 * x - 1.0, 2.0 * (1.0 - y) - 1.0, 0.0);
                     let point = self.camera.to_matrix().inverse().transform_point3(point);
 
@@ -135,19 +165,34 @@ impl Game {
                             }
                         }
                     }
+                    if self.world.is_completed() {
+                        self.state = GameState::Ending(point.xy(), 0.0);
+                    }
                 }
+                GameState::Ended => {
+                    self.world = World::from_seed(self.world.seed() + 1);
+                    self.world.scramble(&self.rng);
+                    self.state = GameState::from_world(&self.world);
+                }
+                _ => {}
             }
             GameEvent::SolveButton => {
                 self.world = World::from_seed(self.world.seed());
+                if let WorldElement::Tile(index, _) = self.world.get_element(0) {
+                    *index = TileConfig::from(*index).rotate_by(1).index();
+                }
+                self.state = GameState::from_world(&self.world);
             }
             GameEvent::ScrambleButton => {
                 self.world.scramble(&self.rng);
+                self.state = GameState::from_world(&self.world);
             }
             GameEvent::SaveReceived(save_str) => {
                 //console_log!("R: {}", save_str);
                 if let Some(ws) = self.save_manager.handle_world_update(save_str){
                     console_log!("Reloading...");
                     self.world = ws.into();
+                    self.state = GameState::from_world(&self.world);
                 }
             }
             GameEvent::Quitting => {
@@ -155,28 +200,19 @@ impl Game {
                 self.save_manager.flush();
             }
         }
-        {
-            let finished = self.world.is_completed();
-            if finished != self.finished {
-                self.finished = finished;
-                self.save_manager.save_world(&WorldSave::from(&self.world));
-            }
-        }
     }
 
     pub fn render(&mut self, time: Duration) {
         {
             let fc = self.color.as_f32();
-            if self.finished {
-                self.gl.uniform4f(
-                    Some(&self.color_location),
-                    1.0 - fc[0],
-                    1.0 - fc[1],
-                    1.0 - fc[2],
-                    fc[3],
-                );
-            } else {
-                self.gl.uniform4f(Some(&self.color_location), fc[0], fc[1], fc[2], fc[3]);
+            self.gl.uniform4f(self.uniforms.get("color"), fc[0], fc[1], fc[2], fc[3]);
+            self.gl.uniform1f(self.uniforms.get("radius"), self.state.get_anim_radius());
+            if let GameState::Ending(p, r) = self.state {
+                self.gl.uniform2f(self.uniforms.get("clickPos"), p.x as f32, p.y as f32);
+                self.state = match r > self.camera.scale + (self.camera.position - p).length() {
+                    true => GameState::Ended,
+                    false => GameState::Ending(p, r + 12.0 * time.as_secs_f32())
+                }
             }
         }
         self.gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
@@ -188,8 +224,7 @@ impl Game {
             if let WorldElement::Tile(id, rotation) = self.world.get_element(i) {
                 let tile_config = TileConfig::from(*id);
 
-                let obj_mat = self.camera.to_matrix()
-                    * Mat4::from_rotation_translation(
+                let obj_mat = Mat4::from_rotation_translation(
                         Quat::from_rotation_z(*rotation),
                         position.extend(0.0),
                     );
@@ -199,7 +234,7 @@ impl Game {
                     tile_config.radian_rotation(), 1.0 - f32::exp(-20.0 * time.as_secs_f32()));
 
                 self.gl.uniform_matrix4fv_with_f32_array(
-                    Some(&self.mvp_location),
+                    self.uniforms.get("model"),
                     false,
                     &obj_mat.to_cols_array(),
                 );
@@ -214,10 +249,6 @@ impl Game {
 
     pub fn world(&self) -> &World {
         &self.world
-    }
-
-    pub fn finished(&self) -> bool {
-        self.finished
     }
 }
 

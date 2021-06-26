@@ -145,16 +145,16 @@ pub fn main_js() -> Result<(), JsValue> {
 
         {
             let game = game.borrow_mut();
-            let nl = Some((game.world().seed(), game.finished()));
+            let nl = Some(game.world().seed());
             if nl != level {
                 level = nl;
-                let (level, finished) = level.unwrap();
+                let level = level.unwrap();
                 level_span.set_inner_text(format!("#{}", level).as_str());
-                level_span.style().set_css_text(if finished {
-                    "filter: invert(100%);"
-                } else {
-                    ""
-                });
+                //level_span.style().set_css_text(if finished {
+                //    "filter: invert(100%);"
+                //} else {
+                //    ""
+                //});
             }
         }
 
