@@ -125,9 +125,10 @@ impl Game {
 
     fn center_camera(&mut self){
         let bb = self.world.get_bounding_box();
+        self.camera.rotation = std::f32::consts::FRAC_PI_2;
         self.camera.position = bb.center();
         self.camera.scale = {
-            f32::max((bb.width() / self.camera.aspect) * 0.51, bb.height() * 0.51)
+            f32::max((bb.height() / self.camera.aspect) * 0.51, bb.width() * 0.51)
         };
         self.gl.uniform_matrix4fv_with_f32_array(
             self.uniforms.get("camera"), false, &self.camera.to_matrix().to_cols_array(),
@@ -270,7 +271,7 @@ impl Game {
                     &obj_mat.to_cols_array(),
                 );
                 //self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
-                self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
+                //self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
                 //self.gl.uniform4f(Some(&self.color_location), 0.0, 0.0, 0.0, 1.0);
                 self.gl
                     .draw_array_range(WebGl2RenderingContext::TRIANGLES, tile_config.model());

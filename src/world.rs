@@ -103,7 +103,7 @@ pub struct World {
 
 impl World {
     pub fn from_seed(seed: u64) -> Self {
-        let mut wfc = WaveCollapseWorld::new(9, 5, seed);
+        let mut wfc = WaveCollapseWorld::new(5, 8, seed);
 
         'outer: for _ in 0..20 {
             wfc.prepare();
