@@ -59,7 +59,7 @@ features = [
   'CustomEvent',
   'CustomEventInit',
   'Navigator',
-  'HtmlInputElement'
+  'DomRect'
 ]
 
 

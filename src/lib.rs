@@ -66,14 +66,15 @@ pub fn main_js() -> Result<(), JsValue> {
     {
         let game = game.clone();
         let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {
-            let canvas = event
+            let rect = event
                 .current_target()
                 .unwrap()
                 .dyn_into::<web_sys::HtmlCanvasElement>()
-                .unwrap();
+                .unwrap()
+                .get_bounding_client_rect();
             game.borrow_mut().on_event(GameEvent::Click(
-                (event.client_x() - canvas.offset_left()) as f32 / canvas.client_width()  as f32,
-                (event.client_y() - canvas.offset_top())  as f32 / canvas.client_height() as f32
+                (event.client_x() as f32 - rect.x() as f32) / rect.width()   as f32,
+                (event.client_y() as f32 - rect.y() as f32) / rect.height()  as f32
             ));
             event.prevent_default();
         }) as Box<dyn FnMut(_)>);
