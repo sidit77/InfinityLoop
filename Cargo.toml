@@ -57,7 +57,8 @@ features = [
   'HtmlSpanElement',
   'Storage',
   'CustomEvent',
-  'CustomEventInit'
+  'CustomEventInit',
+  'Navigator'
 ]
 
 

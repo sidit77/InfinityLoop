@@ -39,7 +39,9 @@ fn get_element<T: JsCast>(id: &str) -> T {
         .dyn_into::<T>().expect("can't convert the the desired type")
 }
 
-
+pub fn vibrate(duration: Duration){
+    web_sys::window().unwrap().navigator().vibrate_with_duration(duration.as_millis() as u32);
+}
 
 #[wasm_bindgen(start)]
 pub fn main_js() -> Result<(), JsValue> {

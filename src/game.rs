@@ -1,6 +1,6 @@
 use crate::camera::Camera;
 use crate::intersection::Hexagon;
-use crate::{meshes, SaveManager};
+use crate::{meshes, SaveManager, vibrate};
 use crate::shader::compile_program;
 use crate::world::{TileConfig, World, WorldElement, WorldSave};
 use css_color_parser::Color;
@@ -111,7 +111,7 @@ impl Game {
                 self.camera.calc_aspect(width, height);
                 self.camera.scale = {
                     let (w, h) = self.world.get_size();
-                    f32::max((w / self.camera.aspect) * 0.7, h * 0.6)
+                    f32::max((w / self.camera.aspect) * 0.62, h * 0.6)
                 };
                 //self.gl.uniform_matrix4fv_with_f32_array(Some(&self.mvp_location), false, &self.camera.to_matrix().to_cols_array());
             }
@@ -133,6 +133,7 @@ impl Game {
                             };
                             if hex.contains(point.xy()) {
                                 *index = TileConfig::from(*index).rotate_by(1).index();
+                                vibrate(Duration::from_millis(100));
                             }
                         }
                     }
@@ -202,7 +203,7 @@ impl Game {
 
                 *rotation = lerp_radians(
                     *rotation,
-                    tile_config.radian_rotation(), 1.0 - f32::exp(-15.0 * time.as_secs_f32()));
+                    tile_config.radian_rotation(), 1.0 - f32::exp(-20.0 * time.as_secs_f32()));
 
                 self.gl.uniform_matrix4fv_with_f32_array(
                     Some(&self.mvp_location),
