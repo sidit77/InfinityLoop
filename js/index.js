@@ -101,15 +101,20 @@ function updateSigninStatus(isSignedIn) {
 
 document.getElementById('current-level').onclick = function (){
     let buttons = document.getElementById('buttons');
-    //buttons.style.visibility = "hidden";
-    //if(buttons.style.display === "none"){
-    //    buttons.style.display = "";
-    //} else {
-    //    buttons.style.display = "none";
-    //}
     if(buttons.classList.contains("collapsed")){
         buttons.classList.remove("collapsed");
     } else {
         buttons.classList.add("collapsed");
+    }
+}
+
+document.getElementById('fullscreen-button').onclick = function (){
+    //let elem = document.getElementById('game-area');
+    if (!document.fullscreenElement) {
+        document.documentElement.requestFullscreen();
+    } else {
+        if (document.exitFullscreen) {
+            document.exitFullscreen();
+        }
     }
 }

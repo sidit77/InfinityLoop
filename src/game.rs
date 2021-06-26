@@ -227,29 +227,25 @@ impl Game {
 
         //let rng = fastrand::Rng::with_seed(1337);
 
-        {
-            self.gl.uniform4f(self.uniforms.get("color"), 0.0, 0.0, 0.0, 1.0);
-            let bb = self.world.get_bounding_box();
-            let obj_mat = Mat4::from_scale_rotation_translation(
-                Vec3::new(bb.width() / 2.0,bb.height() / 2.0,1.0),
-                Quat::IDENTITY,
-                bb.center().extend(0.0),
-            );
-
-            self.gl.uniform_matrix4fv_with_f32_array(
-                self.uniforms.get("model"),
-                false,
-                &obj_mat.to_cols_array(),
-            );
-            //self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
-            self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::QUAD);
-
-            let fc = self.color.as_f32();
-            self.gl.uniform4f(self.uniforms.get("color"), fc[0], fc[1], fc[2], fc[3]);
-            //BoundingBox { left: -5.5, right: 9.222432, top: 2.5, bottom: -3.5 }
-            // Vec2(1.8612161, -0.5) 14.722432 6
-            //console_log!("{:?}\n{:?} {} {}", bb, bb.center(), bb.width(), bb.height());
-        }
+        //{
+        //    self.gl.uniform4f(self.uniforms.get("color"), 0.0, 0.0, 0.0, 1.0);
+        //    let bb = self.world.get_bounding_box();
+        //    let obj_mat = Mat4::from_scale_rotation_translation(
+        //        Vec3::new(bb.width() / 2.0,bb.height() / 2.0,1.0),
+        //        Quat::IDENTITY,
+        //        bb.center().extend(0.0),
+        //    );
+//
+        //    self.gl.uniform_matrix4fv_with_f32_array(
+        //        self.uniforms.get("model"),
+        //        false,
+        //        &obj_mat.to_cols_array(),
+        //    );
+        //    self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::QUAD);
+//
+        //    let fc = self.color.as_f32();
+        //    self.gl.uniform4f(self.uniforms.get("color"), fc[0], fc[1], fc[2], fc[3]);
+        //}
 
         for i in self.world.indices() {
             let position = self.world.get_position(i);
