@@ -99,7 +99,7 @@ function updateSigninStatus(isSignedIn) {
     }
 }
 
-document.getElementById('header-bar').onclick = function (){
+document.getElementById('current-level').onclick = function (){
     let buttons = document.getElementById('buttons');
     //buttons.style.visibility = "hidden";
     //if(buttons.style.display === "none"){
