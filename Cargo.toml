@@ -58,7 +58,8 @@ features = [
   'Storage',
   'CustomEvent',
   'CustomEventInit',
-  'Navigator'
+  'Navigator',
+  'HtmlInputElement'
 ]
 
 
