@@ -111,7 +111,7 @@ document.getElementById('current-level').onclick = function (){
 document.getElementById('fullscreen-button').onclick = function (){
     //let elem = document.getElementById('game-area');
     if (!document.fullscreenElement) {
-        document.documentElement.requestFullscreen();
+        document.documentElement.requestFullscreen({navigationUI: "hide"});
     } else {
         if (document.exitFullscreen) {
             document.exitFullscreen();
