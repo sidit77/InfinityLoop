@@ -133,7 +133,7 @@ impl Game {
                             };
                             if hex.contains(point.xy()) {
                                 *index = TileConfig::from(*index).rotate_by(1).index();
-                                vibrate(Duration::from_millis(100));
+                                vibrate(Duration::from_millis(25));
                             }
                         }
                     }
