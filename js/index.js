@@ -99,4 +99,17 @@ function updateSigninStatus(isSignedIn) {
     }
 }
 
-
+document.getElementById('header-bar').onclick = function (){
+    let buttons = document.getElementById('buttons');
+    //buttons.style.visibility = "hidden";
+    //if(buttons.style.display === "none"){
+    //    buttons.style.display = "";
+    //} else {
+    //    buttons.style.display = "none";
+    //}
+    if(buttons.classList.contains("collapsed")){
+        buttons.classList.remove("collapsed");
+    } else {
+        buttons.classList.add("collapsed");
+    }
+}
