@@ -101,7 +101,7 @@ impl Game {
         };
 
         let camera = Camera {
-            position: Vec2::new(0.0, 1.0),
+            position: Vec2::new(0.0, 0.5),
             ..Camera::default()
         };
 
@@ -132,7 +132,7 @@ impl Game {
                 self.camera.calc_aspect(width, height);
                 self.camera.scale = {
                     let (w, h) = self.world.get_size();
-                    f32::max((w / self.camera.aspect) * 0.62, h * 0.6)
+                    f32::max((w / self.camera.aspect) * 0.62, h * 0.55)
                 };
 
                 self.gl.viewport(0, 0, width as i32, height as i32);
