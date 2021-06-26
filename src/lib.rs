@@ -6,7 +6,7 @@ use wasm_bindgen::prelude::*;
 use css_color_parser::Color;
 use std::time::Duration;
 use miniserde::json;
-use crate::game::{Game, GameStyle, GameEvent};
+use crate::game::{Game, GameEvent};
 use crate::world::WorldSave;
 
 #[cfg(feature = "wee_alloc")]
@@ -60,10 +60,7 @@ pub fn main_js() -> Result<(), JsValue> {
 
     let game = Rc::new(RefCell::new(Game::new(
         canvas.get_context("webgl2").unwrap().unwrap().dyn_into::<web_sys::WebGl2RenderingContext>()?,
-        GameStyle {
-            foreground: css.get_property_value("color")?.parse::<Color>().unwrap(),
-            background: css.get_property_value("background-color")?.parse::<Color>().unwrap()
-        }
+        css.get_property_value("color")?.parse::<Color>().unwrap()
     )?));
 
     {

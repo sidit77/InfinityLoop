@@ -9,11 +9,6 @@ use std::ops::Range;
 use web_sys::{WebGl2RenderingContext, WebGlUniformLocation};
 use std::time::Duration;
 
-pub struct GameStyle {
-    pub foreground: Color,
-    pub background: Color,
-}
-
 pub enum GameEvent<'a> {
     Resize(u32, u32),
     Click(f32, f32),
@@ -25,7 +20,7 @@ pub enum GameEvent<'a> {
 
 pub struct Game {
     gl: WebGl2RenderingContext,
-    style: GameStyle,
+    color: Color,
     camera: Camera,
     mvp_location: WebGlUniformLocation,
     color_location: WebGlUniformLocation,
@@ -38,7 +33,7 @@ pub struct Game {
 impl Game {
     pub fn new(
         gl: WebGl2RenderingContext,
-        style: GameStyle,
+        color: Color,
     ) -> Result<Self, String> {
         let program = compile_program(
             &gl,
@@ -66,6 +61,8 @@ impl Game {
         gl.vertex_attrib_pointer_with_i32(0, 2, WebGl2RenderingContext::FLOAT, false, 0, 0);
         gl.enable_vertex_attrib_array(0);
 
+        gl.clear_color(0.0, 0.0, 0.0, 0.0);
+
         let rng = fastrand::Rng::with_seed(1337);
         //console_log!("{:?}", crate::renderer::meshes::MODEL1);
 
@@ -92,7 +89,7 @@ impl Game {
 
         Ok(Self {
             gl,
-            style,
+            color,
             camera,
             mvp_location,
             color_location,
@@ -169,11 +166,8 @@ impl Game {
 
     pub fn render(&mut self, time: Duration) {
         {
-            let bc = self.style.background.as_f32();
-            let fc = self.style.foreground.as_f32();
+            let fc = self.color.as_f32();
             if self.finished {
-                self.gl
-                    .clear_color(1.0 - bc[0], 1.0 - bc[1], 1.0 - bc[2], bc[3]);
                 self.gl.uniform4f(
                     Some(&self.color_location),
                     1.0 - fc[0],
@@ -182,9 +176,7 @@ impl Game {
                     fc[3],
                 );
             } else {
-                self.gl.clear_color(bc[0], bc[1], bc[2], bc[3]);
-                self.gl
-                    .uniform4f(Some(&self.color_location), fc[0], fc[1], fc[2], fc[3]);
+                self.gl.uniform4f(Some(&self.color_location), fc[0], fc[1], fc[2], fc[3]);
             }
         }
         self.gl.clear(WebGl2RenderingContext::COLOR_BUFFER_BIT);
