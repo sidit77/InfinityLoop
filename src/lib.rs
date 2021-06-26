@@ -75,8 +75,8 @@ pub fn main_js() -> Result<(), JsValue> {
                 .dyn_into::<web_sys::HtmlCanvasElement>()
                 .unwrap();
             game.borrow_mut().on_event(GameEvent::Click(
-                event.client_x() as f32 / canvas.client_width() as f32,
-                event.client_y() as f32 / canvas.client_height() as f32
+                (event.client_x() - canvas.offset_left()) as f32 / canvas.client_width()  as f32,
+                (event.client_y() - canvas.offset_top())  as f32 / canvas.client_height() as f32
             ));
             event.prevent_default();
         }) as Box<dyn FnMut(_)>);
