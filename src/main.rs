@@ -1,3 +1,5 @@
+mod meshes;
+
 use miniquad::*;
 
 #[repr(C)]

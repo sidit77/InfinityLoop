@@ -12,12 +12,13 @@ edition = "2018"
 lto = true
 
 [build-dependencies]
-bytemuck = {version = "1.5.1", features = ["derive"]}
-glam = {version = "0.15", features = ["bytemuck"]}
+bytemuck = {version = "1.7", features = ["derive"]}
+glam = {version = "0.20", features = ["bytemuck"]}
 anyhow = "1.0.40"
 
 [dependencies]
 miniquad = "0.3.0-alpha"
+glam = "0.20"
 
 
 
