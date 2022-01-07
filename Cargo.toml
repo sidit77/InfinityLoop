@@ -12,8 +12,7 @@ edition = "2018"
 lto = true
 
 [build-dependencies]
-bytemuck = {version = "1.7", features = ["derive"]}
-glam = {version = "0.20", features = ["bytemuck"]}
+glam = "0.20"
 anyhow = "1.0.40"
 
 [dependencies]
