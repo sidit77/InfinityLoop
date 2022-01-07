@@ -64,7 +64,7 @@ impl Mesh {
     }
 
     fn draw_line(&mut self, v1: Vec2, v2: Vec2, thickness: f32) {
-        let extrude = (v2 - v1).normalize().perp() * thickness;
+        let extrude = (v2 - v1).normalize().perp() * (thickness / 2.0);
 
         self.add_vertex(v1 - extrude);
         self.add_vertex(v1 + extrude);

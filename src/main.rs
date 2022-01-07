@@ -1,11 +1,48 @@
 mod meshes;
+mod camera;
+mod intersection;
+mod world;
 
-use glam::{Mat4, Vec2};
+use fastrand::Rng;
+use glam::{Mat4, Quat, Vec2, Vec3, Vec3Swizzles};
 use miniquad::*;
+use crate::camera::Camera;
+use crate::intersection::Hexagon;
+use crate::shader::Uniforms;
+use crate::world::{TileConfig, World, WorldElement};
+
+enum GameState {
+    InProgress,
+    Ending(Vec2, f32),
+    Ended
+}
+
+impl GameState {
+    fn from_world(world: &World) -> Self {
+        match world.is_completed() {
+            true => Self::Ended,
+            false => Self::InProgress
+        }
+    }
+
+    fn get_anim_radius(&self) -> f32{
+        match self {
+            GameState::InProgress => 0.0,
+            GameState::Ending(_, r) => *r,
+            GameState::Ended => f32::INFINITY
+        }
+    }
+}
+
 
 struct Game {
     pipeline: Pipeline,
     bindings: Bindings,
+    camera: Camera,
+    world: World,
+    rng: Rng,
+    state: GameState,
+    last_update: f64
 }
 
 impl Game {
@@ -29,33 +66,169 @@ impl Game {
             shader,
         );
 
-        Game { pipeline, bindings }
+        let rng = fastrand::Rng::with_seed(1337);
+        let mut world = World::from_seed(1);
+        world.scramble(&rng);
+
+        let mut camera = Camera::default();
+        camera.calc_aspect(ctx.screen_size().0, ctx.screen_size().1);
+
+        let state = GameState::from_world(&world);
+
+        let last_update = date::now();
+
+        let mut g = Game { pipeline, bindings, camera, world, rng, state, last_update };
+        g.center_camera();
+        g
+    }
+}
+
+impl Game {
+    fn center_camera(&mut self){
+        let bb = self.world.get_bounding_box();
+        self.camera.rotation = std::f32::consts::FRAC_PI_2;
+        self.camera.position = bb.center();
+        self.camera.scale = {
+            f32::max((bb.height() / self.camera.aspect) * 0.51, bb.width() * 0.51)
+        };
     }
 }
 
 impl EventHandler for Game {
+
     fn update(&mut self, _ctx: &mut Context) {}
 
     fn draw(&mut self, ctx: &mut Context) {
-        let t = date::now();
+        let time = (date::now() - self.last_update) as f32;
+        self.last_update = date::now();
+        let mut uniforms = Uniforms {
+            camera: self.camera.to_matrix(),
+            model: Mat4::IDENTITY,
+            color: [0.30, 0.34, 0.42, 1.0],
+            click_pos: Default::default(),
+            radius: self.state.get_anim_radius()
+        };
+        if let GameState::Ending(p, r) = self.state {
+            uniforms.click_pos = p;
+            self.state = match r > self.camera.scale + (self.camera.position - p).length() {
+                true => GameState::Ended,
+                false => GameState::Ending(p, r + 12.0 * time)
+            }
+        }
+
 
         ctx.begin_default_pass(Default::default());
-
+        ctx.clear(Some((0.18, 0.20, 0.25, 1.0)), None, None);
         ctx.apply_pipeline(&self.pipeline);
         ctx.apply_bindings(&self.bindings);
 
-        ctx.apply_uniforms(&shader::Uniforms {
-            camera: Mat4::IDENTITY,
-            model: Mat4::IDENTITY,
-            color: [1.0,0.0,0.0,1.0],
-            click_pos: Default::default(),
-            radius: 0.0
-        });
-        let model = meshes::MODEL2;
-        ctx.draw(model.start, model.len() as i32, 1);
+
+        for i in self.world.indices() {
+            let position = self.world.get_position(i);
+            if let WorldElement::Tile(id, rotation) = self.world.get_element(i) {
+                let tile_config = TileConfig::from(*id);
+
+                uniforms.model = Mat4::from_rotation_translation(
+                    Quat::from_rotation_z(*rotation),
+                    position.extend(0.0),
+                );
+
+                *rotation = lerp_radians(
+                    *rotation,
+                    tile_config.radian_rotation(), 1.0 - f32::exp(-20.0 * time));
+
+                ctx.apply_uniforms(&uniforms);
+
+                let model = tile_config.model();
+                ctx.draw(model.start, model.len() as i32, 1);
+
+                //self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
+                //self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
+                //self.gl.uniform4f(Some(&self.color_location), 0.0, 0.0, 0.0, 1.0);
+                //self.gl
+                //    .draw_array_range(WebGl2RenderingContext::TRIANGLES, tile_config.model());
+            }
+        }
+
+
+
         ctx.end_render_pass();
 
         ctx.commit_frame();
+    }
+
+    fn resize_event(&mut self, _ctx: &mut Context, width: f32, height: f32) {
+        self.camera.calc_aspect(width, height);
+        self.center_camera();
+    }
+
+    fn mouse_button_down_event(&mut self, ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
+        if button == MouseButton::Left {
+            match self.state {
+                GameState::InProgress => {
+                    let point = Vec3::new(2.0 * (x / ctx.screen_size().0) - 1.0, 2.0 * (1.0 - (y / ctx.screen_size().1)) - 1.0, 0.0);
+                    let point = self.camera.to_matrix().inverse().transform_point3(point);
+
+                    for i in self.world.indices() {
+                        let position = self.world.get_position(i);
+                        if let WorldElement::Tile(index, _) = self.world.get_element(i) {
+                            let hex = Hexagon {
+                                position,
+                                rotation: 0.0,
+                                radius: 1.0,
+                            };
+                            if hex.contains(point.xy()) {
+                                *index = TileConfig::from(*index).rotate_by(1).index();
+
+                            }
+                        }
+                    }
+                    if self.world.is_completed() {
+                        self.state = GameState::Ending(point.xy(), 0.0);
+                    }
+                },
+                GameState::Ended => {
+                    self.world = World::from_seed(self.world.seed() + 1);
+                    self.world.scramble(&self.rng);
+                    self.state = GameState::from_world(&self.world);
+                    self.center_camera();
+                },
+                _ => {}
+            }
+        }
+    }
+
+    fn quit_requested_event(&mut self, _ctx: &mut Context) {
+
+    }
+}
+
+fn lerp(a: f32, b: f32, lerp_factor: f32) -> f32{
+    ((1.0 - lerp_factor) * a) + (lerp_factor * b)
+}
+
+fn lerp_radians(a: f32, mut b: f32, lerp_factor: f32) -> f32 {
+    const PI: f32 = std::f32::consts::PI;
+    const PI_TIMES_TWO: f32 = PI * 2.0;
+    let diff = b - a;
+    if diff < -PI {
+        b += PI_TIMES_TWO;
+        let result = lerp(a, b, lerp_factor);
+        if result >= PI_TIMES_TWO {
+            result - PI_TIMES_TWO
+        } else {
+            result
+        }
+    } else if diff > PI {
+        b -= PI_TIMES_TWO;
+        let result = lerp(a, b, lerp_factor);
+        if result < 0.0 {
+            result + PI_TIMES_TWO
+        } else {
+            result
+        }
+    } else {
+        lerp(a, b, lerp_factor)
     }
 }
 

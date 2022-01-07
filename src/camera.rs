@@ -20,15 +20,15 @@ impl Default for Camera {
 
 impl Camera {
 
-    pub fn calc_aspect(&mut self, width: u32, height: u32){
-        self.aspect = width as f32 / height as f32;
+    pub fn calc_aspect(&mut self, width: f32, height: f32){
+        self.aspect = width / height;
     }
 
     pub fn to_matrix(&self) -> Mat4 {
 
 
         Mat4::orthographic_rh(-(self.scale * self.aspect),
-                              (self.scale * self.aspect),
+                              self.scale * self.aspect,
                               -self.scale,
                               self.scale, 0.0, 100.0) *
         Mat4::from_rotation_z(-self.rotation) *
