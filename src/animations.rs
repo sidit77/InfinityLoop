@@ -48,7 +48,7 @@ impl Diff for f32 {
 
 impl Diff for Vec2 {
     fn update_on_diff(&mut self, old: &Self, new: &Self) {
-        self.x.update_on_diff(&old.x, &new.y);
+        self.x.update_on_diff(&old.x, &new.x);
         self.y.update_on_diff(&old.y, &new.y);
     }
 }
@@ -70,6 +70,7 @@ impl Diff for Camera {
     }
 }
 
+#[derive(Debug, Copy, Clone)]
 pub struct AnimatedValue<T: Copy> {
     current: T,
     target: T

@@ -91,7 +91,7 @@ impl Game {
 
 fn center_camera(camera: &mut Camera, world: &World){
     let bb = world.get_bounding_box();
-    camera.rotation = Angle::degrees(90.0);
+    //camera.rotation = Angle::degrees(90.0);
     camera.position = bb.center();
     camera.scale = f32::max((bb.height() / camera.aspect) * 0.51, bb.width() * 0.51);
 }
@@ -187,6 +187,10 @@ impl EventHandlerMod for Game {
                 camera.scale = camera.scale.sub(amount * (camera.scale / 10.0)).max(1.0);
                 let new = camera.to_world_coords(center);
                 camera.position += old - new;
+            }
+            Event::Drag(delta) => {
+                let ratio = Vec2::new(self.camera.aspect, 1.0) * (self.camera.scale / 15.0);
+                self.camera.current().position += -delta * 30.0 * ratio;
             }
         }
     }

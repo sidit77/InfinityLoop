@@ -1,11 +1,14 @@
+use std::mem::take;
 use std::time::Duration;
 use glam::Vec2;
 use miniquad::{Context, EventHandler, MouseButton};
 use miniquad::date::now;
 
+#[derive(Debug, Copy, Clone)]
 pub enum Event {
     WindowResize(f32, f32),
     Click(Vec2),
+    Drag(Vec2),
     Zoom(Vec2, f32),
 }
 
@@ -14,9 +17,23 @@ pub trait EventHandlerMod {
     fn event(&mut self, ctx: &mut Context, event: Event);
 }
 
+#[derive(Copy, Clone)]
+enum ClickState {
+    Click(Vec2),
+    Drag(Vec2),
+    None
+}
+
+impl Default for ClickState {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
 pub struct EventHandlerProxy<T: EventHandlerMod> {
     last_render: f64,
     last_mouse_pos: Vec2,
+    click_state: ClickState,
     handler: T
 }
 
@@ -25,6 +42,7 @@ impl<T: EventHandlerMod> From<T> for EventHandlerProxy<T> {
         Self {
             last_render: now(),
             last_mouse_pos: Default::default(),
+            click_state: ClickState::None,
             handler
         }
     }
@@ -46,20 +64,46 @@ impl<T: EventHandlerMod> EventHandler for EventHandlerProxy<T> {
     }
 
     fn mouse_motion_event(&mut self, ctx: &mut Context, x: f32, y: f32) {
-        self.last_mouse_pos = normalize_mouse_pos(ctx, x, y);
+        let npos = normalize_mouse_pos(ctx, x, y);
+        match self.click_state {
+            ClickState::Click(pos) => if pixel_dist(ctx, npos, pos) > 10.0 {
+                self.click_state = ClickState::Drag(npos);
+                self.handler.event(ctx, Event::Drag(npos - pos));
+            }
+            ClickState::Drag(pos) => {
+                self.click_state = ClickState::Drag(npos);
+                self.handler.event(ctx, Event::Drag(npos - pos))
+            },
+            ClickState::None => {}
+        }
+        self.last_mouse_pos = npos;
     }
 
     fn mouse_wheel_event(&mut self, ctx: &mut Context, _x: f32, y: f32) {
         self.handler.event(ctx, Event::Zoom(self.last_mouse_pos, y / 4.0))
     }
 
-
     fn mouse_button_down_event(&mut self, ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
         if button == MouseButton::Left {
-            self.handler.event(ctx, Event::Click(normalize_mouse_pos(ctx, x, y)))
+            self.click_state = ClickState::Click(normalize_mouse_pos(ctx, x, y));
+            //self.handler.event(ctx, Event::Click(normalize_mouse_pos(ctx, x, y)))
         }
     }
 
+    fn mouse_button_up_event(&mut self, ctx: &mut Context, button: MouseButton, _x: f32, _y: f32) {
+        if button == MouseButton::Left {
+            if let ClickState::Click(pos) = take(&mut self.click_state) {
+                self.handler.event(ctx, Event::Click(pos))
+            }
+        }
+    }
+}
+
+fn pixel_dist(ctx: &Context, p1: Vec2, p2: Vec2) -> f32 {
+    let s: Vec2 = ctx.screen_size().into();
+    let p1 = p1 * s;
+    let p2 = p2 * s;
+    p1.distance(p2) / ctx.dpi_scale()
 }
 
 fn normalize_mouse_pos(ctx: &Context,  x: f32, y: f32) -> Vec2 {
