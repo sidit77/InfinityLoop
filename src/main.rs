@@ -2,11 +2,14 @@ mod meshes;
 mod camera;
 mod intersection;
 mod world;
+mod events;
 
+use std::time::Duration;
 use fastrand::Rng;
 use glam::{Mat4, Quat, Vec2, Vec3, Vec3Swizzles};
 use miniquad::*;
 use crate::camera::Camera;
+use crate::events::{Event, EventHandlerMod, EventHandlerProxy};
 use crate::intersection::Hexagon;
 use crate::shader::Uniforms;
 use crate::world::{TileConfig, World, WorldElement};
@@ -41,8 +44,7 @@ struct Game {
     camera: Camera,
     world: World,
     rng: Rng,
-    state: GameState,
-    last_update: f64
+    state: GameState
 }
 
 impl Game {
@@ -75,9 +77,7 @@ impl Game {
 
         let state = GameState::from_world(&world);
 
-        let last_update = date::now();
-
-        let mut g = Game { pipeline, bindings, camera, world, rng, state, last_update };
+        let mut g = Game { pipeline, bindings, camera, world, rng, state };
         g.center_camera();
         g
     }
@@ -94,13 +94,9 @@ impl Game {
     }
 }
 
-impl EventHandler for Game {
+impl EventHandlerMod for Game {
 
-    fn update(&mut self, _ctx: &mut Context) {}
-
-    fn draw(&mut self, ctx: &mut Context) {
-        let time = (date::now() - self.last_update) as f32;
-        self.last_update = date::now();
+    fn draw(&mut self, ctx: &mut Context, delta: Duration) {
         let mut uniforms = Uniforms {
             camera: self.camera.to_matrix(),
             model: Mat4::IDENTITY,
@@ -112,7 +108,7 @@ impl EventHandler for Game {
             uniforms.click_pos = p;
             self.state = match r > self.camera.scale + (self.camera.position - p).length() {
                 true => GameState::Ended,
-                false => GameState::Ending(p, r + 12.0 * time)
+                false => GameState::Ending(p, r + 12.0 * delta.as_secs_f32())
             }
         }
 
@@ -135,7 +131,7 @@ impl EventHandler for Game {
 
                 *rotation = lerp_radians(
                     *rotation,
-                    tile_config.radian_rotation(), 1.0 - f32::exp(-20.0 * time));
+                    tile_config.radian_rotation(), 1.0 - f32::exp(-20.0 * delta.as_secs_f32()));
 
                 ctx.apply_uniforms(&uniforms);
 
@@ -150,23 +146,20 @@ impl EventHandler for Game {
             }
         }
 
-
-
         ctx.end_render_pass();
 
         ctx.commit_frame();
     }
 
-    fn resize_event(&mut self, _ctx: &mut Context, width: f32, height: f32) {
-        self.camera.calc_aspect(width, height);
-        self.center_camera();
-    }
-
-    fn mouse_button_down_event(&mut self, ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
-        if button == MouseButton::Left {
-            match self.state {
+    fn event(&mut self, _ctx: &mut Context, event: Event) {
+        match event {
+            Event::WindowResize(width, height) => {
+                self.camera.calc_aspect(width, height);
+                self.center_camera();
+            }
+            Event::Click(x, y) => match self.state {
                 GameState::InProgress => {
-                    let point = Vec3::new(2.0 * (x / ctx.screen_size().0) - 1.0, 2.0 * (1.0 - (y / ctx.screen_size().1)) - 1.0, 0.0);
+                    let point = Vec3::new(2.0 * x - 1.0, 2.0 * y - 1.0, 0.0);
                     let point = self.camera.to_matrix().inverse().transform_point3(point);
 
                     for i in self.world.indices() {
@@ -196,10 +189,6 @@ impl EventHandler for Game {
                 _ => {}
             }
         }
-    }
-
-    fn quit_requested_event(&mut self, _ctx: &mut Context) {
-
     }
 }
 
@@ -234,7 +223,7 @@ fn lerp_radians(a: f32, mut b: f32, lerp_factor: f32) -> f32 {
 
 fn main() {
     miniquad::start(conf::Conf::default(), |mut ctx| {
-        UserData::owning(Game::new(&mut ctx), ctx)
+        UserData::owning(EventHandlerProxy::from(Game::new(&mut ctx)), ctx)
     });
 }
 
