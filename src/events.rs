@@ -48,6 +48,12 @@ impl<T: EventHandlerMod> From<T> for EventHandlerProxy<T> {
     }
 }
 
+#[cfg(not(target_arch = "wasm32"))]
+const SCROLL_SPEED: f32 = 4.0;
+
+#[cfg(target_arch = "wasm32")]
+const SCROLL_SPEED: f32 = 40.0;
+
 impl<T: EventHandlerMod> EventHandler for EventHandlerProxy<T> {
     fn update(&mut self, _ctx: &mut Context) {
 
@@ -80,7 +86,7 @@ impl<T: EventHandlerMod> EventHandler for EventHandlerProxy<T> {
     }
 
     fn mouse_wheel_event(&mut self, ctx: &mut Context, _x: f32, y: f32) {
-        self.handler.event(ctx, Event::Zoom(self.last_mouse_pos, y / 4.0))
+        self.handler.event(ctx, Event::Zoom(self.last_mouse_pos, y / SCROLL_SPEED))
     }
 
     fn mouse_button_down_event(&mut self, ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
