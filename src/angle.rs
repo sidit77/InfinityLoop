@@ -9,7 +9,7 @@ pub struct Angle(f32);
 impl Angle {
 
     pub fn empty() -> Self {
-        Self::radians(std::f32::consts::TAU)
+        Self::radians(0.0)
     }
 
     pub fn half() -> Self {

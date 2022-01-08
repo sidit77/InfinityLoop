@@ -4,7 +4,9 @@ mod intersection;
 mod world;
 mod events;
 mod angle;
+mod math;
 
+use std::ops::Sub;
 use std::time::Duration;
 use fastrand::Rng;
 use glam::{Mat4, Quat, Vec2, Vec3, Vec3Swizzles};
@@ -75,7 +77,9 @@ impl Game {
         world.scramble(&rng);
 
         let mut camera = Camera::default();
-        camera.calc_aspect(ctx.screen_size().0, ctx.screen_size().1);
+        let width = ctx.screen_size().0;
+        let height = ctx.screen_size().1;
+        camera.aspect = width / height;
 
         let state = GameState::from_world(&world);
 
@@ -88,7 +92,7 @@ impl Game {
 impl Game {
     fn center_camera(&mut self){
         let bb = self.world.get_bounding_box();
-        self.camera.rotation = std::f32::consts::FRAC_PI_2;
+        self.camera.rotation = Angle::degrees(90.0);
         self.camera.position = bb.center();
         self.camera.scale = {
             f32::max((bb.height() / self.camera.aspect) * 0.51, bb.width() * 0.51)
@@ -99,6 +103,7 @@ impl Game {
 impl EventHandlerMod for Game {
 
     fn draw(&mut self, ctx: &mut Context, delta: Duration) {
+
         let mut uniforms = Uniforms {
             camera: self.camera.to_matrix(),
             model: Mat4::IDENTITY,
@@ -138,11 +143,6 @@ impl EventHandlerMod for Game {
                 let model = tile_config.model();
                 ctx.draw(model.start, model.len() as i32, 1);
 
-                //self.gl.uniform4f(Some(&self.color_location), rng.f32(), rng.f32(), rng.f32(), 1.0);
-                //self.gl.draw_array_range(WebGl2RenderingContext::TRIANGLES, meshes::HEXAGON);
-                //self.gl.uniform4f(Some(&self.color_location), 0.0, 0.0, 0.0, 1.0);
-                //self.gl
-                //    .draw_array_range(WebGl2RenderingContext::TRIANGLES, tile_config.model());
             }
         }
 
@@ -154,13 +154,12 @@ impl EventHandlerMod for Game {
     fn event(&mut self, _ctx: &mut Context, event: Event) {
         match event {
             Event::WindowResize(width, height) => {
-                self.camera.calc_aspect(width, height);
+                self.camera.aspect = width / height;
                 self.center_camera();
             }
-            Event::Click(x, y) => match self.state {
+            Event::Click(pos) => match self.state {
                 GameState::InProgress => {
-                    let point = Vec3::new(2.0 * x - 1.0, 2.0 * y - 1.0, 0.0);
-                    let point = self.camera.to_matrix().inverse().transform_point3(point);
+                    let point = self.camera.to_world_coords(pos);
 
                     for i in self.world.indices() {
                         let position = self.world.get_position(i);
@@ -170,14 +169,13 @@ impl EventHandlerMod for Game {
                                 rotation: 0.0,
                                 radius: 1.0,
                             };
-                            if hex.contains(point.xy()) {
+                            if hex.contains(point) {
                                 *index = TileConfig::from(*index).rotate_by(1).index();
-
                             }
                         }
                     }
                     if self.world.is_completed() {
-                        self.state = GameState::Ending(point.xy(), 0.0);
+                        self.state = GameState::Ending(point, 0.0);
                     }
                 },
                 GameState::Ended => {
@@ -187,6 +185,12 @@ impl EventHandlerMod for Game {
                     self.center_camera();
                 },
                 _ => {}
+            },
+            Event::Zoom(center, amount) => {
+                let old = self.camera.to_world_coords(center);
+                self.camera.scale = self.camera.scale.sub(amount * (self.camera.scale / 10.0)).max(1.0);
+                let new = self.camera.to_world_coords(center);
+                self.camera.position += (old - new);
             }
         }
     }
