@@ -1,5 +1,5 @@
 use glam::*;
-use crate::{Angle, math};
+use crate::Angle;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Camera {
@@ -40,11 +40,4 @@ impl Camera {
 
     }
 
-    pub fn lerp(mut self, other: Self, v: f32) -> Self {
-        self.position = Vec2::lerp(self.position, other.position, v);
-        self.scale = math::lerp(self.scale, other.scale, v);
-        self.aspect = math::lerp(self.aspect, other.aspect, v);
-        self.rotation = Angle::lerp(self.rotation, other.rotation, v);
-        self
-    }
 }
