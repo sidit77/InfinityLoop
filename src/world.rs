@@ -5,6 +5,7 @@ use lazy_static::lazy_static;
 use miniserde::{Serialize, Deserialize};
 use std::collections::VecDeque;
 use std::ops::Range;
+use crate::angle::Angle;
 
 const SIN_FRAC_PI_6: f32 = 0.5;
 const COS_FRAC_PI_6: f32 = 0.86602540378;
@@ -68,14 +69,14 @@ impl TileType {
 #[derive(Debug, Copy, Clone)]
 pub enum WorldElement {
     Empty,
-    Tile(usize, f32),
+    Tile(usize, Angle),
 }
 
 impl From<TileConfig> for WorldElement {
     fn from(tc: TileConfig) -> Self {
         match tc {
             TileConfig::Empty => Self::Empty,
-            TileConfig::Tile(_, _) => Self::Tile(tc.index(), tc.radian_rotation()),
+            TileConfig::Tile(_, _) => Self::Tile(tc.index(), tc.angle()),
         }
     }
 }
@@ -477,8 +478,8 @@ impl TileConfig {
         }
     }
 
-    pub fn radian_rotation(self) -> f32 {
-        -std::f32::consts::FRAC_PI_3 * self.rotation() as f32
+    pub fn angle(self) -> Angle {
+        Angle::radians(-std::f32::consts::FRAC_PI_3 * self.rotation() as f32)
     }
 
     pub fn normalized(self) -> Self {

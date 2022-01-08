@@ -3,11 +3,13 @@ mod camera;
 mod intersection;
 mod world;
 mod events;
+mod angle;
 
 use std::time::Duration;
 use fastrand::Rng;
 use glam::{Mat4, Quat, Vec2, Vec3, Vec3Swizzles};
 use miniquad::*;
+use crate::angle::Angle;
 use crate::camera::Camera;
 use crate::events::{Event, EventHandlerMod, EventHandlerProxy};
 use crate::intersection::Hexagon;
@@ -125,13 +127,11 @@ impl EventHandlerMod for Game {
                 let tile_config = TileConfig::from(*id);
 
                 uniforms.model = Mat4::from_rotation_translation(
-                    Quat::from_rotation_z(*rotation),
+                    Quat::from_rotation_z(rotation.to_radians()),
                     position.extend(0.0),
                 );
 
-                *rotation = lerp_radians(
-                    *rotation,
-                    tile_config.radian_rotation(), 1.0 - f32::exp(-20.0 * delta.as_secs_f32()));
+                *rotation = Angle::lerp(*rotation, tile_config.angle(), 1.0 - f32::exp(-20.0 * delta.as_secs_f32()));
 
                 ctx.apply_uniforms(&uniforms);
 
@@ -189,35 +189,6 @@ impl EventHandlerMod for Game {
                 _ => {}
             }
         }
-    }
-}
-
-fn lerp(a: f32, b: f32, lerp_factor: f32) -> f32{
-    ((1.0 - lerp_factor) * a) + (lerp_factor * b)
-}
-
-fn lerp_radians(a: f32, mut b: f32, lerp_factor: f32) -> f32 {
-    const PI: f32 = std::f32::consts::PI;
-    const PI_TIMES_TWO: f32 = PI * 2.0;
-    let diff = b - a;
-    if diff < -PI {
-        b += PI_TIMES_TWO;
-        let result = lerp(a, b, lerp_factor);
-        if result >= PI_TIMES_TWO {
-            result - PI_TIMES_TWO
-        } else {
-            result
-        }
-    } else if diff > PI {
-        b -= PI_TIMES_TWO;
-        let result = lerp(a, b, lerp_factor);
-        if result < 0.0 {
-            result + PI_TIMES_TWO
-        } else {
-            result
-        }
-    } else {
-        lerp(a, b, lerp_factor)
     }
 }
 
