@@ -4,7 +4,6 @@ mod intersection;
 mod world;
 mod events;
 mod angle;
-mod animations;
 
 use std::ops::Sub;
 use std::time::Duration;
@@ -12,7 +11,6 @@ use fastrand::Rng;
 use glam::{Mat4, Quat, Vec2};
 use miniquad::*;
 use crate::angle::Angle;
-use crate::animations::AnimatedValue;
 use crate::camera::Camera;
 use crate::events::{Event, EventHandlerMod, EventHandlerProxy};
 use crate::intersection::Hexagon;
@@ -46,10 +44,11 @@ impl GameState {
 struct Game {
     pipeline: Pipeline,
     bindings: Bindings,
-    camera: AnimatedValue<Camera>,
+    camera: Camera,
     world: World,
     rng: Rng,
-    state: GameState
+    state: GameState,
+    camera_vel: Vec2
 }
 
 impl Game {
@@ -85,7 +84,7 @@ impl Game {
 
         let state = GameState::from_world(&world);
 
-        Game { pipeline, bindings, camera: AnimatedValue::new(camera), world, rng, state }
+        Game { pipeline, bindings, camera, world, rng, state, camera_vel: Default::default() }
     }
 }
 
@@ -99,7 +98,8 @@ fn center_camera(camera: &mut Camera, world: &World){
 impl EventHandlerMod for Game {
 
     fn draw(&mut self, ctx: &mut Context, delta: Duration) {
-        self.camera.animate_lerp_exp(8.0 * delta.as_secs_f32());
+        self.camera.position += self.camera_vel;
+        self.camera_vel *= 0.98;
         let mut uniforms = Uniforms {
             camera: self.camera.to_matrix(),
             model: Mat4::IDENTITY,
@@ -150,7 +150,7 @@ impl EventHandlerMod for Game {
     fn event(&mut self, _ctx: &mut Context, event: Event) {
         match event {
             Event::WindowResize(width, height) => {
-                self.camera.current().aspect = width / height;
+                self.camera.aspect = width / height;
             }
             Event::Click(pos) => match self.state {
                 GameState::InProgress => {
@@ -177,12 +177,12 @@ impl EventHandlerMod for Game {
                     self.world = World::from_seed(self.world.seed() + 1);
                     self.world.scramble(&self.rng);
                     self.state = GameState::from_world(&self.world);
-                    center_camera(self.camera.target(), &self.world);
+                    center_camera(&mut self.camera, &self.world);
                 },
                 _ => {}
             },
             Event::Zoom(center, amount) => {
-                let camera = self.camera.target();
+                let camera = &mut self.camera;
                 let old = camera.to_world_coords(center);
                 camera.scale = camera.scale.sub(amount * (camera.scale / 10.0)).max(1.0);
                 let new = camera.to_world_coords(center);
@@ -190,7 +190,14 @@ impl EventHandlerMod for Game {
             }
             Event::Drag(delta) => {
                 let ratio = Vec2::new(self.camera.aspect, 1.0) * (self.camera.scale / 15.0);
-                self.camera.current().position += -delta * 30.0 * ratio;
+                self.camera.position += -delta * 30.0 * ratio;
+            },
+            Event::DragEnd(delta) => {
+                let ratio = Vec2::new(self.camera.aspect, 1.0) * (self.camera.scale / 15.0);
+                self.camera_vel = -delta * 30.0 * ratio;
+            },
+            Event::Touch => {
+                self.camera_vel = Vec2::ZERO;
             }
         }
     }

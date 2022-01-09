@@ -9,6 +9,8 @@ pub enum Event {
     WindowResize(f32, f32),
     Click(Vec2),
     Drag(Vec2),
+    DragEnd(Vec2),
+    Touch,
     Zoom(Vec2, f32),
 }
 
@@ -20,7 +22,7 @@ pub trait EventHandlerMod {
 #[derive(Copy, Clone)]
 enum ClickState {
     Click(Vec2),
-    Drag(Vec2),
+    Drag(Vec2, Vec2),
     None
 }
 
@@ -56,7 +58,9 @@ const SCROLL_SPEED: f32 = 40.0;
 
 impl<T: EventHandlerMod> EventHandler for EventHandlerProxy<T> {
     fn update(&mut self, _ctx: &mut Context) {
-
+        if let ClickState::Drag(pos, _) = self.click_state {
+            self.click_state = ClickState::Drag(pos, Vec2::ZERO);
+        }
     }
 
     fn draw(&mut self, ctx: &mut Context) {
@@ -73,11 +77,11 @@ impl<T: EventHandlerMod> EventHandler for EventHandlerProxy<T> {
         let npos = normalize_mouse_pos(ctx, x, y);
         match self.click_state {
             ClickState::Click(pos) => if pixel_dist(ctx, npos, pos) > 10.0 {
-                self.click_state = ClickState::Drag(npos);
+                self.click_state = ClickState::Drag(npos, npos - pos);
                 self.handler.event(ctx, Event::Drag(npos - pos));
             }
-            ClickState::Drag(pos) => {
-                self.click_state = ClickState::Drag(npos);
+            ClickState::Drag(pos, _) => {
+                self.click_state = ClickState::Drag(npos, npos - pos);
                 self.handler.event(ctx, Event::Drag(npos - pos))
             },
             ClickState::None => {}
@@ -92,14 +96,17 @@ impl<T: EventHandlerMod> EventHandler for EventHandlerProxy<T> {
     fn mouse_button_down_event(&mut self, ctx: &mut Context, button: MouseButton, x: f32, y: f32) {
         if button == MouseButton::Left {
             self.click_state = ClickState::Click(normalize_mouse_pos(ctx, x, y));
+            self.handler.event(ctx, Event::Touch)
             //self.handler.event(ctx, Event::Click(normalize_mouse_pos(ctx, x, y)))
         }
     }
 
     fn mouse_button_up_event(&mut self, ctx: &mut Context, button: MouseButton, _x: f32, _y: f32) {
         if button == MouseButton::Left {
-            if let ClickState::Click(pos) = take(&mut self.click_state) {
-                self.handler.event(ctx, Event::Click(pos))
+            match take(&mut self.click_state) {
+                ClickState::Click(pos) => self.handler.event(ctx, Event::Click(pos)),
+                ClickState::Drag(_, delta) => self.handler.event(ctx, Event::DragEnd(delta)),
+                _ => {}
             }
         }
     }
