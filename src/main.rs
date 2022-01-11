@@ -99,7 +99,8 @@ impl EventHandlerMod for Game {
 
     fn draw(&mut self, ctx: &mut Context, delta: Duration) {
         self.camera.position += self.camera_vel;
-        self.camera_vel *= 0.98;
+        let dt = 1.0;
+        self.camera_vel *= 1.0 / (1.0 + dt * 0.02);
         let mut uniforms = Uniforms {
             camera: self.camera.to_matrix(),
             model: Mat4::IDENTITY,
@@ -189,12 +190,10 @@ impl EventHandlerMod for Game {
                 camera.position += old - new;
             }
             Event::Drag(delta) => {
-                let ratio = Vec2::new(self.camera.aspect, 1.0) * (self.camera.scale / 15.0);
-                self.camera.position += -delta * 30.0 * ratio;
+                self.camera.position += self.camera.to_world_coords(-delta) - self.camera.to_world_coords(Vec2::ZERO);
             },
             Event::DragEnd(delta) => {
-                let ratio = Vec2::new(self.camera.aspect, 1.0) * (self.camera.scale / 15.0);
-                self.camera_vel = -delta * 30.0 * ratio;
+                self.camera_vel = self.camera.to_world_coords(-delta) - self.camera.to_world_coords(Vec2::ZERO);
             },
             Event::Touch => {
                 self.camera_vel = Vec2::ZERO;
