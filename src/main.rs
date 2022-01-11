@@ -1,241 +1,152 @@
-mod meshes;
-mod camera;
-mod intersection;
-mod world;
-mod events;
-mod angle;
+#[cfg_attr(target_arch = "wasm32", path="platform/wasm.rs")]
+#[cfg_attr(not(target_arch = "wasm32"), path="platform/glutin.rs")]
+mod platform;
 
-use std::ops::Sub;
-use std::time::Duration;
-use fastrand::Rng;
-use glam::{Mat4, Quat, Vec2};
-use miniquad::*;
-use crate::angle::Angle;
-use crate::camera::Camera;
-use crate::events::{Event, EventHandlerMod, EventHandlerProxy};
-use crate::intersection::Hexagon;
-use crate::shader::Uniforms;
-use crate::world::{TileConfig, World, WorldElement};
+use glow::HasContext;
+use log::{info, Level};
+use winit::dpi::PhysicalSize;
+use winit::event::{Event, WindowEvent};
+use winit::event_loop::{ControlFlow, EventLoop};
+use winit::window::WindowBuilder;
 
-enum GameState {
-    InProgress,
-    Ending(Vec2, f32),
-    Ended
-}
-
-impl GameState {
-    fn from_world(world: &World) -> Self {
-        match world.is_completed() {
-            true => Self::Ended,
-            false => Self::InProgress
-        }
-    }
-
-    fn get_anim_radius(&self) -> f32{
-        match self {
-            GameState::InProgress => 0.0,
-            GameState::Ending(_, r) => *r,
-            GameState::Ended => f32::INFINITY
-        }
-    }
-}
-
-
-struct Game {
-    pipeline: Pipeline,
-    bindings: Bindings,
-    camera: Camera,
-    world: World,
-    rng: Rng,
-    state: GameState,
-    camera_vel: Vec2
-}
-
-impl Game {
-    pub fn new(ctx: &mut Context) -> Game {
-
-        let vertex_buffer = Buffer::immutable(ctx, BufferType::VertexBuffer, meshes::VERTICES);
-        let index_buffer = Buffer::immutable(ctx, BufferType::IndexBuffer, meshes::INDICES);
-
-        let bindings = Bindings {
-            vertex_buffers: vec![vertex_buffer],
-            index_buffer,
-            images: Vec::new(),
-        };
-
-        let shader = Shader::new(ctx, shader::VERTEX, shader::FRAGMENT, shader::meta()).unwrap();
-
-        let pipeline = Pipeline::new(
-            ctx,
-            &[BufferLayout::default()],
-            &[VertexAttribute::new("pos", VertexFormat::Float2)],
-            shader,
-        );
-
-        let rng = fastrand::Rng::with_seed(1337);
-        let mut world = World::from_seed(1);
-        world.scramble(&rng);
-
-        let mut camera = Camera::default();
-        let width = ctx.screen_size().0;
-        let height = ctx.screen_size().1;
-        camera.aspect = width / height;
-        center_camera(&mut camera, &world);
-
-        let state = GameState::from_world(&world);
-
-        Game { pipeline, bindings, camera, world, rng, state, camera_vel: Default::default() }
-    }
-}
-
-fn center_camera(camera: &mut Camera, world: &World){
-    let bb = world.get_bounding_box();
-    //camera.rotation = Angle::degrees(90.0);
-    camera.position = bb.center();
-    camera.scale = f32::max((bb.height() / camera.aspect) * 0.51, bb.width() * 0.51);
-}
-
-impl EventHandlerMod for Game {
-
-    fn draw(&mut self, ctx: &mut Context, delta: Duration) {
-        self.camera.position += self.camera_vel;
-        let dt = 1.0;
-        self.camera_vel *= 1.0 / (1.0 + dt * 0.02);
-        let mut uniforms = Uniforms {
-            camera: self.camera.to_matrix(),
-            model: Mat4::IDENTITY,
-            color: [0.30, 0.34, 0.42, 1.0],
-            click_pos: Default::default(),
-            radius: self.state.get_anim_radius()
-        };
-        if let GameState::Ending(p, r) = self.state {
-            uniforms.click_pos = p;
-            self.state = match r > self.camera.scale + (self.camera.position - p).length() {
-                true => GameState::Ended,
-                false => GameState::Ending(p, r + 12.0 * delta.as_secs_f32())
-            }
-        }
-
-
-        ctx.begin_default_pass(Default::default());
-        ctx.clear(Some((0.18, 0.20, 0.25, 1.0)), None, None);
-        ctx.apply_pipeline(&self.pipeline);
-        ctx.apply_bindings(&self.bindings);
-
-
-        for i in self.world.indices() {
-            let position = self.world.get_position(i);
-            if let WorldElement::Tile(id, rotation) = self.world.get_element(i) {
-                let tile_config = TileConfig::from(*id);
-
-                uniforms.model = Mat4::from_rotation_translation(
-                    Quat::from_rotation_z(rotation.to_radians()),
-                    position.extend(0.0),
-                );
-
-                *rotation = Angle::lerp(*rotation, tile_config.angle(), 1.0 - f32::exp(-20.0 * delta.as_secs_f32()));
-
-                ctx.apply_uniforms(&uniforms);
-
-                let model = tile_config.model();
-                ctx.draw(model.start, model.len() as i32, 1);
-
-            }
-        }
-
-        ctx.end_render_pass();
-
-        ctx.commit_frame();
-    }
-
-    fn event(&mut self, _ctx: &mut Context, event: Event) {
-        match event {
-            Event::WindowResize(width, height) => {
-                self.camera.aspect = width / height;
-            }
-            Event::Click(pos) => match self.state {
-                GameState::InProgress => {
-                    let point = self.camera.to_world_coords(pos);
-
-                    for i in self.world.indices() {
-                        let position = self.world.get_position(i);
-                        if let WorldElement::Tile(index, _) = self.world.get_element(i) {
-                            let hex = Hexagon {
-                                position,
-                                rotation: 0.0,
-                                radius: 1.0,
-                            };
-                            if hex.contains(point) {
-                                *index = TileConfig::from(*index).rotate_by(1).index();
-                            }
-                        }
-                    }
-                    if self.world.is_completed() {
-                        self.state = GameState::Ending(point, 0.0);
-                    }
-                },
-                GameState::Ended => {
-                    self.world = World::from_seed(self.world.seed() + 1);
-                    self.world.scramble(&self.rng);
-                    self.state = GameState::from_world(&self.world);
-                    center_camera(&mut self.camera, &self.world);
-                },
-                _ => {}
-            },
-            Event::Zoom(center, amount) => {
-                let camera = &mut self.camera;
-                let old = camera.to_world_coords(center);
-                camera.scale = camera.scale.sub(amount * (camera.scale / 10.0)).max(1.0);
-                let new = camera.to_world_coords(center);
-                camera.position += old - new;
-            }
-            Event::Drag(delta) => {
-                self.camera.position += self.camera.to_world_coords(-delta) - self.camera.to_world_coords(Vec2::ZERO);
-            },
-            Event::DragEnd(delta) => {
-                self.camera_vel = self.camera.to_world_coords(-delta) - self.camera.to_world_coords(Vec2::ZERO);
-            },
-            Event::Touch => {
-                self.camera_vel = Vec2::ZERO;
-            }
-        }
-    }
-}
 
 fn main() {
-    miniquad::start(conf::Conf::default(), |mut ctx| {
-        UserData::owning(EventHandlerProxy::from(Game::new(&mut ctx)), ctx)
-    });
-}
+    platform::setup_logger(Level::Debug);
 
-mod shader {
-    use glam::{Mat4, Vec2};
-    use miniquad::*;
+    unsafe {
+        let event_loop = EventLoop::new();
+        let window_builder = WindowBuilder::new()
+            .with_inner_size(PhysicalSize::new(1280, 720))
+            .with_title("Infinity Loop");
 
-    pub const VERTEX: &str = include_str!("shader/vertex.glsl");
-    pub const FRAGMENT: &str = include_str!("shader/fragment.glsl");
+        #[cfg(target_arch = "wasm32")]
+            let (window, gl) = {
+            use platform::WasmWindow;
+            use winit::platform::web::WindowBuilderExtWebSys;
+            use wasm_bindgen::JsCast;
 
-    pub fn meta() -> ShaderMeta {
-        ShaderMeta {
-            images: vec![],
-            uniforms: UniformBlockLayout {
-                uniforms: vec![
-                    UniformDesc::new("camera", UniformType::Mat4),
-                    UniformDesc::new("model", UniformType::Mat4),
-                    UniformDesc::new("color", UniformType::Float4),
-                    UniformDesc::new("clickPos", UniformType::Float2),
-                    UniformDesc::new("radius", UniformType::Float1)
-                ],
-            },
+            let canvas = web_sys::window()
+                .unwrap()
+                .document()
+                .unwrap()
+                .get_element_by_id("canvas")
+                .unwrap()
+                .dyn_into::<web_sys::HtmlCanvasElement>()
+                .unwrap();
+            let webgl2_context = canvas
+                .get_context("webgl2")
+                .unwrap()
+                .unwrap()
+                .dyn_into::<web_sys::WebGl2RenderingContext>()
+                .unwrap();
+
+            let window = window_builder.with_canvas(Some(canvas)).build(&event_loop).unwrap();
+            let gl = glow::Context::from_webgl2_context(webgl2_context);
+
+            (WasmWindow::new(window), gl)
+        };
+
+        #[cfg(not(target_arch = "wasm32"))]
+            let (window, gl) = {
+            let window = glutin::ContextBuilder::new()
+                .with_vsync(true)
+                .build_windowed(window_builder, &event_loop)
+                .unwrap()
+                .make_current()
+                .unwrap();
+            let gl = glow::Context::from_loader_function(|s| window.get_proc_address(s) as *const _);
+            (window, gl)
+        };
+
+        let vertex_array = gl
+            .create_vertex_array()
+            .expect("Cannot create vertex array");
+        gl.bind_vertex_array(Some(vertex_array));
+
+        let program = gl.create_program().expect("Cannot create program");
+
+        let (vertex_shader_source, fragment_shader_source) = (
+            r#"const vec2 verts[3] = vec2[3](
+                vec2(0.5f, 1.0f),
+                vec2(0.0f, 0.0f),
+                vec2(1.0f, 0.0f)
+            );
+            out vec2 vert;
+            void main() {
+                vert = verts[gl_VertexID];
+                gl_Position = vec4(vert - 0.5, 0.0, 1.0);
+            }"#,
+            r#"precision mediump float;
+            in vec2 vert;
+            out vec4 color;
+            void main() {
+                color = vec4(vert, 0.5, 1.0);
+            }"#,
+        );
+
+        let shader_sources = [
+            (glow::VERTEX_SHADER, vertex_shader_source),
+            (glow::FRAGMENT_SHADER, fragment_shader_source),
+        ];
+
+        let mut shaders = Vec::with_capacity(shader_sources.len());
+
+        for (shader_type, shader_source) in shader_sources.iter() {
+            let shader = gl
+                .create_shader(*shader_type)
+                .expect("Cannot create shader");
+            gl.shader_source(shader, &format!("{}\n{}", "#version 300 es", shader_source));
+            gl.compile_shader(shader);
+            if !gl.get_shader_compile_status(shader) {
+                panic!("{}", gl.get_shader_info_log(shader));
+            }
+            gl.attach_shader(program, shader);
+            shaders.push(shader);
         }
-    }
 
-    #[repr(C)]
-    pub struct Uniforms {
-        pub camera: Mat4,
-        pub model: Mat4,
-        pub color: [f32; 4],
-        pub click_pos: Vec2,
-        pub radius: f32
+        gl.link_program(program);
+        if !gl.get_program_link_status(program) {
+            panic!("{}", gl.get_program_info_log(program));
+        }
+
+        for shader in shaders {
+            gl.detach_shader(program, shader);
+            gl.delete_shader(shader);
+        }
+
+        gl.use_program(Some(program));
+        gl.clear_color(0.1, 0.2, 0.3, 1.0);
+
+        event_loop.run(move |event, _, control_flow| {
+            *control_flow = ControlFlow::Poll;
+            match event {
+                Event::LoopDestroyed => {
+                    return;
+                }
+                Event::MainEventsCleared => {
+                    window.window().request_redraw();
+                }
+                Event::RedrawRequested(_) => {
+                    gl.clear(glow::COLOR_BUFFER_BIT);
+                    gl.draw_arrays(glow::TRIANGLES, 0, 3);
+                    window.swap_buffers().unwrap();
+                }
+                Event::WindowEvent { ref event, .. } => match event {
+                    WindowEvent::Resized(physical_size) => {
+                        window.resize(*physical_size);
+                        gl.viewport(0, 0, physical_size.width as i32, physical_size.height as i32);
+                        //error!("{:?}", physical_size)
+                    }
+                    WindowEvent::KeyboardInput { input, is_synthetic, .. } => info!("{:x} {:?} {}", input.scancode, input.virtual_keycode, is_synthetic),
+                    WindowEvent::CloseRequested => {
+                        gl.delete_program(program);
+                        gl.delete_vertex_array(vertex_array);
+                        *control_flow = ControlFlow::Exit
+                    }
+                    _ => (),
+                },
+                _ => (),
+            }
+        });
     }
 }
