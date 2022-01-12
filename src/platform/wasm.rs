@@ -6,6 +6,7 @@ use winit::window::{Window, WindowBuilder};
 use winit::dpi::PhysicalSize;
 use winit::event_loop::EventLoopWindowTarget;
 use winit::platform::web::WindowBuilderExtWebSys;
+use crate::opengl::Context;
 
 #[wasm_bindgen(start)]
 pub fn run() {
@@ -39,7 +40,7 @@ impl WindowBuilderExt for WindowBuilder {
             .unwrap();
 
         let window = self.with_canvas(Some(canvas)).build(&el).unwrap();
-        let gl = glow::Context::from_webgl2_context(webgl2_context);
+        let gl = Context::from_webgl2_context(webgl2_context);
 
         (WasmWindow::new(window), gl)
     }

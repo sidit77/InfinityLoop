@@ -1,8 +1,8 @@
-use glow::Context;
 use glutin::{ContextWrapper, PossiblyCurrent};
 use log::Level;
 use winit::event_loop::EventLoopWindowTarget;
 use winit::window::{Window, WindowBuilder};
+use crate::opengl::Context;
 
 pub fn setup_logger(level: Level) {
     env_logger::builder()
@@ -26,7 +26,7 @@ impl WindowBuilderExt for WindowBuilder {
                 .expect("Can not get OpenGL context!")
                 .make_current()
                 .expect("Can set OpenGL context as current!");
-            let gl = glow::Context::from_loader_function(|s| window.get_proc_address(s) as *const _);
+            let gl = Context::from_loader_function(|s| window.get_proc_address(s) as *const _);
             (window, gl)
         }
     }
