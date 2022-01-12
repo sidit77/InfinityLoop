@@ -1,6 +1,10 @@
 mod shader;
+mod vertex_array;
+mod enums;
 
 pub use shader::*;
+pub use vertex_array::*;
+pub use enums::*;
 
 use std::rc::Rc;
 use glow::{COLOR_BUFFER_BIT, DEPTH_BUFFER_BIT, HasContext};
@@ -56,4 +60,19 @@ impl Context {
         }
     }
 
+    pub fn use_vertex_array<'a>(&self, vertex_array: impl Into<Option<&'a VertexArray>>) {
+        let gl = self.raw();
+        unsafe {
+            gl.bind_vertex_array(vertex_array.into().map(|p| *p.raw()))
+        }
+    }
+
+    pub fn draw(&self, primitive_type: PrimitiveType, first: i32, count: i32) {
+        let gl = self.raw();
+        unsafe {
+            gl.draw_arrays(primitive_type.raw(), first, count);
+        }
+    }
+
 }
+
