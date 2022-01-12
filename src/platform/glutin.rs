@@ -1,4 +1,8 @@
+use glow::Context;
+use glutin::{ContextWrapper, PossiblyCurrent};
 use log::Level;
+use winit::event_loop::EventLoopWindowTarget;
+use winit::window::{Window, WindowBuilder};
 
 pub fn setup_logger(level: Level) {
     env_logger::builder()
@@ -6,4 +10,25 @@ pub fn setup_logger(level: Level) {
         .format_timestamp(None)
         .format_target(false)
         .init()
+}
+
+pub trait WindowBuilderExt {
+    fn build_context<T>(self, el: &EventLoopWindowTarget<T>) -> (ContextWrapper<PossiblyCurrent, Window>, Context);
+}
+
+impl WindowBuilderExt for WindowBuilder {
+
+    fn build_context<T>(self, el: &EventLoopWindowTarget<T>) -> (ContextWrapper<PossiblyCurrent, Window>, Context) {
+        unsafe {
+            let window = glutin::ContextBuilder::new()
+                .with_vsync(true)
+                .build_windowed(self, el)
+                .expect("Can not get OpenGL context!")
+                .make_current()
+                .expect("Can set OpenGL context as current!");
+            let gl = glow::Context::from_loader_function(|s| window.get_proc_address(s) as *const _);
+            (window, gl)
+        }
+    }
+
 }

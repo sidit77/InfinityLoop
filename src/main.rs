@@ -8,55 +8,19 @@ use winit::dpi::PhysicalSize;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
+use crate::platform::WindowBuilderExt;
 
 
 fn main() {
     platform::setup_logger(Level::Debug);
 
+    let event_loop = EventLoop::new();
+    let (window, gl) = WindowBuilder::new()
+        .with_inner_size(PhysicalSize::new(1280, 720))
+        .with_title("Infinity Loop")
+        .build_context(&event_loop);
+
     unsafe {
-        let event_loop = EventLoop::new();
-        let window_builder = WindowBuilder::new()
-            .with_inner_size(PhysicalSize::new(1280, 720))
-            .with_title("Infinity Loop");
-
-        #[cfg(target_arch = "wasm32")]
-            let (window, gl) = {
-            use platform::WasmWindow;
-            use winit::platform::web::WindowBuilderExtWebSys;
-            use wasm_bindgen::JsCast;
-
-            let canvas = web_sys::window()
-                .unwrap()
-                .document()
-                .unwrap()
-                .get_element_by_id("canvas")
-                .unwrap()
-                .dyn_into::<web_sys::HtmlCanvasElement>()
-                .unwrap();
-            let webgl2_context = canvas
-                .get_context("webgl2")
-                .unwrap()
-                .unwrap()
-                .dyn_into::<web_sys::WebGl2RenderingContext>()
-                .unwrap();
-
-            let window = window_builder.with_canvas(Some(canvas)).build(&event_loop).unwrap();
-            let gl = glow::Context::from_webgl2_context(webgl2_context);
-
-            (WasmWindow::new(window), gl)
-        };
-
-        #[cfg(not(target_arch = "wasm32"))]
-            let (window, gl) = {
-            let window = glutin::ContextBuilder::new()
-                .with_vsync(true)
-                .build_windowed(window_builder, &event_loop)
-                .unwrap()
-                .make_current()
-                .unwrap();
-            let gl = glow::Context::from_loader_function(|s| window.get_proc_address(s) as *const _);
-            (window, gl)
-        };
 
         let vertex_array = gl
             .create_vertex_array()
