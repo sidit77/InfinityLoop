@@ -1,4 +1,3 @@
-use glow::Context;
 use log::Level;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;

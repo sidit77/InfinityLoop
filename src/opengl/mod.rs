@@ -1,3 +1,7 @@
+mod shader;
+
+pub use shader::*;
+
 use std::rc::Rc;
 use glow::{COLOR_BUFFER_BIT, DEPTH_BUFFER_BIT, HasContext};
 use crate::types::RGBA;
@@ -36,6 +40,20 @@ impl Context {
             gl.clear(COLOR_BUFFER_BIT | DEPTH_BUFFER_BIT);
         }
 
+    }
+
+    pub fn viewport(&self, x: i32, y: i32, width: i32, height: i32) {
+        let gl = self.raw();
+        unsafe {
+            gl.viewport(x, y, width, height)
+        }
+    }
+
+    pub fn use_program<'a>(&self, program: impl Into<Option<&'a ShaderProgram>>) {
+        let gl = self.raw();
+        unsafe {
+            gl.use_program(program.into().map(|p| *p.raw()))
+        }
     }
 
 }
