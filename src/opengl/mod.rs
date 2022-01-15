@@ -3,6 +3,7 @@ mod vertex_array;
 mod enums;
 mod buffer;
 
+use std::ops::Range;
 pub use shader::*;
 pub use vertex_array::*;
 pub use buffer::*;
@@ -69,10 +70,20 @@ impl Context {
         }
     }
 
-    pub fn draw(&self, primitive_type: PrimitiveType, first: i32, count: i32) {
+    //pub fn draw_arrays(&self, primitive_type: PrimitiveType, first: i32, count: i32) {
+    //    let gl = self.raw();
+    //    unsafe {
+    //        gl.draw_arrays(primitive_type.raw(), first, count);
+    //    }
+    //}
+
+    pub fn draw_elements_range(&self, primitive_type: PrimitiveType, index_type: DataType, range: Range<i32>) {
+        debug_assert!(matches!(index_type, DataType::U8 | DataType::U16 | DataType::U32));
         let gl = self.raw();
+        let count = range.len() as i32;
+        let first = range.start;
         unsafe {
-            gl.draw_arrays(primitive_type.raw(), first, count);
+            gl.draw_elements(primitive_type.raw(), count, index_type.raw(), first * index_type.size() as i32);
         }
     }
 

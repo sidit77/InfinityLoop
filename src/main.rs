@@ -3,6 +3,7 @@
 mod platform;
 mod opengl;
 mod types;
+mod meshes;
 
 use log::{info, Level};
 use winit::dpi::PhysicalSize;
@@ -28,11 +29,12 @@ fn main() {
     ctx.use_vertex_array(&vertex_array);
 
     let vertex_buffer = Buffer::new(&ctx, BufferTarget::Array).unwrap();
-    vertex_buffer.set_data::<f32>(&[0.5, 1.0, 0.0, 0.0, 1.0, 0.0]);
+    vertex_buffer.set_data(meshes::VERTICES);
 
-    vertex_array.set_bindings(&[
-        VertexArrayAttribute::Float(DataType::F32, 2, false)
-    ]);
+    let index_buffer = Buffer::new(&ctx, BufferTarget::ElementArray).unwrap();
+    index_buffer.set_data(meshes::INDICES);
+
+    vertex_array.set_bindings(&[VertexArrayAttribute::Float(DataType::F32, 2, false)]);
 
 
     let (vertex_shader_source, fragment_shader_source) = (
@@ -40,7 +42,7 @@ fn main() {
         layout(location = 0) in vec2 pos;
         out vec2 vert;
         void main() {
-            vert = pos;
+            vert = pos * 0.3;
             gl_Position = vec4(vert - 0.5, 0.0, 1.0);
         }"#,
         r#"#version 300 es
@@ -70,7 +72,7 @@ fn main() {
             }
             Event::RedrawRequested(_) => {
                 ctx.clear(Color::new(46, 52, 64, 255));
-                ctx.draw(PrimitiveType::Triangles, 0, 3);
+                ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, meshes::MODEL7);
                 window.swap_buffers().unwrap();
             }
             Event::WindowEvent { ref event, .. } => match event {
