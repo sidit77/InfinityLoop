@@ -1,9 +1,11 @@
 mod shader;
 mod vertex_array;
 mod enums;
+mod buffer;
 
 pub use shader::*;
 pub use vertex_array::*;
+pub use buffer::*;
 pub use enums::*;
 
 use std::rc::Rc;
@@ -63,7 +65,7 @@ impl Context {
     pub fn use_vertex_array<'a>(&self, vertex_array: impl Into<Option<&'a VertexArray>>) {
         let gl = self.raw();
         unsafe {
-            gl.bind_vertex_array(vertex_array.into().map(|p| *p.raw()))
+            gl.bind_vertex_array(vertex_array.into().map(|p| *p.raw()));
         }
     }
 
@@ -71,6 +73,13 @@ impl Context {
         let gl = self.raw();
         unsafe {
             gl.draw_arrays(primitive_type.raw(), first, count);
+        }
+    }
+
+    pub fn bind_buffer(&self, buffer: &Buffer) {
+        let gl = self.raw();
+        unsafe {
+            gl.bind_buffer(buffer.target().raw(), Some(*buffer.raw()));
         }
     }
 

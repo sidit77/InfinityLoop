@@ -9,7 +9,7 @@ use winit::dpi::PhysicalSize;
 use winit::event::{Event, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
 use winit::window::WindowBuilder;
-use crate::opengl::{PrimitiveType, Shader, ShaderProgram, ShaderType, VertexArray};
+use crate::opengl::{Buffer, BufferTarget, DataType, PrimitiveType, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute};
 use crate::platform::WindowBuilderExt;
 use crate::types::Color;
 
@@ -27,16 +27,20 @@ fn main() {
     let vertex_array = VertexArray::new(&ctx).unwrap();
     ctx.use_vertex_array(&vertex_array);
 
+    let vertex_buffer = Buffer::new(&ctx, BufferTarget::Array).unwrap();
+    vertex_buffer.set_data::<f32>(&[0.5, 1.0, 0.0, 0.0, 1.0, 0.0]);
+
+    vertex_array.set_bindings(&[
+        VertexArrayAttribute::Float(DataType::F32, 2, false)
+    ]);
+
+
     let (vertex_shader_source, fragment_shader_source) = (
         r#"#version 300 es
-        const vec2 verts[3] = vec2[3](
-            vec2(0.5f, 1.0f),
-            vec2(0.0f, 0.0f),
-            vec2(1.0f, 0.0f)
-        );
+        layout(location = 0) in vec2 pos;
         out vec2 vert;
         void main() {
-            vert = verts[gl_VertexID];
+            vert = pos;
             gl_Position = vec4(vert - 0.5, 0.0, 1.0);
         }"#,
         r#"#version 300 es
@@ -73,7 +77,7 @@ fn main() {
                 WindowEvent::Resized(physical_size) => {
                     window.resize(*physical_size);
                     ctx.viewport(0, 0, physical_size.width as i32, physical_size.height as i32);
-                    //error!("{:?}", physical_size)
+                    info!("{:?}", physical_size)
                 }
                 WindowEvent::KeyboardInput { input, is_synthetic, .. } => info!("{:x} {:?} {}", input.scancode, input.virtual_keycode, is_synthetic),
                 WindowEvent::CloseRequested => {
