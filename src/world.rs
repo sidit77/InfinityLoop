@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 use miniserde::{Serialize, Deserialize};
 use std::collections::VecDeque;
 use std::ops::Range;
-use crate::angle::Angle;
+use crate::types::Angle;
 
 const SIN_FRAC_PI_6: f32 = 0.5;
 const COS_FRAC_PI_6: f32 = 0.86602540378;

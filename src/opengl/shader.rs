@@ -1,7 +1,8 @@
-use glam::Mat4;
+use glam::{Mat4, Vec2};
 use glow::HasContext;
 use crate::opengl::Context;
 use crate::ShaderType;
+use crate::types::RGBA;
 
 type GlowProgram = glow::Program;
 type GlowShader = glow::Shader;
@@ -117,3 +118,27 @@ impl SetUniform<Mat4> for ShaderProgram {
     }
 }
 
+impl SetUniform<Vec2> for ShaderProgram {
+    fn set_uniform(&self, location: &UniformLocation, data: Vec2) {
+        unsafe {
+            self.ctx.raw().uniform_2_f32(Some(location), data.x, data.y)
+        }
+    }
+}
+
+impl SetUniform<f32> for ShaderProgram {
+    fn set_uniform(&self, location: &UniformLocation, data: f32) {
+        unsafe {
+            self.ctx.raw().uniform_1_f32(Some(location), data)
+        }
+    }
+}
+
+impl<T: Into<RGBA<f32>>> SetUniform<T> for ShaderProgram {
+    fn set_uniform(&self, location: &UniformLocation, data: T) {
+        let c = data.into();
+        unsafe {
+            self.ctx.raw().uniform_4_f32(Some(location), c.r, c.g, c.b, c.a)
+        }
+    }
+}
