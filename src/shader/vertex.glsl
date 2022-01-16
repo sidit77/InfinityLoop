@@ -1,14 +1,14 @@
-#version 100
+#version 300 es
 
-attribute vec2 pos;
+layout(location = 0) in vec2 position;
 
 uniform mat4 camera;
 uniform mat4 model;
 
-varying highp vec2 worldPos;
+out vec2 worldPos;
 
 void main() {
-    vec4 wp = model * vec4(pos, 0, 1);
+    vec4 wp = model * vec4(position, 0, 1);
     worldPos = wp.xy / wp.w;
     gl_Position = camera * wp;
 }

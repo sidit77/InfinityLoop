@@ -43,6 +43,7 @@ pub fn run<T: EventHandler + 'static>(builder: impl FnOnce(&Context) -> T) -> ! 
         WinitEvent::WindowEvent { ref event, window_id, } if window_id == window.window().id() => match event {
             WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
             WindowEvent::Resized(size) => {
+                ctx.viewport(0, 0, size.width as i32, size.height as i32);
                 handler.event(Event::WindowResize(size.width as f32, size.height as f32));
                 window.resize(*size);
             },

@@ -2,9 +2,13 @@ mod opengl;
 mod types;
 mod meshes;
 mod app;
+mod camera;
 
 use std::time::Duration;
+use glam::Mat4;
+use glow::HasContext;
 use crate::app::{Event, EventHandler};
+use crate::camera::Camera;
 use crate::opengl::{Buffer, BufferTarget, Context, DataType, PrimitiveType, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute};
 use crate::types::Color;
 
@@ -12,7 +16,8 @@ struct Game {
     _vertex_buffer: Buffer,
     _index_buffer: Buffer,
     vertex_array: VertexArray,
-    program: ShaderProgram
+    program: ShaderProgram,
+    camera: Camera
 }
 
 impl Game {
@@ -29,33 +34,19 @@ impl Game {
 
         vertex_array.set_bindings(&[VertexArrayAttribute::Float(DataType::F32, 2, false)]);
 
-        let (vertex_shader_source, fragment_shader_source) = (
-            r#"#version 300 es
-        layout(location = 0) in vec2 pos;
-        out vec2 vert;
-        void main() {
-            vert = pos * 0.3;
-            gl_Position = vec4(vert - 0.5, 0.0, 1.0);
-        }"#,
-            r#"#version 300 es
-        precision mediump float;
-        in vec2 vert;
-        out vec4 color;
-        void main() {
-            color = vec4(vert, 0.5, 1.0);
-        }"#,
-        );
-
         let program = ShaderProgram::new(&ctx, &[
-            &Shader::new(&ctx, ShaderType::Vertex, vertex_shader_source).unwrap(),
-            &Shader::new(&ctx, ShaderType::Fragment, fragment_shader_source).unwrap(),
+            &Shader::new(&ctx, ShaderType::Vertex, include_str!("shader/vertex.glsl")).unwrap(),
+            &Shader::new(&ctx, ShaderType::Fragment, include_str!("shader/fragment.glsl")).unwrap(),
         ]).unwrap();
+
+        let camera = Camera::default();
 
         Self {
             vertex_array,
             _vertex_buffer: vertex_buffer,
             _index_buffer: index_buffer,
-            program
+            program,
+            camera
         }
     }
 
@@ -63,16 +54,25 @@ impl Game {
 
 impl EventHandler for Game {
     fn draw(&mut self, ctx: &Context, delta: Duration) {
-        ctx.use_program(&self.program);
-        ctx.use_vertex_array(&self.vertex_array);
-
         ctx.clear(Color::new(46, 52, 64, 255));
+
+        ctx.use_vertex_array(&self.vertex_array);
+        ctx.use_program(&self.program);
+
+        unsafe {
+            ctx.raw().uniform_matrix_4_f32_slice(self.program.get_uniform_name("camera").as_ref(), false, &self.camera.to_matrix().to_cols_array());
+            ctx.raw().uniform_matrix_4_f32_slice(self.program.get_uniform_name("model").as_ref(), false, &Mat4::IDENTITY.to_cols_array());
+        }
+
+
         ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, meshes::MODEL7);
     }
 
     fn event(&mut self, event: app::Event) {
         match event {
-            Event::WindowResize(_, _) => {}
+            Event::WindowResize(width, height) => {
+                self.camera.aspect = width / height;
+            }
             Event::Click(_) => {}
             Event::Drag(_) => {}
             Event::DragEnd(_) => {}

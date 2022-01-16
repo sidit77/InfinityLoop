@@ -5,6 +5,8 @@ use crate::ShaderType;
 type GlowProgram = glow::Program;
 type GlowShader = glow::Shader;
 
+pub type UniformLocation = glow::UniformLocation;
+
 pub struct Shader {
     ctx: Context,
     id: GlowShader
@@ -68,6 +70,13 @@ impl ShaderProgram {
                 }),
                 false => Err(gl.get_program_info_log(id))
             }
+        }
+    }
+
+    pub fn get_uniform_name(&self, name: &str) -> Option<UniformLocation> {
+        let gl = self.ctx.raw();
+        unsafe {
+            gl.get_uniform_location(self.id, name)
         }
     }
 

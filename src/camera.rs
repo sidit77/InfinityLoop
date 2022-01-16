@@ -1,5 +1,5 @@
 use glam::*;
-use crate::Angle;
+use crate::types::Angle;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Camera {
@@ -14,7 +14,7 @@ impl Default for Camera {
         Self{
             position: vec2(0.0,0.0),
             aspect: 1.0,
-            scale: 350.0,
+            scale: 1.0,
             rotation: Angle::empty()
         }
     }
