@@ -33,8 +33,8 @@ impl Buffer {
         }
     }
 
-    pub fn raw(&self) -> &GlowBuffer {
-        &self.id
+    pub fn raw(&self) -> GlowBuffer {
+        self.id
     }
 
     pub fn target(&self) -> BufferTarget {

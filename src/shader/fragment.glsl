@@ -12,7 +12,7 @@ in vec2 worldPos;
 
 void main() {
     //if(length(worldPos - clickPos) > radius) {
-        finalColor = vec4(1,0,0,1);//color;
+        finalColor = vec4(1,1,0,1);//color;
     //}else {
     //    finalColor = vec4(vec3(1) - color.rgb, color.a);
     //}

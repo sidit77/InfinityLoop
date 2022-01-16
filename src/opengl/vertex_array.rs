@@ -67,8 +67,8 @@ impl VertexArray {
         }
     }
 
-    pub fn raw(&self) -> &GlowVertexArray {
-        &self.id
+    pub fn raw(&self) -> GlowVertexArray {
+        self.id
     }
 
 }

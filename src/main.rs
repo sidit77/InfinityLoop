@@ -6,10 +6,9 @@ mod camera;
 
 use std::time::Duration;
 use glam::Mat4;
-use glow::HasContext;
 use crate::app::{Event, EventHandler};
 use crate::camera::Camera;
-use crate::opengl::{Buffer, BufferTarget, Context, DataType, PrimitiveType, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute};
+use crate::opengl::{Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute};
 use crate::types::Color;
 
 struct Game {
@@ -59,11 +58,8 @@ impl EventHandler for Game {
         ctx.use_vertex_array(&self.vertex_array);
         ctx.use_program(&self.program);
 
-        unsafe {
-            ctx.raw().uniform_matrix_4_f32_slice(self.program.get_uniform_name("camera").as_ref(), false, &self.camera.to_matrix().to_cols_array());
-            ctx.raw().uniform_matrix_4_f32_slice(self.program.get_uniform_name("model").as_ref(), false, &Mat4::IDENTITY.to_cols_array());
-        }
-
+        self.program.set_uniform_by_name("camera", self.camera.to_matrix());
+        self.program.set_uniform_by_name("model", Mat4::IDENTITY);
 
         ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, meshes::MODEL7);
     }

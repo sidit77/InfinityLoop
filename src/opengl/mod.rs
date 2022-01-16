@@ -59,14 +59,14 @@ impl Context {
     pub fn use_program<'a>(&self, program: impl Into<Option<&'a ShaderProgram>>) {
         let gl = self.raw();
         unsafe {
-            gl.use_program(program.into().map(|p| *p.raw()))
+            gl.use_program(program.into().map(|p| p.raw()))
         }
     }
 
     pub fn use_vertex_array<'a>(&self, vertex_array: impl Into<Option<&'a VertexArray>>) {
         let gl = self.raw();
         unsafe {
-            gl.bind_vertex_array(vertex_array.into().map(|p| *p.raw()));
+            gl.bind_vertex_array(vertex_array.into().map(|p| p.raw()));
         }
     }
 
@@ -90,7 +90,7 @@ impl Context {
     pub fn bind_buffer(&self, buffer: &Buffer) {
         let gl = self.raw();
         unsafe {
-            gl.bind_buffer(buffer.target().raw(), Some(*buffer.raw()));
+            gl.bind_buffer(buffer.target().raw(), Some(buffer.raw()));
         }
     }
 
