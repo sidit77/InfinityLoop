@@ -84,7 +84,11 @@ pub fn run<T: EventHandler + 'static>(builder: impl FnOnce(&Context) -> T) -> ! 
                 }
                 last_mouse_pos = new_pos;
             },
-            WindowEvent::MouseWheel { delta: MouseScrollDelta::LineDelta(_, dy), .. } => {
+            WindowEvent::MouseWheel { delta, .. } => {
+                let dy = match delta {
+                    MouseScrollDelta::LineDelta(_, dy) => dy,
+                    MouseScrollDelta::PixelDelta(pos) => pos.y as f32 / 100.0
+                };
                 handler.event(Event::Zoom(last_mouse_pos, dy))
             }
             WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, .. } => {
