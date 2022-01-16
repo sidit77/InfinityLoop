@@ -484,6 +484,7 @@ dependencies = [
  "glam",
  "glow",
  "glutin",
+ "instant",
  "lazy_static",
  "log",
  "miniserde",
