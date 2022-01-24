@@ -58,8 +58,7 @@ struct Game {
     camera: Camera,
     world: World,
     rng: Rng,
-    state: GameState,
-    camera_vel: Vec2
+    state: GameState
 }
 
 impl Game {
@@ -99,18 +98,13 @@ impl Game {
             camera,
             world,
             rng,
-            state,
-            camera_vel: Vec2::ZERO
+            state
         }
     }
 }
 
 impl EventHandler for Game {
     fn draw(&mut self, ctx: &Context, delta: Duration) {
-
-        self.camera.position += self.camera_vel;
-        let dt = 1.0;
-        self.camera_vel *= 1.0 / (1.0 + dt * 0.02);
 
         if let GameState::Ending(p, r) = self.state {
             self.state = match r > self.camera.scale + (self.camera.position - p).length() {
@@ -197,14 +191,10 @@ impl EventHandler for Game {
                 camera.position += old - new;
             }
             Event::Drag(delta) => {
-                self.camera.position += self.camera.to_world_coords(-delta) - self.camera.to_world_coords(Vec2::ZERO);
+                self.camera.position += self.camera.to_world_coords(-delta.absolute()) - self.camera.to_world_coords(Vec2::ZERO);
             },
-            Event::DragEnd(delta) => {
-                self.camera_vel = self.camera.to_world_coords(-delta) - self.camera.to_world_coords(Vec2::ZERO);
-            },
-            Event::Touch => {
-                self.camera_vel = Vec2::ZERO;
-            }
+            Event::DragEnd(_) => {},
+            Event::DragStart(_) => {}
         }
     }
 }
