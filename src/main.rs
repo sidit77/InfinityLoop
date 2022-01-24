@@ -201,5 +201,26 @@ impl EventHandler for Game {
 
 
 fn main() {
-    app::run(|ctx| Game::new(ctx))
+    let n: i32 = 5;
+    let range =
+        (-n..=n).into_iter().flat_map(move |q|
+            (-n..=n).into_iter().flat_map(move |r|
+                (-n..=n).into_iter().flat_map(move |s|std::iter::once([q,r,s]))))
+            .filter(|t| t.iter().sum::<i32>() == 0)
+            .map(|t|(t[1], t[0]))
+            .enumerate()
+            .collect::<Vec<_>>();
+
+    let m = 2 * n + 1;
+    let l = m * m - n * n - n;
+
+
+    for (i, t @ (x, y) ) in range {
+        let s = 1 | (y >> 31);
+        let x = s * x;
+        let y = s * y;
+        let ci = l / 2 + s * (x + y * m - ((y - 1) * y) / 2);
+        println!("{:?}: {} -> {}", t, i, ci);
+    }
+    //app::run(|ctx| Game::new(ctx))
 }
