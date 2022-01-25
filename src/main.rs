@@ -6,13 +6,16 @@ mod camera;
 mod world;
 //mod intersection;
 
+use std::collections::hash_map::DefaultHasher;
+use std::collections::HashSet;
+use std::hash::{Hash, Hasher};
 use std::ops::Sub;
 use std::time::Duration;
 use glam::{Mat4, Vec2};
 use crate::app::{Event, EventHandler};
 use crate::camera::Camera;
 use crate::opengl::{Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute};
-use crate::types::Color;
+use crate::types::{Color, HexPosition};
 
 struct Game {
     _vertex_buffer: Buffer,
@@ -20,6 +23,7 @@ struct Game {
     vertex_array: VertexArray,
     program: ShaderProgram,
     camera: Camera,
+    hexagons: HashSet<HexPosition>
 }
 
 impl Game {
@@ -45,12 +49,18 @@ impl Game {
 
         camera.scale = 6.0;
 
+        let mut hexagons = HashSet::new();
+        hexagons.insert(HexPosition::new(0,0));
+        hexagons.insert(HexPosition::new(1,0));
+        hexagons.insert(HexPosition::new(0,1));
+
         Self {
             vertex_array,
             _vertex_buffer: vertex_buffer,
             _index_buffer: index_buffer,
             program,
             camera,
+            hexagons
         }
     }
 }
@@ -58,25 +68,23 @@ impl Game {
 impl EventHandler for Game {
     fn draw(&mut self, ctx: &Context, _delta: Duration) {
 
-        //if let GameState::Ending(p, r) = self.state {
-        //    self.state = match r > self.camera.scale + (self.camera.position - p).length() {
-        //        true => GameState::Ended,
-        //        false => GameState::Ending(p, r + 12.0 * delta.as_secs_f32())
-        //    }
-        //}
-
         ctx.clear(Color::new(46, 52, 64, 255));
 
         ctx.use_vertex_array(&self.vertex_array);
         ctx.use_program(&self.program);
 
         self.program.set_uniform_by_name("camera", self.camera.to_matrix());
-        self.program.set_uniform_by_name("color", Color::new(76, 86, 106, 255));
-        //self.program.set_uniform_by_name("clickPos", self.state.get_click_pos());
-        //self.program.set_uniform_by_name("radius", self.state.get_anim_radius());
 
-        self.program.set_uniform_by_name("model", Mat4::IDENTITY);
-        ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, meshes::HEXAGON);
+        for hex in &self.hexagons {
+            let mut hasher = DefaultHasher::new();
+            hex.hash(&mut hasher);
+            let rng = fastrand::Rng::with_seed(hasher.finish());
+            self.program.set_uniform_by_name("color", Color::new(rng.u8(30..), rng.u8(30..), rng.u8(30..), 255));
+            self.program.set_uniform_by_name("model", Mat4::from_translation(Vec2::from(*hex).extend(0.0)));
+            ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, meshes::HEXAGON);
+        }
+
+
 
         //for i in self.world.indices() {
         //    let position = self.world.get_position(i);
@@ -104,7 +112,11 @@ impl EventHandler for Game {
             Event::WindowResize(width, height) => {
                 self.camera.aspect = width / height;
             }
-            Event::Click(_pos) => {
+            Event::Click(pos) => {
+                let pt = self.camera.to_world_coords(pos).into();
+                if !self.hexagons.remove(&pt) {
+                    self.hexagons.insert(pt);
+                }
             },
             Event::Zoom(center, amount) => {
                 let camera = &mut self.camera;

@@ -1,7 +1,8 @@
 use std::fmt::{Debug, Formatter};
 use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
+use glam::{Mat2, Vec2, Vec3};
 
-#[derive(Copy, Clone, Eq, PartialEq)]
+#[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct HexPosition(i32, i32);
 
 impl HexPosition {
@@ -33,6 +34,40 @@ impl Debug for HexPosition {
             .field(&self.r())
             .field(&self.s())
             .finish()
+    }
+}
+
+//[f32::sqrt(3.0) / 3.0, 0.0, -1.0 / 3.0, 2.0 / 3.0]
+const POINT_TO_HEX: &[f32; 4] = &[0.57735026, 0.0, -0.33333334, 0.6666667];
+
+impl From<Vec2> for HexPosition {
+    fn from(pt: Vec2) -> Self {
+        let pt = Mat2::from_cols_array(POINT_TO_HEX) * pt;
+        let pt = cube_round(pt.extend(-pt.x-pt.y));
+        HexPosition(pt.x as i32, pt.y as i32)
+    }
+}
+
+fn cube_round(frac: Vec3) -> Vec3 {
+    let mut round = frac.round();
+    let diff = (round - frac).abs();
+
+    if diff.x > diff.y && diff.x > diff.z {
+        round.x = -round.y - round.z
+    } else if diff.y > diff.z {
+        round.y = -round.x - round.z
+    } else {
+        round.z = -round.x - round.y
+    }
+    round
+}
+
+//[f32::sqrt(3.0), 0.0, f32::sqrt(3.0) / 2.0, 3.0 / 2.0]
+const HEX_TO_POINT: &[f32; 4] = &[1.7320508, 0.0, 0.8660254, 1.5];
+
+impl From<HexPosition> for Vec2 {
+    fn from(hex: HexPosition) -> Self {
+        Mat2::from_cols_array(HEX_TO_POINT) * Vec2::new(hex.q() as f32,hex.r() as f32)
     }
 }
 
