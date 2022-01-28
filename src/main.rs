@@ -114,9 +114,12 @@ impl EventHandler for Game {
             }
             Event::Click(pos) => {
                 let pt = self.camera.to_world_coords(pos).into();
-                if !self.hexagons.remove(&pt) {
-                    self.hexagons.insert(pt);
+                for pt in HexPosition::spiral_iter(pt, 3) {
+                    if !self.hexagons.remove(&pt) {
+                        self.hexagons.insert(pt);
+                    }
                 }
+
             },
             Event::Zoom(center, amount) => {
                 let camera = &mut self.camera;

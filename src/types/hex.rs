@@ -1,16 +1,22 @@
 use std::fmt::{Debug, Formatter};
+use std::iter::{once, repeat};
 use std::ops::{Add, AddAssign, Mul, MulAssign, Sub, SubAssign};
 use glam::{Mat2, Vec2, Vec3};
 
 #[derive(Copy, Clone, Eq, PartialEq, Hash)]
 pub struct HexPosition(i32, i32);
 
+const NEIGHBOR_OFFSETS: &[HexPosition] = &[
+    HexPosition( 1, 0), HexPosition( 1, -1), HexPosition(0, -1),
+    HexPosition(-1, 0), HexPosition(-1,  1), HexPosition(0,  1)
+];
+
 impl HexPosition {
 
     pub const CENTER: Self = Self::new(0, 0);
 
     pub const fn new(q: i32, r: i32) -> Self {
-        HexPosition(q, r)
+        Self(q, r)
     }
 
     pub const fn q(self) -> i32 {
@@ -23,6 +29,30 @@ impl HexPosition {
 
     pub const fn s(self) -> i32 {
         -self.q() - self.r()
+    }
+
+    pub fn neighbors(self) -> impl Iterator<Item=Self> {
+        NEIGHBOR_OFFSETS.into_iter().map(move |offset| self + *offset)
+    }
+
+    pub fn ring_iter(center: Self, radius: i32) -> impl Iterator<Item=Self> {
+        debug_assert!(radius >= 1);
+        NEIGHBOR_OFFSETS
+            .iter()
+            .flat_map(move |d|
+                repeat(*d).take(radius as usize))
+            .scan(center + NEIGHBOR_OFFSETS[4] * radius, |state, step| {
+                let hex = *state;
+                *state += step;
+                Some(hex)
+            })
+    }
+
+    pub fn spiral_iter(center: Self, radius: i32) -> impl Iterator<Item=Self> {
+        debug_assert!(radius >= 0);
+        once(center)
+            .chain((1..=radius)
+                .flat_map(move |i| Self::ring_iter(center, i)))
     }
 
 }
