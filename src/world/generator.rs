@@ -10,7 +10,9 @@ type IndexSet = smallbitset::Set64;
 
 pub struct PossibilityMap {
     map: HexMap<IndexSet>,
-    propagation_queue: VecDeque<HexPos>
+    propagation_queue: VecDeque<HexPos>,
+    minimal_nodes: Vec<HexPos>,
+    minimal_size: usize
 }
 
 impl PossibilityMap {
@@ -18,54 +20,71 @@ impl PossibilityMap {
     pub fn new(radius: i32) -> Self {
         Self {
             map: HexMap::new(radius),
-            propagation_queue: VecDeque::new()
+            propagation_queue: VecDeque::new(),
+            minimal_nodes: Vec::new(),
+            minimal_size: 0
         }
     }
 
     pub fn clear(&mut self) {
-        for pos in self.map.keys() {
+        self.propagation_queue.clear();
+        self.minimal_nodes.clear();
+        self.minimal_size = usize::MAX;
+        self.map.fill(*COMPLETE_SET);
+
+        for pos in HexPos::ring_iter(self.map.center(), self.map.radius()) {
             let set = pos
                 .neighbors()
                 .enumerate()
-                .map(|(d, n)| {
-                    if !self.map.contains(n) {
-                        ADJACENCY_LISTS[*EMPTY_ELEMENT_INDEX][(d + 3) % 6]
-                    } else {
-                        *COMPLETE_SET
-                    }
+                .map(|(d, n)| match self.map.contains(n) {
+                    true => IndexSet::full(),
+                    false => ADJACENCY_LISTS[*EMPTY_ELEMENT_INDEX][(d + 3) % 6]
                 })
                 .fold(IndexSet::full(), |acc, x| acc.inter(x));
-            if set != *COMPLETE_SET {
-                self.propagation_queue.push_back(pos);
-            }
-            self.map.set(pos, set);
+            self.intersect(pos, set);
         }
         self.propagate();
+    }
+
+    fn intersect(&mut self, pos: HexPos, value: IndexSet) {
+        let field = self.map.get_mut(pos).unwrap();
+        let intersection = field.inter(value);
+        if *field != intersection {
+            *field = intersection;
+            self.propagation_queue.push_back(pos);
+            self.update_minimums(pos, intersection.len());
+        }
     }
 
     pub fn valid(&self) -> bool {
         !self.map.values().any(|x| x.is_empty())
     }
 
-    pub fn lowest_entropy(&self, rng: &Rng) -> Option<HexPos> {
-        let mut set = Vec::new();
-        let mut min = usize::MAX;
-        for pos in self.map.keys() {
-            let l = self.map.get(pos).unwrap().len();
-            if l > 1 {
-                if l < min {
-                    set.clear();
-                    min = l;
-                }
-                if l == min {
-                    set.push(pos);
-                }
+    fn update_minimums(&mut self, pos: HexPos, len: usize) {
+        if len > 1 {
+            if len < self.minimal_size {
+                self.minimal_size = len;
+                self.minimal_nodes.clear();
+            }
+            if len == self.minimal_size {
+                self.minimal_nodes.push(pos);
             }
         }
-        if set.len() == 0 {
+    }
+
+    pub fn lowest_entropy(&mut self, rng: &Rng) -> Option<HexPos> {
+        if self.minimal_nodes.is_empty() {
+            self.minimal_size = usize::MAX;
+            for pos in self.map.keys() {
+                self.update_minimums(pos, self.map.get(pos).unwrap().len())
+            }
+        }
+
+        if self.minimal_nodes.len() == 0 {
             None
         } else {
-            Some(set[rng.usize(0..set.len())])
+            let index = rng.usize(0..self.minimal_nodes.len());
+            Some(self.minimal_nodes.swap_remove(index))
         }
     }
 
@@ -75,8 +94,7 @@ impl PossibilityMap {
             .iter()
             .nth(rng.usize(0..elem.len()))
             .unwrap();
-        *elem =  IndexSet::singleton(selected);
-        self.propagation_queue.push_back(pos);
+        self.intersect(pos, IndexSet::singleton(selected));
         self.propagate();
     }
 
@@ -85,18 +103,13 @@ impl PossibilityMap {
             match self.propagation_queue.pop_front() {
                 None => break,
                 Some(pos) => {
-                    //let id = self.elements[index].iter().nth(0).unwrap();
                     for (index, neighbor) in pos.neighbors().enumerate() {
                         if self.map.contains(neighbor) {
                             let adl = self.map.get(pos).unwrap()
                                 .iter()
                                 .map(|x| ADJACENCY_LISTS[x as usize][index])
                                 .fold(IndexSet::empty(), |acc, x| acc.union(x));
-                            let neighbor_set = self.map.get_mut(neighbor).unwrap();
-                            if neighbor_set.inter(adl) != *neighbor_set {
-                                *neighbor_set = neighbor_set.inter(adl);
-                                self.propagation_queue.push_back(neighbor);
-                            }
+                            self.intersect(neighbor, adl);
                         }
                     }
                 }

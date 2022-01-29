@@ -5,8 +5,6 @@ mod app;
 mod camera;
 mod world;
 
-use std::collections::hash_map::DefaultHasher;
-use std::hash::{Hash, Hasher};
 use std::ops::Sub;
 use std::time::Duration;
 use glam::{Mat4, Quat, Vec2};
@@ -14,7 +12,7 @@ use crate::app::{Event, EventHandler};
 use crate::camera::Camera;
 use crate::opengl::{Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute};
 use crate::types::{Color, HexPos};
-use crate::world::{TileType, World};
+use crate::world::World;
 
 struct Game {
     _vertex_buffer: Buffer,
@@ -90,10 +88,7 @@ impl EventHandler for Game {
 
         for (hex, conf) in self.world.iter() {
             if !conf.is_empty() {
-                let mut hasher = DefaultHasher::new();
-                hex.hash(&mut hasher);
-                let rng = fastrand::Rng::with_seed(hasher.finish());
-                self.program.set_uniform_by_name("color", Color::new(rng.u8(30..), rng.u8(30..), rng.u8(30..), 255));
+                self.program.set_uniform_by_name("color", Color::new(200, 200, 200, 255));
                 self.program.set_uniform_by_name("model", Mat4::from_rotation_translation(
                     Quat::from_rotation_z(conf.angle().to_radians()),
                     Vec2::from(hex).extend(0.0)));

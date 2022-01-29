@@ -24,6 +24,10 @@ impl<T: Default + Clone> HexMap<T> {
             elements
         }
     }
+
+    pub fn fill(&mut self, value: T) {
+        self.elements.fill(value)
+    }
 }
 
 impl<T> HexMap<T> {
@@ -38,7 +42,7 @@ impl<T> HexMap<T> {
 impl<T> HexMap<T> {
 
     pub fn keys(&self) -> impl Iterator<Item=HexPos> {
-        HexPos::spiral_iter(HexPos::CENTER, self.radius)
+        HexPos::spiral_iter(self.center(), self.radius)
     }
 
     pub fn values(&self) -> impl Iterator<Item=&T> {
@@ -47,6 +51,10 @@ impl<T> HexMap<T> {
 
     pub fn radius(&self) -> i32 {
         self.radius
+    }
+
+    pub fn center(&self) -> HexPos {
+        HexPos::CENTER
     }
 
     fn index(&self, pos: HexPos) -> Option<usize> {

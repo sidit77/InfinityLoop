@@ -1,8 +1,6 @@
 use std::fmt::Debug;
-use std::iter::once;
 use std::ops::Range;
 use enum_iterator::IntoEnumIterator;
-use fastrand::Rng;
 use crate::meshes::{MODEL1, MODEL2, MODEL3, MODEL4, MODEL5, MODEL6, MODEL7};
 use crate::types::Angle;
 
@@ -55,15 +53,6 @@ impl Default for TileConfig {
 }
 
 impl TileConfig {
-
-    pub fn random(rng: &Rng) -> Self {
-        let mut iter = once(TileConfig::Empty)
-            .chain(TileType::into_enum_iter()
-                .flat_map(|t| (0..6)
-                    .into_iter()
-                    .map(move |r| TileConfig::Tile(t, r)))).collect::<Vec<_>>();
-        iter[rng.usize(0..iter.len())]
-    }
 
     pub fn endings(self) -> [bool; 6] {
         match self {

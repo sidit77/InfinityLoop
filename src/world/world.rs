@@ -19,9 +19,9 @@ impl World {
 
         let now = Instant::now();
 
-        let mut wfc = PossibilityMap::new(13);
+        let mut wfc = PossibilityMap::new(40);
 
-        'outer: for i in 0..20 {
+        'outer: for i in 0..2000 {
             println!("Attempt {}", i + 1);
             wfc.clear();
             assert!(wfc.valid());
