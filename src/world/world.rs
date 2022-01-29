@@ -19,7 +19,7 @@ impl World {
 
         let now = Instant::now();
 
-        let mut wfc = PossibilityMap::new(40);
+        let mut wfc = PossibilityMap::new(9);
 
         'outer: for i in 0..2000 {
             println!("Attempt {}", i + 1);
