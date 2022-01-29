@@ -32,8 +32,16 @@ impl<T> HexMap<T> {
         HexPos::spiral_iter(HexPos::CENTER, self.radius)
     }
 
+    pub fn values(&self) -> impl Iterator<Item=&T> {
+        self.elements.iter()
+    }
+
+    pub fn radius(&self) -> i32 {
+        self.radius
+    }
+
     fn index(&self, pos: HexPos) -> Option<usize> {
-        if pos.q().abs() > self.radius || pos.r().abs() > self.radius  || pos.s().abs() > self.radius {
+        if !self.contains(pos) {
             None
         } else {
             let diameter = 2 * self.radius + 1;
@@ -46,8 +54,16 @@ impl<T> HexMap<T> {
         }
     }
 
+    pub fn contains(&self, pos: HexPos) -> bool {
+        pos.q().abs() <= self.radius && pos.r().abs() <= self.radius && pos.s().abs() <= self.radius
+    }
+
     pub fn get(&self, pos: HexPos) -> Option<&T> {
         self.index(pos).map(|i|&self.elements[i])
+    }
+
+    pub fn get_mut(&mut self, pos: HexPos) -> Option<&mut T> {
+        self.index(pos).map(move |i|&mut self.elements[i])
     }
 
     pub fn set(&mut self, pos: HexPos, value: T) -> bool {

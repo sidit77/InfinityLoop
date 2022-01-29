@@ -1,5 +1,6 @@
 use fastrand::Rng;
 use crate::HexPos;
+use crate::world::generator::PossibilityMap;
 use crate::world::map::HexMap;
 use crate::world::tiles::TileConfig;
 
@@ -14,13 +15,33 @@ impl World {
 
     pub fn new(seed: u64) -> Self {
         let rng = Rng::with_seed(seed);
-        let mut elements = HexMap::new(9);
-        for key in elements.keys() {
-            elements.set(key, TileConfig::random(&rng));
+
+        let mut wfc = PossibilityMap::new(9);
+
+        'outer: for _ in 0..20 {
+            wfc.clear();
+            //console_log!("{:?}", wfc.elements.iter().map(|x|x.len()).collect::<Vec<_>>());
+            //assert!(wfc.valid());
+            if !wfc.valid() {
+                continue 'outer;
+            }
+
+            loop {
+                match wfc.lowest_entropy(&rng) {
+                    None => break,
+                    Some(index) => {
+                        wfc.collapse(index, &rng);
+                        if !wfc.valid() {
+                            continue 'outer;
+                        }
+                    }
+                }
+            }
         }
+
         Self {
             seed,
-            elements
+            elements: wfc.into()
         }
     }
 

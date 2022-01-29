@@ -1,8 +1,8 @@
 use std::fmt::Debug;
+use std::iter::once;
 use std::ops::Range;
 use enum_iterator::IntoEnumIterator;
 use fastrand::Rng;
-use lazy_static::lazy_static;
 use crate::meshes::{MODEL1, MODEL2, MODEL3, MODEL4, MODEL5, MODEL6, MODEL7};
 use crate::types::Angle;
 
@@ -55,15 +55,14 @@ impl Default for TileConfig {
 }
 
 impl TileConfig {
-    pub fn from(index: usize) -> Self {
-        match ELEMENT_TABLE.get(index) {
-            None => unreachable!(),
-            Some(elem) => *elem,
-        }
-    }
 
     pub fn random(rng: &Rng) -> Self {
-        Self::from(rng.usize(0..ELEMENT_TABLE.len()))
+        let mut iter = once(TileConfig::Empty)
+            .chain(TileType::into_enum_iter()
+                .flat_map(|t| (0..6)
+                    .into_iter()
+                    .map(move |r| TileConfig::Tile(t, r)))).collect::<Vec<_>>();
+        iter[rng.usize(0..iter.len())]
     }
 
     pub fn endings(self) -> [bool; 6] {
@@ -109,20 +108,6 @@ impl TileConfig {
         }
     }
 
-    pub fn rotate_by(self, d: u8) -> Self {
-        match self {
-            TileConfig::Empty => TileConfig::Empty,
-            TileConfig::Tile(t, r) => TileConfig::Tile(t, r + d).normalized(),
-        }
-    }
-
-    pub fn index(&self) -> usize {
-        match ELEMENT_TABLE.iter().position(|e| *e == self.normalized()) {
-            None => unreachable!(),
-            Some(i) => i,
-        }
-    }
-
     pub fn model(self) -> Range<i32> {
         match self {
             TileConfig::Empty => panic!("TileConfig::Empty has no model"),
@@ -131,42 +116,3 @@ impl TileConfig {
     }
 }
 
-type IndexSet = smallbitset::Set64;
-
-lazy_static! {
-    static ref ELEMENT_TABLE: Vec<TileConfig> = {
-        let mut result = Vec::new();
-        for tile_type in TileType::into_enum_iter() {
-            for rotation in 0..6 {
-                result.push(TileConfig::Tile(tile_type, rotation));
-            }
-        }
-        result.push(TileConfig::Empty);
-        result
-    };
-    static ref EMPTY_ELEMENT_INDEX: usize = {
-        ELEMENT_TABLE
-            .iter()
-            .position(|x| *x == TileConfig::Empty)
-            .expect("Cannot find the empty element in table")
-    };
-    static ref ADJACENCY_LISTS: Vec<[IndexSet; 6]> = {
-        assert!(ELEMENT_TABLE.len() <= IndexSet::full().len());
-        let mut result = Vec::new();
-        for i in 0..ELEMENT_TABLE.len() {
-            let mut lists = [IndexSet::empty(); 6];
-            for j in 0..lists.len() {
-                for k in 0..ELEMENT_TABLE.len() {
-                    let elem1 = ELEMENT_TABLE[i].endings();
-                    let elem2 = ELEMENT_TABLE[k].endings();
-
-                    if elem1[j] == elem2[(j + 3) % elem2.len()] {
-                        lists[j] = lists[j].insert(k as u8);
-                    }
-                }
-            }
-            result.push(lists);
-        }
-        result
-    };
-}
