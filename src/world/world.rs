@@ -14,9 +14,9 @@ pub struct World {
 impl World {
 
     pub fn new(seed: u64) -> Self {
-        let rng = Rng::with_seed(seed);
+        let rng = Rng::new();
 
-        let mut wfc = PossibilityMap::new(9);
+        let mut wfc = PossibilityMap::new(6);
 
         'outer: for _ in 0..20 {
             wfc.clear();

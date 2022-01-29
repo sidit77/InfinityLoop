@@ -14,7 +14,7 @@ use crate::app::{Event, EventHandler};
 use crate::camera::Camera;
 use crate::opengl::{Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute};
 use crate::types::{Color, HexPos};
-use crate::world::World;
+use crate::world::{TileType, World};
 
 struct Game {
     _vertex_buffer: Buffer,
@@ -71,11 +71,23 @@ impl EventHandler for Game {
 
         self.program.set_uniform_by_name("camera", self.camera.to_matrix());
 
-        //self.program.set_uniform_by_name("model", Mat4::IDENTITY);
+        //let tile = TileType::Tile0134;
+        //let pos = HexPos::CENTER;
+//
+        //self.program.set_uniform_by_name("model", Mat4::from_translation(Vec2::from(pos).extend(0.0)));
         //self.program.set_uniform_by_name("color", Color::new(255, 100, 100, 255));
         //ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, meshes::HEXAGON);
         //self.program.set_uniform_by_name("color", Color::new(100, 255, 100, 255));
-        //ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, meshes::MODEL5);
+        //ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, tile.model());
+//
+        //for (i, n) in pos.neighbors().enumerate(){
+        //    if tile.endings()[i] {
+        //        self.program.set_uniform_by_name("model", Mat4::from_translation(Vec2::from(n).extend(0.0)));
+        //        self.program.set_uniform_by_name("color", Color::new(100, 100, 255, 255));
+        //        ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, meshes::HEXAGON);
+        //    }
+        //}
+
         for (hex, conf) in self.world.iter() {
             if !conf.is_empty() {
                 let mut hasher = DefaultHasher::new();

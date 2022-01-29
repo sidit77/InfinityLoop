@@ -31,13 +31,13 @@ impl TileType {
     }
     pub fn endings(self) -> [bool; 6] {
         match self {
-            TileType::Tile0 => [false, true, false, false, false, false],
-            TileType::Tile01 => [true, true, false, false, false, false],
-            TileType::Tile02 => [true, false, false, false, false, true],
-            TileType::Tile03 => [false, true, false, false, true, false],
+            TileType::Tile0 => [false, false, false, false, false, true],
+            TileType::Tile01 => [true, false, false, false, false, true],
+            TileType::Tile02 => [false, true, false, false, false, true],
+            TileType::Tile03 => [false, false, true, false, false, true],
             TileType::Tile012 => [true, true, false, false, false, true],
             TileType::Tile024 => [false, true, false, true, false, true],
-            TileType::Tile0134 => [true, true, false, true, true, false],
+            TileType::Tile0134 => [true, false, true, true, false, true],
         }
     }
 }

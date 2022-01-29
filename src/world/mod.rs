@@ -4,3 +4,4 @@ mod tiles;
 mod generator;
 
 pub use world::{World};
+pub use tiles::*;
