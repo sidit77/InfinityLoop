@@ -4,7 +4,6 @@ mod meshes;
 mod app;
 mod camera;
 mod world;
-//mod intersection;
 
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
@@ -72,6 +71,11 @@ impl EventHandler for Game {
 
         self.program.set_uniform_by_name("camera", self.camera.to_matrix());
 
+        //self.program.set_uniform_by_name("model", Mat4::IDENTITY);
+        //self.program.set_uniform_by_name("color", Color::new(255, 100, 100, 255));
+        //ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, meshes::HEXAGON);
+        //self.program.set_uniform_by_name("color", Color::new(100, 255, 100, 255));
+        //ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, meshes::MODEL5);
         for (hex, conf) in self.world.iter() {
             if !conf.is_empty() {
                 let mut hasher = DefaultHasher::new();

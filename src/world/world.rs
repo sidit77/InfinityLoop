@@ -1,6 +1,6 @@
 use fastrand::Rng;
 use crate::HexPos;
-use crate::world::hex_map::HexMap;
+use crate::world::map::HexMap;
 use crate::world::tiles::TileConfig;
 
 
