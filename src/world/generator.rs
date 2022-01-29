@@ -92,9 +92,9 @@ impl PossibilityMap {
                                 .iter()
                                 .map(|x| ADJACENCY_LISTS[x as usize][index])
                                 .fold(IndexSet::empty(), |acc, x| acc.union(x));
-                            let prl = self.map.get(neighbor).unwrap().inter(adl);
-                            if prl != *self.map.get(neighbor).unwrap() {
-                                self.map.set(neighbor, prl);
+                            let neighbor_set = self.map.get_mut(neighbor).unwrap();
+                            if neighbor_set.inter(adl) != *neighbor_set {
+                                *neighbor_set = neighbor_set.inter(adl);
                                 self.propagation_queue.push_back(neighbor);
                             }
                         }
@@ -110,12 +110,7 @@ impl From<PossibilityMap> for HexMap<TileConfig> {
 
     fn from(map: PossibilityMap) -> Self {
         assert!(!map.map.values().any(|set| set.len() != 1));
-        let mut result = HexMap::new(map.map.radius());
-        for pos in result.keys() {
-            let index = map.map.get(pos).unwrap().iter().next().unwrap() as usize;
-            result.set(pos, ELEMENT_TABLE[index]);
-        }
-        result
+        Self::from(map.map, |set| ELEMENT_TABLE[set.iter().next().unwrap() as usize])
     }
 
 }

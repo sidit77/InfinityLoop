@@ -1,4 +1,5 @@
 use fastrand::Rng;
+use instant::Instant;
 use crate::HexPos;
 use crate::world::generator::PossibilityMap;
 use crate::world::map::HexMap;
@@ -16,19 +17,18 @@ impl World {
     pub fn new(seed: u64) -> Self {
         let rng = Rng::new();
 
-        let mut wfc = PossibilityMap::new(6);
+        let now = Instant::now();
 
-        'outer: for _ in 0..20 {
+        let mut wfc = PossibilityMap::new(13);
+
+        'outer: for i in 0..20 {
+            println!("Attempt {}", i + 1);
             wfc.clear();
-            //console_log!("{:?}", wfc.elements.iter().map(|x|x.len()).collect::<Vec<_>>());
-            //assert!(wfc.valid());
-            if !wfc.valid() {
-                continue 'outer;
-            }
+            assert!(wfc.valid());
 
             loop {
                 match wfc.lowest_entropy(&rng) {
-                    None => break,
+                    None => break 'outer,
                     Some(index) => {
                         wfc.collapse(index, &rng);
                         if !wfc.valid() {
@@ -39,9 +39,13 @@ impl World {
             }
         }
 
+        let elements = wfc.into();
+
+        println!("Time: {}ms", now.elapsed().as_millis());
+
         Self {
             seed,
-            elements: wfc.into()
+            elements
         }
     }
 

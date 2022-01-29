@@ -27,6 +27,15 @@ impl<T: Default + Clone> HexMap<T> {
 }
 
 impl<T> HexMap<T> {
+    pub fn from<U>(old: HexMap<U>, func: impl Fn(&U) -> T) -> Self {
+        Self {
+            radius: old.radius,
+            elements: old.elements.iter().map(func).collect()
+        }
+    }
+}
+
+impl<T> HexMap<T> {
 
     pub fn keys(&self) -> impl Iterator<Item=HexPos> {
         HexPos::spiral_iter(HexPos::CENTER, self.radius)
