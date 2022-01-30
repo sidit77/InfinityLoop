@@ -9,7 +9,6 @@ use crate::world::map::HexMap;
 
 type IndexSet = smallbitset::Set64;
 
-
 pub struct PossibilityMap {
     map: HexMap<IndexSet>,
     propagation_queue: VecDeque<HexPos>,
@@ -19,12 +18,12 @@ pub struct PossibilityMap {
 
 impl PossibilityMap {
 
-    pub fn new(radius: i32) -> Self {
+    pub fn new(radius: i32, seed: u64) -> Self {
         Self {
             map: HexMap::new(radius),
             propagation_queue: VecDeque::new(),
             minimal_nodes: PriorityQueue::new(),
-            rng: Rng::new()
+            rng: Rng::with_seed(seed)
         }
     }
 

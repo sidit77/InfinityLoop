@@ -1,5 +1,4 @@
 use fastrand::Rng;
-use instant::Instant;
 use crate::HexPos;
 use crate::world::generator::PossibilityMap;
 use crate::world::map::HexMap;
@@ -16,12 +15,12 @@ impl World {
 
     pub fn new(seed: u64) -> Self {
 
-        let now = Instant::now();
+        //let now = Instant::now();
 
-        let mut wfc = PossibilityMap::new(40);
+        let mut wfc = PossibilityMap::new(4, seed);
 
-        'outer: for i in 0..2000 {
-            println!("Attempt {}", i + 1);
+        'outer: loop {
+            //println!("Attempt {}", i + 1);
             assert!(wfc.clear().is_ok());
 
             loop {
@@ -38,12 +37,35 @@ impl World {
 
         let elements = wfc.into();
 
-        println!("Time: {}ms", now.elapsed().as_millis());
+        //println!("Time: {}ms", now.elapsed().as_millis());
 
         Self {
             seed,
             elements
         }
+    }
+
+    pub fn scramble(&mut self) {
+        let rng = Rng::with_seed(self.seed());
+        for tile in self.elements.values_mut() {
+            *tile = tile.with_rotation(rng.u8(..6));
+        }
+    }
+
+    pub fn try_rotate(&mut self, pos: HexPos) -> bool {
+        match self.elements.get_mut(pos) {
+            None => false,
+            Some(i) => {
+                let rot = i.rotate_by(1);
+                let result = *i != rot;
+                *i = rot;
+                result
+            }
+        }
+    }
+
+    pub fn seed(&self) -> u64 {
+        self.seed
     }
 
     pub fn iter(&self) -> impl Iterator<Item=(HexPos, TileConfig)> + '_ {

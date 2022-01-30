@@ -46,7 +46,8 @@ impl Game {
 
         camera.scale = 6.0;
 
-        let world = World::new(1337);
+        let mut world = World::new(1337);
+        world.scramble();
 
         Self {
             vertex_array,
@@ -125,13 +126,15 @@ impl EventHandler for Game {
                 self.camera.aspect = width / height;
             }
             Event::Click(pos) => {
-                //let pt = self.camera.to_world_coords(pos).into();
+                let pt = self.camera.to_world_coords(pos).into();
+                self.world.try_rotate(pt);
+
                 //for pt in HexPos::spiral_iter(pt, 3) {
                 //    if !self.hexagons.remove(&pt) {
                 //        self.hexagons.insert(pt);
                 //    }
                 //}
-                self.world = World::new(2341);
+                //self.world = World::new(self.world.seed() + 1);
 
             },
             Event::Zoom(center, amount) => {

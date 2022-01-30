@@ -49,6 +49,10 @@ impl<T> HexMap<T> {
         self.elements.iter()
     }
 
+    pub fn values_mut(&mut self) -> impl Iterator<Item=&mut T> {
+        self.elements.iter_mut()
+    }
+
     pub fn radius(&self) -> i32 {
         self.radius
     }

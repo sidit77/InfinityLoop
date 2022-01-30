@@ -83,10 +83,10 @@ impl TileConfig {
         Angle::radians(-std::f32::consts::FRAC_PI_3 * self.rotation() as f32)
     }
 
-    pub fn normalized(self) -> Self {
+    pub fn rotate_by(self, d: u8) -> Self {
         match self {
             TileConfig::Empty => TileConfig::Empty,
-            TileConfig::Tile(t, r) => TileConfig::Tile(t, r % 6),
+            TileConfig::Tile(t, r) => TileConfig::Tile(t, (r + d) % 6),
         }
     }
 
