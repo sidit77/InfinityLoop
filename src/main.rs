@@ -4,6 +4,7 @@ mod meshes;
 mod app;
 mod camera;
 mod world;
+mod util;
 
 use std::ops::Sub;
 use std::time::Duration;
@@ -128,7 +129,10 @@ impl EventHandler for Game {
             Event::Click(pos) => {
                 let pt = self.camera.to_world_coords(pos).into();
                 self.world.try_rotate(pt);
-
+                if self.world.is_completed() {
+                    self.world = World::new(self.world.seed() + 1);
+                    self.world.scramble();
+                }
                 //for pt in HexPos::spiral_iter(pt, 3) {
                 //    if !self.hexagons.remove(&pt) {
                 //        self.hexagons.insert(pt);

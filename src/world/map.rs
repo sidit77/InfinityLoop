@@ -87,14 +87,4 @@ impl<T> HexMap<T> {
         self.index(pos).map(move |i|&mut self.elements[i])
     }
 
-    pub fn set(&mut self, pos: HexPos, value: T) -> bool {
-        match self.index(pos) {
-            Some(i) => {
-                self.elements[i] = value;
-                true
-            }
-            None => false
-        }
-    }
-
 }
