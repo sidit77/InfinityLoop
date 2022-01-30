@@ -22,15 +22,13 @@ impl World {
 
         'outer: for i in 0..2000 {
             println!("Attempt {}", i + 1);
-            wfc.clear();
-            assert!(wfc.valid());
+            assert!(wfc.clear().is_ok());
 
             loop {
                 match wfc.lowest_entropy() {
                     None => break 'outer,
                     Some(index) => {
-                        wfc.collapse(index);
-                        if !wfc.valid() {
+                        if wfc.collapse(index).is_err() {
                             continue 'outer;
                         }
                     }
