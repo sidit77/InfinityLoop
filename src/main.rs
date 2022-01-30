@@ -131,6 +131,7 @@ impl EventHandler for Game {
                 //        self.hexagons.insert(pt);
                 //    }
                 //}
+                self.world = World::new(2341);
 
             },
             Event::Zoom(center, amount) => {

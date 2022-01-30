@@ -3,62 +3,18 @@ use lazy_static::lazy_static;
 use crate::world::tiles::{TileConfig, TileType};
 use enum_iterator::IntoEnumIterator;
 use fastrand::Rng;
-use miniserde::__private::usize;
+use priority_queue::PriorityQueue;
 use crate::HexPos;
 use crate::world::map::HexMap;
 
 type IndexSet = smallbitset::Set64;
 
-struct MinimumSet<T, const LIMIT: usize> {
-    nodes: Vec<T>,
-    value: usize
-}
-
-impl<T, const LIMIT: usize> MinimumSet<T, LIMIT> {
-    fn new() -> Self {
-        Self {
-            nodes: Vec::new(),
-            value: usize::MAX
-        }
-    }
-
-    fn clear(&mut self) {
-        self.nodes.clear();
-        self.value = usize::MAX;
-    }
-
-    fn is_empty(&self) -> bool {
-        self.nodes.is_empty()
-    }
-
-    fn insert(&mut self, node: T, value: usize) {
-        if value > LIMIT {
-            if value < self.value {
-                self.value = value;
-                self.nodes.clear();
-            }
-            if value == self.value {
-                self.nodes.push(node);
-            }
-        }
-
-    }
-
-    fn pop_random(&mut self, rng: &Rng) -> Option<T> {
-        if self.is_empty() {
-            None
-        } else {
-            let index = rng.usize(0..self.nodes.len());
-            Some(self.nodes.swap_remove(index))
-        }
-    }
-
-}
 
 pub struct PossibilityMap {
     map: HexMap<IndexSet>,
     propagation_queue: VecDeque<HexPos>,
-    minimal_nodes: MinimumSet<HexPos, 1>
+    minimal_nodes: PriorityQueue<HexPos, usize>,
+    rng: Rng
 }
 
 impl PossibilityMap {
@@ -67,7 +23,8 @@ impl PossibilityMap {
         Self {
             map: HexMap::new(radius),
             propagation_queue: VecDeque::new(),
-            minimal_nodes: MinimumSet::new()
+            minimal_nodes: PriorityQueue::new(),
+            rng: Rng::new()
         }
     }
 
@@ -96,7 +53,11 @@ impl PossibilityMap {
         if *field != intersection {
             *field = intersection;
             self.propagation_queue.push_back(pos);
-            self.minimal_nodes.insert(pos, intersection.len());
+            if intersection.len() > 1 {
+                self.minimal_nodes.push(pos, intersection.complement().len());
+            } else {
+                self.minimal_nodes.remove(&pos);
+            }
         }
     }
 
@@ -104,21 +65,15 @@ impl PossibilityMap {
         !self.map.values().any(|x| x.is_empty())
     }
 
-    pub fn lowest_entropy(&mut self, rng: &Rng) -> Option<HexPos> {
-        if self.minimal_nodes.is_empty() {
-            self.minimal_nodes.clear();
-            for (pos, set) in self.map.key_values() {
-                self.minimal_nodes.insert(pos, set.len())
-            }
-        }
-        self.minimal_nodes.pop_random(rng)
+    pub fn lowest_entropy(&mut self) -> Option<HexPos> {
+        self.minimal_nodes.pop().map(|(p, _)|p)
     }
 
-    pub fn collapse(&mut self, pos: HexPos, rng: &Rng) {
-        let elem = self.map.get_mut(pos).unwrap();
+    pub fn collapse(&mut self, pos: HexPos) {
+        let elem = self.map.get(pos).unwrap();
         let selected = elem
             .iter()
-            .nth(rng.usize(0..elem.len()))
+            .nth(self.rng.usize(0..elem.len()))
             .unwrap();
         self.intersect(pos, IndexSet::singleton(selected));
         self.propagate();

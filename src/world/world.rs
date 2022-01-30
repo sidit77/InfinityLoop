@@ -15,11 +15,10 @@ pub struct World {
 impl World {
 
     pub fn new(seed: u64) -> Self {
-        let rng = Rng::new();
 
         let now = Instant::now();
 
-        let mut wfc = PossibilityMap::new(9);
+        let mut wfc = PossibilityMap::new(40);
 
         'outer: for i in 0..2000 {
             println!("Attempt {}", i + 1);
@@ -27,10 +26,10 @@ impl World {
             assert!(wfc.valid());
 
             loop {
-                match wfc.lowest_entropy(&rng) {
+                match wfc.lowest_entropy() {
                     None => break 'outer,
                     Some(index) => {
-                        wfc.collapse(index, &rng);
+                        wfc.collapse(index);
                         if !wfc.valid() {
                             continue 'outer;
                         }
