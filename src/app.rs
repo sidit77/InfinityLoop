@@ -7,9 +7,9 @@ use glam::Vec2;
 use instant::Instant;
 use log::Level;
 use winit::dpi::PhysicalSize;
-use winit::event::{ElementState, MouseButton, MouseScrollDelta, WindowEvent};
+use winit::event::{ElementState, KeyboardInput, MouseButton, MouseScrollDelta, VirtualKeyCode, WindowEvent};
 use winit::event_loop::{ControlFlow, EventLoop};
-use winit::window::WindowBuilder;
+use winit::window::{Fullscreen, WindowBuilder};
 use crate::opengl::Context;
 use winit::event::Event as WinitEvent;
 use crate::app::platform::WindowBuilderExt;
@@ -79,6 +79,12 @@ pub fn run<T: EventHandler + 'static>(builder: impl FnOnce(&Context) -> T) -> ! 
                 dragging = false;
                 handler.event(Event::DragEnd(mouse_tracker.delta()))
             },
+            WindowEvent::KeyboardInput { input: KeyboardInput { state: ElementState::Pressed, virtual_keycode: Some(VirtualKeyCode::F11), .. }, .. } => {
+                match window.window().fullscreen() {
+                    None => window.window().set_fullscreen(Some(Fullscreen::Borderless(None))),
+                    Some(_) => window.window().set_fullscreen(None)
+                }
+            }
             _ => {}
         },
         WinitEvent::RedrawRequested(window_id) if window_id == window.window().id() => {

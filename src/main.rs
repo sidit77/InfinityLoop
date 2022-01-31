@@ -1,3 +1,5 @@
+#![windows_subsystem = "windows"]
+
 mod opengl;
 mod types;
 mod meshes;
