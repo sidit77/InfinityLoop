@@ -1,4 +1,5 @@
 use log::Level;
+use std::panic;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
 use winit::window::{Window, WindowBuilder};
@@ -9,6 +10,7 @@ use crate::opengl::Context;
 
 #[wasm_bindgen(start)]
 pub fn run() {
+    panic::set_hook(Box::new(console_error_panic_hook::hook));
     crate::main();
 }
 

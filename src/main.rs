@@ -149,9 +149,9 @@ impl EventHandler for Game {
         ctx.set_blend_state(None);
         ctx.use_program(&self.pp_program);
         ctx.bind_texture(0, &self.framebuffer_dst);
-        self.program.set_uniform_by_name("tex", 0);
-        self.program.set_uniform_by_name("camera", Mat4::IDENTITY);
-        self.program.set_uniform_by_name("model", Mat4::IDENTITY);
+        self.pp_program.set_uniform_by_name("tex", 0);
+        self.pp_program.set_uniform_by_name("camera", Mat4::IDENTITY);
+        self.pp_program.set_uniform_by_name("model", Mat4::IDENTITY);
         ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, 0..6);
     }
 

@@ -134,10 +134,10 @@ impl SetUniform<f32> for ShaderProgram {
     }
 }
 
-impl SetUniform<u32> for ShaderProgram {
-    fn set_uniform(&self, location: &UniformLocation, data: u32) {
+impl SetUniform<i32> for ShaderProgram {
+    fn set_uniform(&self, location: &UniformLocation, data: i32) {
         unsafe {
-            self.ctx.raw().uniform_1_u32(Some(location), data)
+            self.ctx.raw().uniform_1_i32(Some(location), data)
         }
     }
 }
