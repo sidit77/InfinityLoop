@@ -2,7 +2,7 @@
 
 precision highp float;
 
-out vec4 finalColor;
+out float finalColor;
 
 in vec2 tex_coords;
 
@@ -19,5 +19,5 @@ void main() {
     //float screenPxDistance = 24.4 * (sd - 0.5);
     //float opacity = clamp(screenPxDistance + 0.5, 0.0, 1.0);
     //finalColor = color * vec4(1,1,1,opacity);
-    finalColor = vec4(sd, sd, sd, 1);
+    finalColor = sd;
 }

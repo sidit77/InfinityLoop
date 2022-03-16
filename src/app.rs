@@ -26,7 +26,7 @@ pub enum Event {
 
 pub trait EventHandler {
     fn draw(&mut self, ctx: &Context, delta: Duration);
-    fn event(&mut self, event: Event);
+    fn event(&mut self, ctx: &Context, event: Event);
 }
 
 pub fn run<T: EventHandler + 'static>(builder: impl FnOnce(&Context) -> T) -> ! {
@@ -50,7 +50,7 @@ pub fn run<T: EventHandler + 'static>(builder: impl FnOnce(&Context) -> T) -> ! 
             WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
             WindowEvent::Resized(size) => {
                 ctx.viewport(0, 0, size.width as i32, size.height as i32);
-                handler.event(Event::WindowResize(size.width as f32, size.height as f32));
+                handler.event(&ctx, Event::WindowResize(size.width as f32, size.height as f32));
                 window.resize(size);
             },
             WindowEvent::MouseWheel { delta, .. } => {
@@ -58,26 +58,26 @@ pub fn run<T: EventHandler + 'static>(builder: impl FnOnce(&Context) -> T) -> ! 
                     MouseScrollDelta::LineDelta(_, dy) => dy,
                     MouseScrollDelta::PixelDelta(pos) => pos.y as f32 / 100.0
                 };
-                handler.event(Event::Zoom(mouse_tracker.position(), dy))
+                handler.event(&ctx, Event::Zoom(mouse_tracker.position(), dy))
             },
             WindowEvent::CursorMoved {position, .. } => {
                 let size = window.window().inner_size();
                 mouse_tracker.update_position(Vec2::new(position.x as f32 / size.width as f32, 1.0 - position.y as f32 / size.height as f32));
 
                 if dragging {
-                    handler.event(Event::Drag(mouse_tracker.delta()))
+                    handler.event(&ctx, Event::Drag(mouse_tracker.delta()))
                 }
             }
             WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, .. } => {
-                handler.event(Event::Click(mouse_tracker.position()))
+                handler.event(&ctx, Event::Click(mouse_tracker.position()))
             },
             WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Middle, .. } => {
                 dragging = true;
-                handler.event(Event::DragStart(mouse_tracker.delta()))
+                handler.event(&ctx, Event::DragStart(mouse_tracker.delta()))
             },
             WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Middle, .. } => {
                 dragging = false;
-                handler.event(Event::DragEnd(mouse_tracker.delta()))
+                handler.event(&ctx, Event::DragEnd(mouse_tracker.delta()))
             },
             WindowEvent::KeyboardInput { input: KeyboardInput { state: ElementState::Pressed, virtual_keycode: Some(VirtualKeyCode::F11), .. }, .. } => {
                 match window.window().fullscreen() {

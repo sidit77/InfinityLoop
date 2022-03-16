@@ -10,19 +10,22 @@ mod util;
 
 use std::ops::Sub;
 use std::time::Duration;
-use glam::{Mat4, Quat, Vec2};
+use glam::{Mat4, Quat, Vec2, Vec3};
 use crate::app::{Event, EventHandler};
 use crate::camera::Camera;
-use crate::opengl::{Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute, Texture, BlendFactor, BlendState, BlendEquation};
+use crate::opengl::{Texture, Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute, BlendFactor, BlendState, BlendEquation, Framebuffer, TextureType, InternalFormat, MipmapLevels, FramebufferAttachment};
 use crate::types::{Color, HexPos};
 use crate::world::World;
 
 struct Game {
     _vertex_buffer: Buffer,
     _index_buffer: Buffer,
+    framebuffer: Framebuffer,
+    framebuffer_dst: Texture,
     vertex_array: VertexArray,
     texture: Texture,
     program: ShaderProgram,
+    pp_program: ShaderProgram,
     camera: Camera,
     world: World
 }
@@ -31,11 +34,7 @@ impl Game {
 
     fn new(ctx: &Context) -> Self {
 
-        ctx.set_blend_state(BlendState {
-            src: BlendFactor::One,
-            dst: BlendFactor::One,
-            equ: BlendEquation::Max
-        });
+
 
         let vertex_array = VertexArray::new(&ctx).unwrap();
         ctx.use_vertex_array(&vertex_array);
@@ -64,7 +63,17 @@ impl Game {
             &Shader::new(&ctx, ShaderType::Fragment, include_str!("shader/fragment.glsl")).unwrap(),
         ]).unwrap();
 
-        let texture = Texture::load_png::<&[u8]>(&ctx, include_bytes!("../assets/output.png")).unwrap();
+        let pp_program = ShaderProgram::new(&ctx, &[
+            &Shader::new(&ctx, ShaderType::Vertex, include_str!("shader/vertex.glsl")).unwrap(),
+            &Shader::new(&ctx, ShaderType::Fragment, include_str!("shader/pp_fragment.glsl")).unwrap(),
+        ]).unwrap();
+
+        let framebuffer_dst = Texture::new(&ctx, TextureType::Texture2d(1280, 720), InternalFormat::R8, MipmapLevels::None).unwrap();
+        let framebuffer = Framebuffer::new(&ctx, &[
+            (FramebufferAttachment::ColorAttachment(0), &framebuffer_dst)
+        ]).unwrap();
+
+        let texture = Texture::load_png::<&[u8]>(&ctx, include_bytes!("../assets/output2.png")).unwrap();
 
         let mut camera = Camera::default();
 
@@ -78,9 +87,12 @@ impl Game {
             _vertex_buffer: vertex_buffer,
             _index_buffer: index_buffer,
             program,
+            pp_program,
             camera,
             world,
-            texture
+            texture,
+            framebuffer_dst,
+            framebuffer
         }
     }
 }
@@ -88,9 +100,14 @@ impl Game {
 impl EventHandler for Game {
     fn draw(&mut self, ctx: &Context, _delta: Duration) {
 
-        ctx.clear(Color::new(0, 0, 0, 255));
-
         ctx.use_vertex_array(&self.vertex_array);
+        ctx.use_framebuffer(&self.framebuffer);
+        ctx.clear(Color::new(0, 0, 0, 255));
+        ctx.set_blend_state(BlendState {
+            src: BlendFactor::One,
+            dst: BlendFactor::One,
+            equ: BlendEquation::Max
+        });
         ctx.use_program(&self.program);
         ctx.bind_texture(0, &self.texture);
         self.program.set_uniform_by_name("tex", 0);
@@ -120,20 +137,31 @@ impl EventHandler for Game {
         for (hex, conf) in self.world.iter() {
             if !conf.is_empty() {
                 //self.program.set_uniform_by_name("color", Color::new(200, 200, 200, 255));
-                self.program.set_uniform_by_name("model", Mat4::from_rotation_translation(
+                self.program.set_uniform_by_name("model", Mat4::from_scale_rotation_translation(
+                    Vec3::ONE * 1.03,
                     Quat::from_rotation_z(conf.angle().to_radians()),
                     Vec2::from(hex).extend(0.0)));
                 ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, 0..6);
             }
         }
 
-
+        ctx.use_framebuffer(None);
+        ctx.set_blend_state(None);
+        ctx.use_program(&self.pp_program);
+        ctx.bind_texture(0, &self.framebuffer_dst);
+        self.program.set_uniform_by_name("tex", 0);
+        self.program.set_uniform_by_name("camera", Mat4::IDENTITY);
+        self.program.set_uniform_by_name("model", Mat4::IDENTITY);
+        ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, 0..6);
     }
 
-    fn event(&mut self, event: app::Event) {
+    fn event(&mut self, ctx: &Context, event: app::Event) {
         match event {
             Event::WindowResize(width, height) => {
                 self.camera.aspect = width / height;
+                self.framebuffer_dst = Texture::new(ctx, TextureType::Texture2d(width as u32, height as u32),
+                                                    InternalFormat::R8, MipmapLevels::None).unwrap();
+                self.framebuffer.update_attachments(&[(FramebufferAttachment::ColorAttachment(0), &self.framebuffer_dst)]).unwrap();
             }
             Event::Click(pos) => {
                 let pt = self.camera.to_world_coords(pos).into();

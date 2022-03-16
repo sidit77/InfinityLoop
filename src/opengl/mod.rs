@@ -3,6 +3,7 @@ mod vertex_array;
 mod enums;
 mod buffer;
 mod texture;
+mod framebuffer;
 
 use std::ops::Range;
 pub use shader::*;
@@ -10,6 +11,7 @@ pub use vertex_array::*;
 pub use buffer::*;
 pub use enums::*;
 pub use texture::*;
+pub use framebuffer::*;
 
 use std::rc::Rc;
 use glow::{COLOR_BUFFER_BIT, DEPTH_BUFFER_BIT, HasContext};
@@ -72,6 +74,13 @@ impl Context {
         }
     }
 
+    pub fn use_framebuffer<'a>(&self, framebuffer: impl Into<Option<&'a Framebuffer>>) {
+        let gl = self.raw();
+        unsafe {
+            gl.bind_framebuffer(glow::FRAMEBUFFER, framebuffer.into().map(|p| p.raw()));
+        }
+    }
+
     //pub fn draw_arrays(&self, primitive_type: PrimitiveType, first: i32, count: i32) {
     //    let gl = self.raw();
     //    unsafe {
@@ -93,6 +102,13 @@ impl Context {
         let gl = self.raw();
         unsafe {
             gl.bind_buffer(buffer.target().raw(), Some(buffer.raw()));
+        }
+    }
+
+    pub fn bind_renderbuffer(&self, buffer: &Renderbuffer) {
+        let gl = self.raw();
+        unsafe {
+            gl.bind_renderbuffer(glow::RENDERBUFFER, Some(buffer.raw()));
         }
     }
 
