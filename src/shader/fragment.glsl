@@ -4,10 +4,8 @@ precision highp float;
 
 out vec4 finalColor;
 
-in vec2 worldPos;
-
-uniform vec4 color;
+in vec2 tex_coords;
 
 void main() {
-    finalColor = color;
+    finalColor = vec4(tex_coords, 1, 1);
 }

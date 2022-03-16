@@ -33,12 +33,23 @@ impl Game {
         ctx.use_vertex_array(&vertex_array);
 
         let vertex_buffer = Buffer::new(&ctx, BufferTarget::Array).unwrap();
-        vertex_buffer.set_data(meshes::VERTICES);
+        vertex_buffer.set_data::<f32>(&[
+            -1., -1., 0., 0.,
+             1., -1., 1., 0.,
+             1.,  1., 1., 1.,
+            -1.,  1., 0., 1.,
+        ]);
 
         let index_buffer = Buffer::new(&ctx, BufferTarget::ElementArray).unwrap();
-        index_buffer.set_data(meshes::INDICES);
+        index_buffer.set_data::<u16>(&[
+            0, 1, 2,
+            0, 2, 3
+        ]);
 
-        vertex_array.set_bindings(&[VertexArrayAttribute::Float(DataType::F32, 2, false)]);
+        vertex_array.set_bindings(&[
+            VertexArrayAttribute::Float(DataType::F32, 2, false),
+            VertexArrayAttribute::Float(DataType::F32, 2, false)
+        ]);
 
         let program = ShaderProgram::new(&ctx, &[
             &Shader::new(&ctx, ShaderType::Vertex, include_str!("shader/vertex.glsl")).unwrap(),
@@ -73,6 +84,10 @@ impl EventHandler for Game {
 
         self.program.set_uniform_by_name("camera", self.camera.to_matrix());
 
+        //self.program.set_uniform_by_name("color", Color::new(200, 200, 200, 255));
+        self.program.set_uniform_by_name("model", Mat4::IDENTITY);
+        ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, 0..6);
+
         //let tile = TileType::Tile0134;
         //let pos = HexPos::CENTER;
 //
@@ -90,15 +105,15 @@ impl EventHandler for Game {
         //    }
         //}
 
-        for (hex, conf) in self.world.iter() {
-            if !conf.is_empty() {
-                self.program.set_uniform_by_name("color", Color::new(200, 200, 200, 255));
-                self.program.set_uniform_by_name("model", Mat4::from_rotation_translation(
-                    Quat::from_rotation_z(conf.angle().to_radians()),
-                    Vec2::from(hex).extend(0.0)));
-                ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, conf.model());
-            }
-        }
+        //for (hex, conf) in self.world.iter() {
+        //    if !conf.is_empty() {
+        //        self.program.set_uniform_by_name("color", Color::new(200, 200, 200, 255));
+        //        self.program.set_uniform_by_name("model", Mat4::from_rotation_translation(
+        //            Quat::from_rotation_z(conf.angle().to_radians()),
+        //            Vec2::from(hex).extend(0.0)));
+        //        ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, conf.model());
+        //    }
+        //}
 
 
 
