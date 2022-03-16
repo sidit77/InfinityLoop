@@ -2,12 +2,14 @@ mod shader;
 mod vertex_array;
 mod enums;
 mod buffer;
+mod texture;
 
 use std::ops::Range;
 pub use shader::*;
 pub use vertex_array::*;
 pub use buffer::*;
 pub use enums::*;
+pub use texture::*;
 
 use std::rc::Rc;
 use glow::{COLOR_BUFFER_BIT, DEPTH_BUFFER_BIT, HasContext};
@@ -91,6 +93,14 @@ impl Context {
         let gl = self.raw();
         unsafe {
             gl.bind_buffer(buffer.target().raw(), Some(buffer.raw()));
+        }
+    }
+
+    pub fn bind_texture(&self, slot: u32, texture: &Texture) {
+        let gl = self.raw();
+        unsafe {
+            gl.active_texture(glow::TEXTURE0 + slot);
+            gl.bind_texture(texture.target().raw(), Some(texture.raw()));
         }
     }
 

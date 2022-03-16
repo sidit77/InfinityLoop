@@ -102,3 +102,26 @@ impl DataType {
     }
 
 }
+
+#[allow(dead_code)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[repr(u32)]
+pub enum TextureTarget {
+    Texture1D = glow::TEXTURE_1D,
+    Texture2D = glow::TEXTURE_2D,
+    Texture3D = glow::TEXTURE_3D,
+    Texture1DArray = glow::TEXTURE_1D_ARRAY,
+    Texture2DArray = glow::TEXTURE_2D_ARRAY,
+    TextureRectangle = glow::TEXTURE_RECTANGLE,
+    TextureCubeMap = glow::TEXTURE_CUBE_MAP,
+    TextureCubeMapArray = glow::TEXTURE_CUBE_MAP_ARRAY,
+    TextureBuffer = glow::TEXTURE_BUFFER,
+    Texture2DMultisample = glow::TEXTURE_2D_MULTISAMPLE,
+    Texture2DMultisampleArray = glow::TEXTURE_2D_MULTISAMPLE_ARRAY,
+}
+
+impl TextureTarget {
+    pub fn raw(self) -> u32 {
+        self as u32
+    }
+}

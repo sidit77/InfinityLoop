@@ -13,7 +13,7 @@ use std::time::Duration;
 use glam::{Mat4, Quat, Vec2};
 use crate::app::{Event, EventHandler};
 use crate::camera::Camera;
-use crate::opengl::{Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute};
+use crate::opengl::{Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute, Texture};
 use crate::types::{Color, HexPos};
 use crate::world::World;
 
@@ -21,6 +21,7 @@ struct Game {
     _vertex_buffer: Buffer,
     _index_buffer: Buffer,
     vertex_array: VertexArray,
+    texture: Texture,
     program: ShaderProgram,
     camera: Camera,
     world: World
@@ -56,6 +57,8 @@ impl Game {
             &Shader::new(&ctx, ShaderType::Fragment, include_str!("shader/fragment.glsl")).unwrap(),
         ]).unwrap();
 
+        let texture = Texture::load_png::<&[u8]>(&ctx, include_bytes!("../assets/output.png")).unwrap();
+
         let mut camera = Camera::default();
 
         camera.scale = 6.0;
@@ -69,7 +72,8 @@ impl Game {
             _index_buffer: index_buffer,
             program,
             camera,
-            world
+            world,
+            texture
         }
     }
 }
@@ -81,11 +85,13 @@ impl EventHandler for Game {
 
         ctx.use_vertex_array(&self.vertex_array);
         ctx.use_program(&self.program);
-
+        ctx.bind_texture(0, &self.texture);
+        self.program.set_uniform_by_name("tex", 0);
         self.program.set_uniform_by_name("camera", self.camera.to_matrix());
 
         //self.program.set_uniform_by_name("color", Color::new(200, 200, 200, 255));
         self.program.set_uniform_by_name("model", Mat4::IDENTITY);
+
         ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, 0..6);
 
         //let tile = TileType::Tile0134;

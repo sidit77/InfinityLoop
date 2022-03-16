@@ -6,6 +6,8 @@ out vec4 finalColor;
 
 in vec2 tex_coords;
 
+uniform sampler2D tex;
+
 void main() {
-    finalColor = vec4(tex_coords, 1, 1);
+    finalColor = texture(tex, tex_coords);
 }

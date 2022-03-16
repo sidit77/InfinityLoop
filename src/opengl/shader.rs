@@ -134,6 +134,14 @@ impl SetUniform<f32> for ShaderProgram {
     }
 }
 
+impl SetUniform<u32> for ShaderProgram {
+    fn set_uniform(&self, location: &UniformLocation, data: u32) {
+        unsafe {
+            self.ctx.raw().uniform_1_u32(Some(location), data)
+        }
+    }
+}
+
 impl<T: Into<RGBA<f32>>> SetUniform<T> for ShaderProgram {
     fn set_uniform(&self, location: &UniformLocation, data: T) {
         let c = data.into();
