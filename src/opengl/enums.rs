@@ -125,3 +125,47 @@ impl TextureTarget {
         self as u32
     }
 }
+
+#[allow(dead_code)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[repr(u32)]
+pub enum BlendFactor {
+    Zero = glow::ZERO,
+    One = glow::ONE,
+    SrcColor = glow::SRC_COLOR,
+    OneMinusSrcColor = glow::ONE_MINUS_SRC_COLOR,
+    DstColor = glow::DST_COLOR,
+    OneMinusDstColor = glow::ONE_MINUS_DST_COLOR,
+    SrcAlpha = glow::SRC_ALPHA,
+    OneMinusSrcAlpha = glow::ONE_MINUS_SRC_ALPHA,
+    DstAlpha = glow::DST_ALPHA,
+    OneMinusDstAlpha = glow::ONE_MINUS_DST_ALPHA,
+    ConstantColor = glow::CONSTANT_COLOR,
+    OneMinusConstantColor = glow::ONE_MINUS_CONSTANT_COLOR,
+    ConstantAlpha = glow::CONSTANT_ALPHA,
+    OneMinusConstantAlpha = glow::ONE_MINUS_CONSTANT_ALPHA,
+    SrcAlphaSaturate = glow::SRC_ALPHA_SATURATE,
+    Src1Color = glow::SRC1_COLOR,
+    OneMinusSrc1Color = glow::ONE_MINUS_SRC1_COLOR,
+    Src1Alpha = glow::SRC1_ALPHA,
+    OneMinusSrc1Alpha = glow::ONE_MINUS_SRC1_ALPHA
+}
+
+impl BlendFactor {
+    pub fn raw(self) -> u32 {
+        self as u32
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct BlendState {
+    pub src: BlendFactor,
+    pub dst: BlendFactor
+}
+
+impl From<(BlendFactor, BlendFactor)> for BlendState{
+    fn from((src, dst): (BlendFactor, BlendFactor)) -> Self {
+        Self { src, dst }
+    }
+}
+

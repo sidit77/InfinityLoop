@@ -104,5 +104,18 @@ impl Context {
         }
     }
 
+    pub fn set_blend_state(&self, state: impl Into<Option<BlendState>>){
+        let gl = self.raw();
+        unsafe {
+            match state.into() {
+                None => gl.disable(glow::BLEND),
+                Some(state) => {
+                    gl.enable(glow::BLEND);
+                    gl.blend_func(state.src.raw(), state.dst.raw());
+                }
+            }
+        }
+    }
+
 }
 

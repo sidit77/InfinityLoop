@@ -13,7 +13,7 @@ use std::time::Duration;
 use glam::{Mat4, Quat, Vec2};
 use crate::app::{Event, EventHandler};
 use crate::camera::Camera;
-use crate::opengl::{Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute, Texture};
+use crate::opengl::{Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute, Texture, BlendFactor, BlendState};
 use crate::types::{Color, HexPos};
 use crate::world::World;
 
@@ -30,6 +30,12 @@ struct Game {
 impl Game {
 
     fn new(ctx: &Context) -> Self {
+
+        ctx.set_blend_state(BlendState {
+            src: BlendFactor::SrcAlpha,
+            dst: BlendFactor::OneMinusSrcAlpha
+        });
+
         let vertex_array = VertexArray::new(&ctx).unwrap();
         ctx.use_vertex_array(&vertex_array);
 
@@ -89,7 +95,7 @@ impl EventHandler for Game {
         self.program.set_uniform_by_name("tex", 0);
         self.program.set_uniform_by_name("camera", self.camera.to_matrix());
 
-        //self.program.set_uniform_by_name("color", Color::new(200, 200, 200, 255));
+        self.program.set_uniform_by_name("color", Color::new(200, 200, 200, 255));
         self.program.set_uniform_by_name("model", Mat4::IDENTITY);
 
         ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, 0..6);
