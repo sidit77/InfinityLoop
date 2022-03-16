@@ -13,7 +13,7 @@ use std::time::Duration;
 use glam::{Mat4, Quat, Vec2};
 use crate::app::{Event, EventHandler};
 use crate::camera::Camera;
-use crate::opengl::{Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute, Texture, BlendFactor, BlendState};
+use crate::opengl::{Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute, Texture, BlendFactor, BlendState, BlendEquation};
 use crate::types::{Color, HexPos};
 use crate::world::World;
 
@@ -32,8 +32,9 @@ impl Game {
     fn new(ctx: &Context) -> Self {
 
         ctx.set_blend_state(BlendState {
-            src: BlendFactor::SrcAlpha,
-            dst: BlendFactor::OneMinusSrcAlpha
+            src: BlendFactor::One,
+            dst: BlendFactor::One,
+            equ: BlendEquation::Max
         });
 
         let vertex_array = VertexArray::new(&ctx).unwrap();
@@ -87,7 +88,7 @@ impl Game {
 impl EventHandler for Game {
     fn draw(&mut self, ctx: &Context, _delta: Duration) {
 
-        ctx.clear(Color::new(46, 52, 64, 255));
+        ctx.clear(Color::new(0, 0, 0, 255));
 
         ctx.use_vertex_array(&self.vertex_array);
         ctx.use_program(&self.program);
@@ -95,10 +96,9 @@ impl EventHandler for Game {
         self.program.set_uniform_by_name("tex", 0);
         self.program.set_uniform_by_name("camera", self.camera.to_matrix());
 
-        self.program.set_uniform_by_name("color", Color::new(200, 200, 200, 255));
-        self.program.set_uniform_by_name("model", Mat4::IDENTITY);
-
-        ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, 0..6);
+        //self.program.set_uniform_by_name("color", Color::new(200, 200, 200, 255));
+        //self.program.set_uniform_by_name("model", Mat4::IDENTITY);
+        //ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, 0..6);
 
         //let tile = TileType::Tile0134;
         //let pos = HexPos::CENTER;
@@ -117,36 +117,16 @@ impl EventHandler for Game {
         //    }
         //}
 
-        //for (hex, conf) in self.world.iter() {
-        //    if !conf.is_empty() {
-        //        self.program.set_uniform_by_name("color", Color::new(200, 200, 200, 255));
-        //        self.program.set_uniform_by_name("model", Mat4::from_rotation_translation(
-        //            Quat::from_rotation_z(conf.angle().to_radians()),
-        //            Vec2::from(hex).extend(0.0)));
-        //        ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, conf.model());
-        //    }
-        //}
+        for (hex, conf) in self.world.iter() {
+            if !conf.is_empty() {
+                //self.program.set_uniform_by_name("color", Color::new(200, 200, 200, 255));
+                self.program.set_uniform_by_name("model", Mat4::from_rotation_translation(
+                    Quat::from_rotation_z(conf.angle().to_radians()),
+                    Vec2::from(hex).extend(0.0)));
+                ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, 0..6);
+            }
+        }
 
-
-
-        //for i in self.world.indices() {
-        //    let position = self.world.get_position(i);
-        //    if let WorldElement::Tile(id, rotation) = self.world.get_element(i) {
-        //        let tile_config = TileConfig::from(*id);
-//
-        //        let model = Mat4::from_rotation_translation(
-        //            Quat::from_rotation_z(rotation.to_radians()),
-        //            position.extend(0.0),
-        //        );
-//
-        //        *rotation = Angle::lerp(*rotation, tile_config.angle(), 1.0 - f32::exp(-20.0 * delta.as_secs_f32()));
-//
-        //        self.program.set_uniform_by_name("model", model);
-//
-        //        ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, tile_config.model());
-//
-        //    }
-        //}
 
     }
 
@@ -162,12 +142,6 @@ impl EventHandler for Game {
                     self.world = World::new(self.world.seed() + 1);
                     self.world.scramble();
                 }
-                //for pt in HexPos::spiral_iter(pt, 3) {
-                //    if !self.hexagons.remove(&pt) {
-                //        self.hexagons.insert(pt);
-                //    }
-                //}
-                //self.world = World::new(self.world.seed() + 1);
 
             },
             Event::Zoom(center, amount) => {

@@ -112,6 +112,7 @@ impl Context {
                 Some(state) => {
                     gl.enable(glow::BLEND);
                     gl.blend_func(state.src.raw(), state.dst.raw());
+                    gl.blend_equation(state.equ.raw())
                 }
             }
         }

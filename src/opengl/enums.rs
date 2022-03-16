@@ -157,15 +157,27 @@ impl BlendFactor {
     }
 }
 
+#[allow(dead_code)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[repr(u32)]
+pub enum BlendEquation {
+    Add = glow::FUNC_ADD,
+    Subtract = glow::FUNC_SUBTRACT,
+    ReverseSubtract = glow::FUNC_REVERSE_SUBTRACT,
+    Min = glow::MIN,
+    Max = glow::MAX
+}
+
+impl BlendEquation {
+    pub fn raw(self) -> u32 {
+        self as u32
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub struct BlendState {
     pub src: BlendFactor,
-    pub dst: BlendFactor
-}
-
-impl From<(BlendFactor, BlendFactor)> for BlendState{
-    fn from((src, dst): (BlendFactor, BlendFactor)) -> Self {
-        Self { src, dst }
-    }
+    pub dst: BlendFactor,
+    pub equ: BlendEquation
 }
 
