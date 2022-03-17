@@ -22,6 +22,78 @@ fn main() -> Result<()> {
             .rotate(f32::to_radians(30.0)));
     rasterize(tile0).save(out_dir.join("tile0.png"))?;
 
+    let tile01 = Shapes::circle(0.45)
+        .subtract(Shapes::circle(0.25))
+        .union(Shapes::rectangle(0.1, 0.25)
+            .translate(0.0, -0.5)
+            .rotate(f32::to_radians(30.0)))
+        .union(Shapes::rectangle(0.1, 0.25)
+            .translate(0.0, -0.5)
+            .rotate(f32::to_radians(90.0)));
+    rasterize(tile01).save(out_dir.join("tile01.png"))?;
+
+    let tile02 = Shapes::circle(0.45)
+        .subtract(Shapes::circle(0.25))
+        .union(Shapes::rectangle(0.1, 0.25)
+            .translate(0.0, -0.5)
+            .rotate(f32::to_radians(30.0)))
+        .union(Shapes::rectangle(0.1, 0.25)
+            .translate(0.0, -0.5)
+            .rotate(f32::to_radians(150.0)));
+    rasterize(tile02).save(out_dir.join("tile02.png"))?;
+
+    let tile03 = Shapes::circle(0.45)
+        .subtract(Shapes::circle(0.25))
+        .union(Shapes::rectangle(0.1, 0.25)
+            .translate(0.0, -0.5)
+            .rotate(f32::to_radians(30.0)))
+        .union(Shapes::rectangle(0.1, 0.25)
+            .translate(0.0, -0.5)
+            .rotate(f32::to_radians(210.0)));
+    rasterize(tile03).save(out_dir.join("tile03.png"))?;
+
+    let tile012 = Shapes::circle(0.45)
+        .subtract(Shapes::circle(0.25))
+        .union(Shapes::rectangle(0.1, 0.25)
+            .translate(0.0, -0.5)
+            .rotate(f32::to_radians(30.0)))
+        .union(Shapes::rectangle(0.1, 0.25)
+            .translate(0.0, -0.5)
+            .rotate(f32::to_radians(90.0)))
+        .union(Shapes::rectangle(0.1, 0.25)
+            .translate(0.0, -0.5)
+            .rotate(f32::to_radians(150.0)));
+    rasterize(tile012).save(out_dir.join("tile012.png"))?;
+
+    let tile024 = Shapes::circle(0.45)
+        .subtract(Shapes::circle(0.25))
+        .union(Shapes::rectangle(0.1, 0.25)
+            .translate(0.0, -0.5)
+            .rotate(f32::to_radians(30.0)))
+        .union(Shapes::rectangle(0.1, 0.25)
+            .translate(0.0, -0.5)
+            .rotate(f32::to_radians(150.0)))
+        .union(Shapes::rectangle(0.1, 0.25)
+            .translate(0.0, -0.5)
+            .rotate(f32::to_radians(270.0)));
+    rasterize(tile024).save(out_dir.join("tile024.png"))?;
+
+    let tile0134 = Shapes::circle(0.45)
+        .subtract(Shapes::circle(0.25))
+        .union(Shapes::rectangle(0.1, 0.25)
+            .translate(0.0, -0.5)
+            .rotate(f32::to_radians(30.0)))
+        .union(Shapes::rectangle(0.1, 0.25)
+            .translate(0.0, -0.5)
+            .rotate(f32::to_radians(90.0)))
+        .union(Shapes::rectangle(0.1, 0.25)
+            .translate(0.0, -0.5)
+            .rotate(f32::to_radians(210.0)))
+        .union(Shapes::rectangle(0.1, 0.25)
+            .translate(0.0, -0.5)
+            .rotate(f32::to_radians(270.0)));
+    rasterize(tile0134).save(out_dir.join("tile0134.png"))?;
+
     println!("cargo:rerun-if-changed=build.rs");
     Ok(())
 }

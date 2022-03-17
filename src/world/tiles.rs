@@ -1,7 +1,5 @@
 use std::fmt::Debug;
-use std::ops::Range;
 use enum_iterator::IntoEnumIterator;
-use crate::meshes::{MODEL1, MODEL2, MODEL3, MODEL4, MODEL5, MODEL6, MODEL7};
 use crate::types::Angle;
 
 #[derive(Debug, IntoEnumIterator, Copy, Clone, Eq, PartialEq)]
@@ -16,15 +14,15 @@ pub enum TileType {
 }
 
 impl TileType {
-    pub fn model(self) -> Range<i32> {
+    pub fn model(self) -> usize {
         match self {
-            TileType::Tile0 => MODEL1,
-            TileType::Tile01 => MODEL2,
-            TileType::Tile02 => MODEL6,
-            TileType::Tile03 => MODEL3,
-            TileType::Tile012 => MODEL4,
-            TileType::Tile024 => MODEL7,
-            TileType::Tile0134 => MODEL5,
+            TileType::Tile0 => 0,
+            TileType::Tile01 => 1,
+            TileType::Tile02 => 2,
+            TileType::Tile03 => 3,
+            TileType::Tile012 => 4,
+            TileType::Tile024 => 5,
+            TileType::Tile0134 => 6,
         }
     }
     pub fn endings(self) -> [bool; 6] {
@@ -97,7 +95,7 @@ impl TileConfig {
         }
     }
 
-    pub fn model(self) -> Range<i32> {
+    pub fn model(self) -> usize {
         match self {
             TileConfig::Empty => panic!("TileConfig::Empty has no model"),
             TileConfig::Tile(t, _) => t.model(),
