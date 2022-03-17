@@ -42,14 +42,8 @@ fn main() -> Result<()> {
             .rotate(f32::to_radians(150.0)));
     rasterize(tile02).save(out_dir.join("tile02.png"))?;
 
-    let tile03 = Shapes::circle(0.45)
-        .subtract(Shapes::circle(0.25))
-        .union(Shapes::rectangle(0.1, 0.25)
-            .translate(0.0, -0.5)
-            .rotate(f32::to_radians(30.0)))
-        .union(Shapes::rectangle(0.1, 0.25)
-            .translate(0.0, -0.5)
-            .rotate(f32::to_radians(210.0)));
+    let tile03 = Shapes::rectangle(0.1, 0.75)
+        .rotate(f32::to_radians(210.0));
     rasterize(tile03).save(out_dir.join("tile03.png"))?;
 
     let tile012 = Shapes::circle(0.45)
