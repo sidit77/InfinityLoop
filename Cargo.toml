@@ -12,8 +12,10 @@ edition = "2018"
 lto = true
 
 [build-dependencies]
+sdf2d = {git = "https://github.com/sidit77/sdf2d.git"}
+image = "0.24"
 glam = "0.20"
-anyhow = "1.0.40"
+anyhow = "1.0"
 
 [dependencies]
 log = "0.4"

@@ -107,11 +107,11 @@ impl Texture {
         let info = reader.next_frame(&mut buf).map_err(|e|e.to_string())?;
 
         assert_eq!(info.bit_depth, BitDepth::Eight);
-        assert_eq!(info.color_type, ColorType::Rgb);
+        assert_eq!(info.color_type, ColorType::Grayscale);
 
         let tex = Self::new(ctx, TextureType::Texture2d(info.width, info.height),
-                            InternalFormat::Rgb8, MipmapLevels::Full)?;
-        tex.fill_region_2d(0, Region2d::dimensions(info.width, info.height), Format::Rgb, DataType::U8, &buf[..info.buffer_size()]);
+                            InternalFormat::R8, MipmapLevels::Full)?;
+        tex.fill_region_2d(0, Region2d::dimensions(info.width, info.height), Format::R, DataType::U8, &buf[..info.buffer_size()]);
         tex.generate_mipmaps();
         let gl = ctx.raw();
         unsafe {

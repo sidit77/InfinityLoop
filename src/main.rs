@@ -15,7 +15,7 @@ use crate::app::{Event, EventHandler};
 use crate::camera::Camera;
 use crate::opengl::{Texture, Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute, BlendFactor, BlendState, BlendEquation, Framebuffer, TextureType, InternalFormat, MipmapLevels, FramebufferAttachment};
 use crate::types::{Color, HexPos};
-use crate::world::World;
+use crate::world::{TileType, World};
 
 struct Game {
     _vertex_buffer: Buffer,
@@ -73,7 +73,7 @@ impl Game {
             (FramebufferAttachment::Color(0), &framebuffer_dst)
         ]).unwrap();
 
-        let texture = Texture::load_png::<&[u8]>(ctx, include_bytes!("../assets/output2.png")).unwrap();
+        let texture = Texture::load_png::<&[u8]>(ctx, include_bytes!(concat!(env!("OUT_DIR"), "/tile0.png"))).unwrap();
 
         let camera = Camera {
             scale: 6.0,
@@ -127,24 +127,29 @@ impl EventHandler for Game {
         //self.program.set_uniform_by_name("color", Color::new(100, 255, 100, 255));
         //ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, tile.model());
 //
-        //for (i, n) in pos.neighbors().enumerate(){
-        //    if tile.endings()[i] {
-        //        self.program.set_uniform_by_name("model", Mat4::from_translation(Vec2::from(n).extend(0.0)));
-        //        self.program.set_uniform_by_name("color", Color::new(100, 100, 255, 255));
-        //        ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, meshes::HEXAGON);
-        //    }
-        //}
 
-        for (hex, conf) in self.world.iter() {
-            if !conf.is_empty() {
-                //self.program.set_uniform_by_name("color", Color::new(200, 200, 200, 255));
-                self.program.set_uniform_by_name("model", Mat4::from_scale_rotation_translation(
-                    Vec3::ONE * 1.03,
-                    Quat::from_rotation_z(conf.angle().to_radians()),
-                    Vec2::from(hex).extend(0.0)));
+
+        let tile = TileType::Tile0;
+        let pos = HexPos::CENTER;
+        self.program.set_uniform_by_name("model", Mat4::from_translation(Vec2::from(pos).extend(0.0)));
+        ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, 0..6);
+
+        for (i, n) in pos.neighbors().enumerate(){
+            if tile.endings()[i] {
+                self.program.set_uniform_by_name("model", Mat4::from_translation(Vec2::from(n).extend(0.0)));
                 ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, 0..6);
             }
         }
+
+        //for (hex, conf) in self.world.iter() {
+        //    if !conf.is_empty() {
+        //        self.program.set_uniform_by_name("model", Mat4::from_scale_rotation_translation(
+        //            Vec3::ONE * 1.25,
+        //            Quat::from_rotation_z(conf.angle().to_radians()),
+        //            Vec2::from(hex).extend(0.0)));
+        //        ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, 0..6);
+        //    }
+        //}
 
         ctx.use_framebuffer(None);
         ctx.set_blend_state(None);
