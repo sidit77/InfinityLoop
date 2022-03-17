@@ -917,9 +917,9 @@ dependencies = [
 
 [[package]]
 name = "mio"
-version = "0.8.1"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ba42135c6a5917b9db9cd7b293e5409e1c6b041e6f9825e92e55a894c63b6f8"
+checksum = "52da4364ffb0e4fe33a9841a98a3f3014fb964045ce4f7a45a398243c8d6b0c9"
 dependencies = [
  "libc",
  "log",
@@ -1322,7 +1322,7 @@ checksum = "d29ab0c6d3fc0ee92fe66e2d99f700eab17a8d57d1c1d3b748380fb20baa78cd"
 [[package]]
 name = "sdf2d"
 version = "0.1.0"
-source = "git+https://github.com/sidit77/sdf2d.git#f927c020924e93a5dc3a79d7f59bb4bfead21723"
+source = "git+https://github.com/sidit77/sdf2d.git#476b5e5597cada4e748942896404d4c40478e6da"
 dependencies = [
  "glam",
 ]

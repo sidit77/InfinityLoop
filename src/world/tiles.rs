@@ -16,13 +16,13 @@ pub enum TileType {
 impl TileType {
     pub fn model(self) -> usize {
         match self {
-            TileType::Tile0 => 0,
-            TileType::Tile01 => 1,
-            TileType::Tile02 => 2,
-            TileType::Tile03 => 3,
-            TileType::Tile012 => 4,
-            TileType::Tile024 => 5,
-            TileType::Tile0134 => 6,
+            TileType::Tile0 => 1,
+            TileType::Tile01 => 2,
+            TileType::Tile02 => 3,
+            TileType::Tile03 => 4,
+            TileType::Tile012 => 5,
+            TileType::Tile024 => 6,
+            TileType::Tile0134 => 7,
         }
     }
     pub fn endings(self) -> [bool; 6] {

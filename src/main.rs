@@ -73,6 +73,7 @@ impl Game {
         ]).unwrap();
 
         let textures = vec![
+            Texture::load_png::<&[u8]>(ctx, include_bytes!(concat!(env!("OUT_DIR"), "/hex.png"))).unwrap(),
             Texture::load_png::<&[u8]>(ctx, include_bytes!(concat!(env!("OUT_DIR"), "/tile0.png"))).unwrap(),
             Texture::load_png::<&[u8]>(ctx, include_bytes!(concat!(env!("OUT_DIR"), "/tile01.png"))).unwrap(),
             Texture::load_png::<&[u8]>(ctx, include_bytes!(concat!(env!("OUT_DIR"), "/tile02.png"))).unwrap(),
@@ -138,9 +139,9 @@ impl EventHandler for Game {
 
         for (hex, conf) in self.world.iter() {
             if !conf.is_empty() {
-                self.program.set_uniform_by_name("tex", conf.model() as i32);
+                self.program.set_uniform_by_name("tex", conf.model() as i32); //
                 self.program.set_uniform_by_name("model", Mat4::from_scale_rotation_translation(
-                    Vec3::ONE * 1.25,
+                    Vec3::ONE * 1.16,
                     Quat::from_rotation_z(conf.angle().to_radians()),
                     Vec2::from(hex).extend(0.0)));
                 ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, 0..6);
