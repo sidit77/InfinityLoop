@@ -1,6 +1,6 @@
 #[derive(Debug, Clone, Copy, Eq, PartialEq)]
 #[repr(C)]
-pub struct RGBA<T: Copy> {
+pub struct Rgba<T: Copy> {
     pub r: T,
     pub g: T,
     pub b: T,
@@ -8,7 +8,7 @@ pub struct RGBA<T: Copy> {
 }
 
 #[allow(dead_code)]
-impl<T: Copy> RGBA<T> {
+impl<T: Copy> Rgba<T> {
 
     pub fn new(r: T, g: T, b: T, a: T) -> Self {
         Self { r, g, b, a }
@@ -36,23 +36,23 @@ impl<T: Copy> RGBA<T> {
 
 }
 
-impl Default for RGBA<f32> {
+impl Default for Rgba<f32> {
     fn default() -> Self {
         Self::new(0.0, 0.0, 0.0, 1.0)
     }
 }
 
-impl Default for RGBA<u8> {
+impl Default for Rgba<u8> {
     fn default() -> Self {
         Self::new(0, 0, 0, 255)
     }
 }
 
 
-impl From<RGBA<f32>> for RGBA<u8>{
-    fn from(color: RGBA<f32>) -> Self {
+impl From<Rgba<f32>> for Rgba<u8>{
+    fn from(color: Rgba<f32>) -> Self {
         const U8_MAX: f32 = u8::MAX as f32;
-        RGBA::default()
+        Rgba::default()
             .with_red((U8_MAX * color.r.clamp(0.0, 1.0)) as u8)
             .with_green((U8_MAX * color.g.clamp(0.0, 1.0)) as u8)
             .with_blue((U8_MAX * color.b.clamp(0.0, 1.0)) as u8)
@@ -60,10 +60,10 @@ impl From<RGBA<f32>> for RGBA<u8>{
     }
 }
 
-impl From<RGBA<u8>> for RGBA<f32>{
-    fn from(color: RGBA<u8>) -> Self {
+impl From<Rgba<u8>> for Rgba<f32>{
+    fn from(color: Rgba<u8>) -> Self {
         const U8_MAX: f32 = u8::MAX as f32;
-        RGBA::default()
+        Rgba::default()
             .with_red(color.r as f32 / U8_MAX)
             .with_green(color.g as f32 / U8_MAX)
             .with_blue(color.b as f32 / U8_MAX)

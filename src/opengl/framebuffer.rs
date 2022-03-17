@@ -1,9 +1,8 @@
 use glow::HasContext;
 use crate::{Context};
-use crate::opengl::{FramebufferAttachment, InternalFormat, Texture};
+use crate::opengl::{FramebufferAttachment, Texture};
 
 type GlowFramebuffer = glow::Framebuffer;
-type GlowRenderbuffer = glow::Renderbuffer;
 
 pub struct Framebuffer {
     ctx: Context,
@@ -24,9 +23,9 @@ impl Framebuffer {
     }
 
     pub fn new<'a>(ctx: &Context, attachments: &[(FramebufferAttachment, &'a dyn FramebufferDestination)]) -> Result<Self, String> {
-        let frambuffer = Self::empty(ctx)?;
-        frambuffer.update_attachments(attachments)?;
-        Ok(frambuffer)
+        let framebuffer = Self::empty(ctx)?;
+        framebuffer.update_attachments(attachments)?;
+        Ok(framebuffer)
     }
 
     pub fn update_attachments<'a>(&self, attachments: &[(FramebufferAttachment, &'a dyn FramebufferDestination)]) -> Result<(), String>{
@@ -65,6 +64,8 @@ impl FramebufferDestination for Texture {
     }
 }
 
+/*
+type GlowRenderbuffer = glow::Renderbuffer;
 
 pub struct Renderbuffer {
     ctx: Context,
@@ -120,6 +121,7 @@ impl FramebufferDestination for Renderbuffer {
         }
     }
 }
+*/
 
 fn verify_framebuffer_status(gl: &glow::Context) -> Result<(), String> {
     unsafe {

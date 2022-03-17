@@ -2,7 +2,7 @@ use glam::{Mat4, Vec2};
 use glow::HasContext;
 use crate::opengl::Context;
 use crate::ShaderType;
-use crate::types::RGBA;
+use crate::types::Rgba;
 
 type GlowProgram = glow::Program;
 type GlowShader = glow::Shader;
@@ -142,7 +142,7 @@ impl SetUniform<i32> for ShaderProgram {
     }
 }
 
-impl<T: Into<RGBA<f32>>> SetUniform<T> for ShaderProgram {
+impl<T: Into<Rgba<f32>>> SetUniform<T> for ShaderProgram {
     fn set_uniform(&self, location: &UniformLocation, data: T) {
         let c = data.into();
         unsafe {

@@ -32,7 +32,7 @@ impl HexPos {
     }
 
     pub fn neighbors(self) -> impl Iterator<Item=Self> {
-        NEIGHBOR_OFFSETS.into_iter().map(move |offset| self + *offset)
+        NEIGHBOR_OFFSETS.iter().map(move |offset| self + *offset)
     }
 
     pub fn ring_iter(center: Self, radius: i32) -> impl Iterator<Item=Self> {

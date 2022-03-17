@@ -277,19 +277,19 @@ impl Format {
 #[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum FramebufferAttachment {
-    ColorAttachment(u32),
-    DepthAttachment,
-    StencilAttachment,
-    DepthStencilAttachment
+    Color(u32),
+    Depth,
+    Stencil,
+    DepthStencil
 }
 
 impl FramebufferAttachment {
     pub fn raw(self) -> u32 {
         match self {
-            FramebufferAttachment::ColorAttachment(i) => glow::COLOR_ATTACHMENT0 + i,
-            FramebufferAttachment::DepthAttachment => glow::DEPTH_ATTACHMENT,
-            FramebufferAttachment::StencilAttachment => glow::STENCIL_ATTACHMENT,
-            FramebufferAttachment::DepthStencilAttachment => glow::DEPTH_STENCIL_ATTACHMENT
+            FramebufferAttachment::Color(i) => glow::COLOR_ATTACHMENT0 + i,
+            FramebufferAttachment::Depth => glow::DEPTH_ATTACHMENT,
+            FramebufferAttachment::Stencil => glow::STENCIL_ATTACHMENT,
+            FramebufferAttachment::DepthStencil => glow::DEPTH_STENCIL_ATTACHMENT
         }
     }
 }

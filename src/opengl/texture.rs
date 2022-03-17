@@ -9,6 +9,26 @@ use crate::opengl::{Format, InternalFormat, TextureTarget};
 type GlowTexture = glow::Texture;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct Region2d {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32
+}
+
+impl Region2d {
+    pub fn dimensions(width: u32, height: u32) -> Self {
+        Self {
+            x: 0,
+            y: 0,
+            width,
+            height
+        }
+    }
+}
+
+#[allow(dead_code)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MipmapLevels {
     Full,
     None,
@@ -91,7 +111,7 @@ impl Texture {
 
         let tex = Self::new(ctx, TextureType::Texture2d(info.width, info.height),
                             InternalFormat::Rgb8, MipmapLevels::Full)?;
-        tex.fill_region_2d(0, 0,0, info.width, info.height, Format::Rgb, DataType::U8, &buf[..info.buffer_size()]);
+        tex.fill_region_2d(0, Region2d::dimensions(info.width, info.height), Format::Rgb, DataType::U8, &buf[..info.buffer_size()]);
         tex.generate_mipmaps();
         let gl = ctx.raw();
         unsafe {
@@ -101,11 +121,11 @@ impl Texture {
         }
     }
 
-    pub fn fill_region_2d<T: Pod>(&self, level: u32, x_offset: u32, y_offset: u32, width: u32, height: u32, format: Format, data_type: DataType, data: &[T]) {
+    pub fn fill_region_2d<T: Pod>(&self, level: u32, region: Region2d, format: Format, data_type: DataType, data: &[T]) {
         let gl = self.ctx.raw();
         unsafe {
-            gl.tex_sub_image_2d(self.target.raw(), level as i32, x_offset as i32, y_offset as i32,
-                                width as i32, height as i32, format.raw(),
+            gl.tex_sub_image_2d(self.target.raw(), level as i32, region.x as i32, region.y as i32,
+                                region.width as i32, region.height as i32, format.raw(),
                                 data_type.raw(), PixelUnpackData::Slice(bytemuck::cast_slice(data)));
 
         }

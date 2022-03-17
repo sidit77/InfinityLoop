@@ -1,3 +1,5 @@
+#![allow(clippy::eq_op)]
+
 use std::convert::TryInto;
 use std::fs;
 use std::io::Write;

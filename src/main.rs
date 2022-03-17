@@ -36,10 +36,10 @@ impl Game {
 
 
 
-        let vertex_array = VertexArray::new(&ctx).unwrap();
+        let vertex_array = VertexArray::new(ctx).unwrap();
         ctx.use_vertex_array(&vertex_array);
 
-        let vertex_buffer = Buffer::new(&ctx, BufferTarget::Array).unwrap();
+        let vertex_buffer = Buffer::new(ctx, BufferTarget::Array).unwrap();
         vertex_buffer.set_data::<f32>(&[
             -1., -1., 0., 0.,
              1., -1., 1., 0.,
@@ -47,7 +47,7 @@ impl Game {
             -1.,  1., 0., 1.,
         ]);
 
-        let index_buffer = Buffer::new(&ctx, BufferTarget::ElementArray).unwrap();
+        let index_buffer = Buffer::new(ctx, BufferTarget::ElementArray).unwrap();
         index_buffer.set_data::<u16>(&[
             0, 1, 2,
             0, 2, 3
@@ -58,26 +58,27 @@ impl Game {
             VertexArrayAttribute::Float(DataType::F32, 2, false)
         ]);
 
-        let program = ShaderProgram::new(&ctx, &[
-            &Shader::new(&ctx, ShaderType::Vertex, include_str!("shader/vertex.glsl")).unwrap(),
-            &Shader::new(&ctx, ShaderType::Fragment, include_str!("shader/fragment.glsl")).unwrap(),
+        let program = ShaderProgram::new(ctx, &[
+            &Shader::new(ctx, ShaderType::Vertex, include_str!("shader/vertex.glsl")).unwrap(),
+            &Shader::new(ctx, ShaderType::Fragment, include_str!("shader/fragment.glsl")).unwrap(),
         ]).unwrap();
 
-        let pp_program = ShaderProgram::new(&ctx, &[
-            &Shader::new(&ctx, ShaderType::Vertex, include_str!("shader/vertex.glsl")).unwrap(),
-            &Shader::new(&ctx, ShaderType::Fragment, include_str!("shader/pp_fragment.glsl")).unwrap(),
+        let pp_program = ShaderProgram::new(ctx, &[
+            &Shader::new(ctx, ShaderType::Vertex, include_str!("shader/vertex.glsl")).unwrap(),
+            &Shader::new(ctx, ShaderType::Fragment, include_str!("shader/pp_fragment.glsl")).unwrap(),
         ]).unwrap();
 
-        let framebuffer_dst = Texture::new(&ctx, TextureType::Texture2d(1280, 720), InternalFormat::R8, MipmapLevels::None).unwrap();
-        let framebuffer = Framebuffer::new(&ctx, &[
-            (FramebufferAttachment::ColorAttachment(0), &framebuffer_dst)
+        let framebuffer_dst = Texture::new(ctx, TextureType::Texture2d(1280, 720), InternalFormat::R8, MipmapLevels::None).unwrap();
+        let framebuffer = Framebuffer::new(ctx, &[
+            (FramebufferAttachment::Color(0), &framebuffer_dst)
         ]).unwrap();
 
-        let texture = Texture::load_png::<&[u8]>(&ctx, include_bytes!("../assets/output2.png")).unwrap();
+        let texture = Texture::load_png::<&[u8]>(ctx, include_bytes!("../assets/output2.png")).unwrap();
 
-        let mut camera = Camera::default();
-
-        camera.scale = 6.0;
+        let camera = Camera {
+            scale: 6.0,
+            ..Default::default()
+        };
 
         let mut world = World::new(1337);
         world.scramble();
@@ -161,7 +162,7 @@ impl EventHandler for Game {
                 self.camera.aspect = width / height;
                 self.framebuffer_dst = Texture::new(ctx, TextureType::Texture2d(width as u32, height as u32),
                                                     InternalFormat::R8, MipmapLevels::None).unwrap();
-                self.framebuffer.update_attachments(&[(FramebufferAttachment::ColorAttachment(0), &self.framebuffer_dst)]).unwrap();
+                self.framebuffer.update_attachments(&[(FramebufferAttachment::Color(0), &self.framebuffer_dst)]).unwrap();
             }
             Event::Click(pos) => {
                 let pt = self.camera.to_world_coords(pos).into();
@@ -190,5 +191,5 @@ impl EventHandler for Game {
 
 
 fn main() {
-    app::run(|ctx| Game::new(ctx))
+    app::run(Game::new)
 }

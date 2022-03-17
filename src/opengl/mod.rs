@@ -15,7 +15,7 @@ pub use framebuffer::*;
 
 use std::rc::Rc;
 use glow::{COLOR_BUFFER_BIT, DEPTH_BUFFER_BIT, HasContext};
-use crate::types::RGBA;
+use crate::types::Rgba;
 
 type GlowContext = glow::Context;
 
@@ -43,7 +43,7 @@ impl Context {
         &self.0
     }
 
-    pub fn clear(&self, color: impl Into<RGBA<f32>>) {
+    pub fn clear(&self, color: impl Into<Rgba<f32>>) {
         let gl = self.raw();
         let color = color.into();
         unsafe {
@@ -105,12 +105,14 @@ impl Context {
         }
     }
 
+    /*
     pub fn bind_renderbuffer(&self, buffer: &Renderbuffer) {
         let gl = self.raw();
         unsafe {
             gl.bind_renderbuffer(glow::RENDERBUFFER, Some(buffer.raw()));
         }
     }
+     */
 
     pub fn bind_texture(&self, slot: u32, texture: &Texture) {
         let gl = self.raw();

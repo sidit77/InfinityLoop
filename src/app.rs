@@ -95,7 +95,7 @@ pub fn run<T: EventHandler + 'static>(builder: impl FnOnce(&Context) -> T) -> ! 
             window.swap_buffers().unwrap();
         },
         WinitEvent::MainEventsCleared => window.window().request_redraw(),
-        WinitEvent::LoopDestroyed => return,
+        WinitEvent::LoopDestroyed => {},
         _ => {}
     });
 }
