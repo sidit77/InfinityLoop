@@ -3,7 +3,6 @@ use crate::opengl::{Context, DataType};
 
 type GlowVertexArray = glow::VertexArray;
 
-#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum VertexArrayAttribute {
     Float(DataType, u32, bool),

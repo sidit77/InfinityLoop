@@ -27,7 +27,29 @@ impl Region2d {
     }
 }
 
-#[allow(dead_code)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub struct Region3d {
+    pub x: u32,
+    pub y: u32,
+    pub z: u32,
+    pub width: u32,
+    pub height: u32,
+    pub depth: u32
+}
+
+impl Region3d {
+    pub fn slice2d(width: u32, height: u32, index: u32) -> Self {
+        Self {
+            x: 0,
+            y: 0,
+            z: index,
+            width,
+            height,
+            depth: 1
+        }
+    }
+}
+
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum MipmapLevels {
     Full,
@@ -38,20 +60,23 @@ pub enum MipmapLevels {
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum TextureType {
-    Texture2d(u32, u32)
+    Texture2d(u32, u32),
+    Texture2dArray(u32, u32, u32)
 }
 
 impl TextureType {
 
     pub fn target(self) -> TextureTarget {
         match self {
-            TextureType::Texture2d(_, _) => TextureTarget::Texture2D
+            TextureType::Texture2d(_, _) => TextureTarget::Texture2D,
+            TextureType::Texture2dArray(_, _, _) => TextureTarget::Texture2DArray
         }
     }
 
     fn max(self) -> u32 {
         match self {
-            TextureType::Texture2d(w, h) => w.max(h)
+            TextureType::Texture2d(w, h) => w.max(h),
+            TextureType::Texture2dArray(w, h, _) => w.max(h),
         }
     }
 
@@ -93,7 +118,9 @@ impl Texture {
             let levels= tex_type.get_levels(levels) as i32;
             match tex_type {
                 TextureType::Texture2d(w, h) =>
-                    gl.tex_storage_2d(tex.target.raw(), levels, format.raw(), w as i32, h as i32)
+                    gl.tex_storage_2d(tex.target.raw(), levels, format.raw(), w as i32, h as i32),
+                TextureType::Texture2dArray(w, h, d) =>
+                    gl.tex_storage_3d(tex.target.raw(), levels, format.raw(), w as i32, h as i32, d as i32)
             }
         }
         Ok(tex)
@@ -118,6 +145,16 @@ impl Texture {
             gl.tex_parameter_i32(tex.target.raw(), glow::TEXTURE_WRAP_S, glow::CLAMP_TO_EDGE as i32);
             gl.tex_parameter_i32(tex.target.raw(), glow::TEXTURE_WRAP_T, glow::CLAMP_TO_EDGE as i32);
             Ok(tex)
+        }
+    }
+
+    pub fn fill_region_3d<T: Pod>(&self, level: u32, region: Region3d, format: Format, data_type: DataType, data: &[T]) {
+        let gl = self.ctx.raw();
+        unsafe {
+            gl.tex_sub_image_3d(self.target.raw(), level as i32, region.x as i32, region.y as i32, region.z as i32,
+                                region.width as i32, region.height as i32, region.depth as i32, format.raw(),
+                                data_type.raw(), PixelUnpackData::Slice(bytemuck::cast_slice(data)));
+
         }
     }
 

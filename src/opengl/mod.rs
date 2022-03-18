@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod shader;
 mod vertex_array;
 mod enums;
@@ -81,12 +83,12 @@ impl Context {
         }
     }
 
-    //pub fn draw_arrays(&self, primitive_type: PrimitiveType, first: i32, count: i32) {
-    //    let gl = self.raw();
-    //    unsafe {
-    //        gl.draw_arrays(primitive_type.raw(), first, count);
-    //    }
-    //}
+    pub fn draw_arrays(&self, primitive_type: PrimitiveType, first: i32, count: i32) {
+        let gl = self.raw();
+        unsafe {
+            gl.draw_arrays(primitive_type.raw(), first, count);
+        }
+    }
 
     pub fn draw_elements_range(&self, primitive_type: PrimitiveType, index_type: DataType, range: Range<i32>) {
         debug_assert!(matches!(index_type, DataType::U8 | DataType::U16 | DataType::U32));
@@ -105,14 +107,12 @@ impl Context {
         }
     }
 
-    /*
     pub fn bind_renderbuffer(&self, buffer: &Renderbuffer) {
         let gl = self.raw();
         unsafe {
             gl.bind_renderbuffer(glow::RENDERBUFFER, Some(buffer.raw()));
         }
     }
-     */
 
     pub fn bind_texture(&self, slot: u32, texture: &Texture) {
         let gl = self.raw();

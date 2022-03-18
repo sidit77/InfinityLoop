@@ -6,7 +6,8 @@ out float finalColor;
 
 in vec2 tex_coords;
 
-uniform sampler2D tex;
+uniform sampler2DArray tex;
+uniform int tex_id;
 uniform vec4 color;
 
 float median(float r, float g, float b) {
@@ -19,5 +20,5 @@ void main() {
     //float screenPxDistance = 24.4 * (sd - 0.5);
     //float opacity = clamp(screenPxDistance + 0.5, 0.0, 1.0);
     //finalColor = color * vec4(1,1,1,opacity);
-    finalColor = texture(tex, tex_coords).r;
+    finalColor = texture(tex, vec3(tex_coords, float(tex_id))).r;
 }

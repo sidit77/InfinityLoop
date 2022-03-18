@@ -1,5 +1,4 @@
 
-#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u32)]
 pub enum ShaderType {
@@ -17,7 +16,6 @@ impl ShaderType {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u32)]
 pub enum PrimitiveType {
@@ -41,7 +39,6 @@ impl PrimitiveType {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u32)]
 pub enum BufferTarget {
@@ -67,7 +64,6 @@ impl BufferTarget {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u32)]
 pub enum DataType {
@@ -103,7 +99,6 @@ impl DataType {
 
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u32)]
 pub enum TextureTarget {
@@ -126,7 +121,6 @@ impl TextureTarget {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u32)]
 pub enum BlendFactor {
@@ -157,7 +151,6 @@ impl BlendFactor {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u32)]
 pub enum BlendEquation {
@@ -181,7 +174,6 @@ pub struct BlendState {
     pub equ: BlendEquation
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u32)]
 pub enum InternalFormat {
@@ -254,7 +246,6 @@ impl InternalFormat {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u32)]
 pub enum Format {
@@ -274,7 +265,6 @@ impl Format {
     }
 }
 
-#[allow(dead_code)]
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum FramebufferAttachment {
     Color(u32),

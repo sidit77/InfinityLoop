@@ -1,5 +1,5 @@
 use glow::HasContext;
-use crate::{Context};
+use crate::{Context, InternalFormat};
 use crate::opengl::{FramebufferAttachment, Texture};
 
 type GlowFramebuffer = glow::Framebuffer;
@@ -64,7 +64,7 @@ impl FramebufferDestination for Texture {
     }
 }
 
-/*
+
 type GlowRenderbuffer = glow::Renderbuffer;
 
 pub struct Renderbuffer {
@@ -121,7 +121,6 @@ impl FramebufferDestination for Renderbuffer {
         }
     }
 }
-*/
 
 fn verify_framebuffer_status(gl: &glow::Context) -> Result<(), String> {
     unsafe {

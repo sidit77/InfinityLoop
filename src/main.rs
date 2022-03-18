@@ -22,7 +22,7 @@ struct Game {
     framebuffer: Framebuffer,
     framebuffer_dst: Texture,
     vertex_array: VertexArray,
-    textures: Vec<Texture>,
+    textures: Texture,
     program: ShaderProgram,
     pp_program: ShaderProgram,
     camera: Camera,
@@ -72,16 +72,7 @@ impl Game {
             (FramebufferAttachment::Color(0), &framebuffer_dst)
         ]).unwrap();
 
-        let textures = vec![
-            Texture::load_png::<&[u8]>(ctx, include_bytes!(concat!(env!("OUT_DIR"), "/hex.png"))).unwrap(),
-            Texture::load_png::<&[u8]>(ctx, include_bytes!(concat!(env!("OUT_DIR"), "/tile0.png"))).unwrap(),
-            Texture::load_png::<&[u8]>(ctx, include_bytes!(concat!(env!("OUT_DIR"), "/tile01.png"))).unwrap(),
-            Texture::load_png::<&[u8]>(ctx, include_bytes!(concat!(env!("OUT_DIR"), "/tile02.png"))).unwrap(),
-            Texture::load_png::<&[u8]>(ctx, include_bytes!(concat!(env!("OUT_DIR"), "/tile03.png"))).unwrap(),
-            Texture::load_png::<&[u8]>(ctx, include_bytes!(concat!(env!("OUT_DIR"), "/tile012.png"))).unwrap(),
-            Texture::load_png::<&[u8]>(ctx, include_bytes!(concat!(env!("OUT_DIR"), "/tile024.png"))).unwrap(),
-            Texture::load_png::<&[u8]>(ctx, include_bytes!(concat!(env!("OUT_DIR"), "/tile0134.png"))).unwrap()
-        ];
+        let textures = world::generate_tile_texture(ctx).unwrap();
 
         let camera = Camera {
             scale: 6.0,
@@ -118,9 +109,8 @@ impl EventHandler for Game {
             equ: BlendEquation::Max
         });
         ctx.use_program(&self.program);
-        for (i, tex) in self.textures.iter().enumerate() {
-            ctx.bind_texture(i as u32, tex);
-        }
+        ctx.bind_texture(0, &self.textures);
+        self.program.set_uniform_by_name("tex", 0);
         //ctx.bind_texture(0, &self.texture);
         self.program.set_uniform_by_name("camera", self.camera.to_matrix());
 
@@ -139,7 +129,7 @@ impl EventHandler for Game {
 
         for (hex, conf) in self.world.iter() {
             if !conf.is_empty() {
-                self.program.set_uniform_by_name("tex", conf.model() as i32); //
+                self.program.set_uniform_by_name("tex_id", conf.model() as i32); //
                 self.program.set_uniform_by_name("model", Mat4::from_scale_rotation_translation(
                     Vec3::ONE * 1.16,
                     Quat::from_rotation_z(conf.angle().to_radians()),
