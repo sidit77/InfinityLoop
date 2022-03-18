@@ -1,6 +1,26 @@
 use glow::HasContext;
 use crate::{Context, InternalFormat};
-use crate::opengl::{FramebufferAttachment, Texture};
+use crate::opengl::Texture;
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum FramebufferAttachment {
+    Color(u32),
+    Depth,
+    Stencil,
+    DepthStencil
+}
+
+impl FramebufferAttachment {
+    pub fn raw(self) -> u32 {
+        match self {
+            FramebufferAttachment::Color(i) => glow::COLOR_ATTACHMENT0 + i,
+            FramebufferAttachment::Depth => glow::DEPTH_ATTACHMENT,
+            FramebufferAttachment::Stencil => glow::STENCIL_ATTACHMENT,
+            FramebufferAttachment::DepthStencil => glow::DEPTH_STENCIL_ATTACHMENT
+        }
+    }
+}
+
 
 type GlowFramebuffer = glow::Framebuffer;
 

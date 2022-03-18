@@ -4,8 +4,8 @@ mod shader;
 mod vertex_array;
 mod enums;
 mod buffer;
-mod texture;
 mod framebuffer;
+mod texture;
 
 use std::ops::Range;
 pub use shader::*;

@@ -1,8 +1,24 @@
 use glam::{Mat4, Vec2};
 use glow::HasContext;
 use crate::opengl::Context;
-use crate::ShaderType;
 use crate::types::Rgba;
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[repr(u32)]
+pub enum ShaderType {
+    Vertex = glow::VERTEX_SHADER,
+    Fragment = glow::FRAGMENT_SHADER,
+    Geometry = glow::GEOMETRY_SHADER,
+    TesselationControl = glow::TESS_CONTROL_SHADER,
+    TesselationEvaluation = glow::TESS_EVALUATION_SHADER,
+    Compute = glow::COMPUTE_SHADER
+}
+
+impl ShaderType {
+    pub fn raw(self) -> u32 {
+        self as u32
+    }
+}
 
 type GlowProgram = glow::Program;
 type GlowShader = glow::Shader;

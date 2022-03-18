@@ -1,6 +1,31 @@
 use bytemuck::Pod;
 use glow::HasContext;
-use crate::opengl::{BufferTarget, Context};
+use crate::opengl::Context;
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[repr(u32)]
+pub enum BufferTarget {
+    Array = glow::ARRAY_BUFFER,
+    AtomicCounter = glow::ATOMIC_COUNTER_BUFFER,
+    CopyRead = glow::COPY_READ_BUFFER,
+    CopyWrite = glow::COPY_WRITE_BUFFER,
+    DispatchIndirect = glow::DISPATCH_INDIRECT_BUFFER,
+    DrawIndirect = glow::DRAW_INDIRECT_BUFFER,
+    ElementArray = glow::ELEMENT_ARRAY_BUFFER,
+    PixelPack = glow::PIXEL_PACK_BUFFER,
+    PixelUnpack = glow::PIXEL_UNPACK_BUFFER,
+    Query = glow::QUERY_BUFFER,
+    ShaderStorage = glow::SHADER_STORAGE_BUFFER,
+    Texture = glow::TEXTURE_BUFFER,
+    TransformFeedback = glow::TRANSFORM_FEEDBACK_BUFFER,
+    Uniform = glow::UNIFORM_BUFFER
+}
+
+impl BufferTarget {
+    pub fn raw(self) -> u32 {
+        self as u32
+    }
+}
 
 type GlowBuffer = glow::Buffer;
 
