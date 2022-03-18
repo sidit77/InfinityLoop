@@ -160,8 +160,9 @@ impl EventHandler for Game {
                 let pt = self.camera.to_world_coords(pos).into();
                 self.world.try_rotate(pt);
                 if self.world.is_completed() {
-                    self.world = World::new(self.world.seed() + 1);
-                    self.world.scramble();
+                    //self.world = World::new(self.world.seed() + 1);
+                    //self.world.scramble();
+                    println!("Well done!");
                 }
 
             },

@@ -1,6 +1,7 @@
 use std::fmt::Debug;
 use enum_iterator::IntoEnumIterator;
-use png::{BitDepth, ColorType, Transformations};
+use glam::Vec2;
+use sdf2d::{Constant, Ops, Sdf, Shapes};
 use crate::{Context, DataType, InternalFormat, MipmapLevels, Texture, TextureType};
 use crate::opengl::{Format, Region3d};
 use crate::types::Angle;
@@ -107,36 +108,126 @@ impl TileConfig {
 }
 
 pub fn generate_tile_texture(ctx: &Context) -> Result<Texture, String> {
-    let textures = [
-        &include_bytes!(concat!(env!("OUT_DIR"), "/hex.png"))[..],
-        &include_bytes!(concat!(env!("OUT_DIR"), "/tile0.png"))[..],
-        &include_bytes!(concat!(env!("OUT_DIR"), "/tile01.png"))[..],
-        &include_bytes!(concat!(env!("OUT_DIR"), "/tile02.png"))[..],
-        &include_bytes!(concat!(env!("OUT_DIR"), "/tile03.png"))[..],
-        &include_bytes!(concat!(env!("OUT_DIR"), "/tile012.png"))[..],
-        &include_bytes!(concat!(env!("OUT_DIR"), "/tile024.png"))[..],
-        &include_bytes!(concat!(env!("OUT_DIR"), "/tile0134.png"))[..]
-    ];
+    let mut builder = ArrayTextureBuilder::new(ctx, 64, 64, 8, -5.0)?;
 
-    let texture = Texture::new(ctx, TextureType::Texture2dArray(64, 64, textures.len() as u32),
-                               InternalFormat::R8, MipmapLevels::Full)?;
+    let a = 0.75;
+    let g = 0.75 * f32::tan(f32::to_radians(30.0));
 
-    let mut buf = vec![0; 64 * 64 * 1];
+    let hexagon = Shapes::hexagon(a).rotate(f32::to_radians(90.0));
+    builder.fill_layer(0, hexagon);
 
-    for (i, png) in textures.iter().enumerate() {
-        let mut decoder = png::Decoder::new(*png);
-        decoder.set_transformations(Transformations::EXPAND);
-        let mut reader = decoder.read_info().map_err(|e|e.to_string())?;
-        let info = reader.next_frame(&mut buf).map_err(|e|e.to_string())?;
+    let tile0 = Shapes::circle(0.45)
+        .subtract(Shapes::circle(0.25))
+        .union(Shapes::rectangle(0.1, 0.25)
+            .translate(0.0, -0.5)
+            .rotate(f32::to_radians(30.0)));
+    builder.fill_layer(TileType::Tile0.model() as u32, tile0);
 
-        assert_eq!(info.bit_depth, BitDepth::Eight);
-        assert_eq!(info.color_type, ColorType::Grayscale);
-        assert_eq!(info.width, 64);
-        assert_eq!(info.height, 64);
+    let tile01 = Shapes::circle(g + 0.1)
+        .subtract(Shapes::circle(g - 0.1))
+        .translate(a, -g)
+        .intersection(hexagon);
+    builder.fill_layer(TileType::Tile01.model() as u32, tile01);
 
-        texture.fill_region_3d(0, Region3d::slice2d(info.width, info.height, i as u32), Format::R, DataType::U8, &buf[..info.buffer_size()]);
+    let tile02 = Shapes::circle(3.0 * g + 0.1)
+        .subtract(Shapes::circle(3.0 * g - 0.1))
+        .translate(2.0 * a, 0.0)
+        .intersection(hexagon);
+    builder.fill_layer(TileType::Tile02.model() as u32, tile02);
+
+    let tile03 = Shapes::rectangle(0.1, 0.75)
+        .rotate(f32::to_radians(210.0));
+    builder.fill_layer(TileType::Tile03.model() as u32, tile03);
+
+    let tile012 = Constant::Empty
+        .union(Shapes::circle(g + 0.1)
+            .subtract(Shapes::circle(g - 0.1))
+            .translate(a, -g))
+        .union(Shapes::circle(g + 0.1)
+            .subtract(Shapes::circle(g - 0.1))
+            .translate(a,  g))
+        .intersection(hexagon);
+    builder.fill_layer(TileType::Tile012.model() as u32, tile012);
+
+    let tile024 = Constant::Empty
+        .union(Shapes::circle(3.0 * g + 0.1)
+            .subtract(Shapes::circle(3.0 * g - 0.1))
+            .translate(2.0 * a, 0.0))
+        .union(Shapes::circle(3.0 * g + 0.1)
+            .subtract(Shapes::circle(3.0 * g - 0.1))
+            .translate(-a, 3.0 * g))
+        .union(Shapes::circle(3.0 * g + 0.1)
+            .subtract(Shapes::circle(3.0 * g - 0.1))
+            .translate(-a, -3.0 * g))
+        .intersection(hexagon);
+    builder.fill_layer(TileType::Tile024.model() as u32, tile024);
+
+    let tile0134 = Constant::Empty
+        .union(Shapes::circle(g + 0.1)
+            .subtract(Shapes::circle(g - 0.1))
+            .translate(a, -g))
+        .union(Shapes::circle(3.0 * g + 0.1)
+            .subtract(Shapes::circle(3.0 * g - 0.1))
+            .translate(a, 3.0 * g))
+        .union(Shapes::circle(g + 0.1)
+            .subtract(Shapes::circle(g - 0.1))
+            .translate(-a, g))
+        .union(Shapes::circle(3.0 * g + 0.1)
+            .subtract(Shapes::circle(3.0 * g - 0.1))
+            .translate(-a, -3.0 * g))
+        .intersection(hexagon);
+    builder.fill_layer(TileType::Tile0134.model() as u32, tile0134);
+
+    Ok(builder.finalize())
+}
+
+struct ArrayTextureBuilder {
+    texture: Texture,
+    buffer: Vec<u8>,
+    width: u32,
+    height: u32,
+    layers: u32,
+    factor: f32
+}
+
+impl ArrayTextureBuilder {
+
+    fn new(ctx: &Context, width: u32, height: u32, layers: u32, factor: f32) -> Result<Self, String> {
+        let texture = Texture::new(ctx, TextureType::Texture2dArray(width, height, layers),
+                                   InternalFormat::R8, MipmapLevels::Full)?;
+        Ok(Self {
+            texture,
+            buffer: Vec::with_capacity((width * height) as usize),
+            width,
+            height,
+            layers,
+            factor
+        })
     }
 
-    texture.generate_mipmaps();
-    Ok(texture)
+    fn fill_layer(&mut self, layer: u32, sdf: impl Sdf) {
+        assert!(layer < self.layers);
+
+        self.buffer.clear();
+        let f = Vec2::new(self.width as f32, self.height as f32) * 0.5;
+        for y in 0..self.height {
+            for x in 0..self.width {
+                let p = (Vec2::new(x as f32, y as f32) + Vec2::new(0.5, 0.5) - f) / f;
+                let p = p * Vec2::new(1.0, -1.0);
+                let d = self.factor * sdf.density(p);
+                let h = u8::MAX as f32 * 0.5;
+                self.buffer.push((h + d * h).clamp(u8::MIN as f32, u8::MAX as f32) as u8);
+            }
+        }
+
+        self.texture.fill_region_3d(0, Region3d::slice2d(self.width, self.height, layer),
+                                    Format::R, DataType::U8, self.buffer.as_slice());
+    }
+
+    fn finalize(self) -> Texture {
+        self.texture.generate_mipmaps();
+        self.texture
+    }
+
 }
+

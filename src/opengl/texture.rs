@@ -1,8 +1,6 @@
-use std::io::Read;
 use std::num::NonZeroU32;
 use bytemuck::Pod;
 use glow::{HasContext, PixelUnpackData};
-use png::{BitDepth, ColorType, Transformations};
 use crate::{Context, DataType};
 use crate::opengl::{Format, InternalFormat, TextureTarget};
 
@@ -124,28 +122,6 @@ impl Texture {
             }
         }
         Ok(tex)
-    }
-
-    pub fn load_png<R: Read>(ctx: &Context, png: R) -> Result<Self, String> {
-        let mut decoder = png::Decoder::new(png);
-        decoder.set_transformations(Transformations::EXPAND);
-        let mut reader = decoder.read_info().map_err(|e|e.to_string())?;
-        let mut buf = vec![0; reader.output_buffer_size()];
-        let info = reader.next_frame(&mut buf).map_err(|e|e.to_string())?;
-
-        assert_eq!(info.bit_depth, BitDepth::Eight);
-        assert_eq!(info.color_type, ColorType::Grayscale);
-
-        let tex = Self::new(ctx, TextureType::Texture2d(info.width, info.height),
-                            InternalFormat::R8, MipmapLevels::Full)?;
-        tex.fill_region_2d(0, Region2d::dimensions(info.width, info.height), Format::R, DataType::U8, &buf[..info.buffer_size()]);
-        tex.generate_mipmaps();
-        let gl = ctx.raw();
-        unsafe {
-            gl.tex_parameter_i32(tex.target.raw(), glow::TEXTURE_WRAP_S, glow::CLAMP_TO_EDGE as i32);
-            gl.tex_parameter_i32(tex.target.raw(), glow::TEXTURE_WRAP_T, glow::CLAMP_TO_EDGE as i32);
-            Ok(tex)
-        }
     }
 
     pub fn fill_region_3d<T: Pod>(&self, level: u32, region: Region3d, format: Format, data_type: DataType, data: &[T]) {
