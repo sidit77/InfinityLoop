@@ -110,3 +110,49 @@ impl TextureTarget {
         self as u32
     }
 }
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[repr(u32)]
+pub enum MinFilter {
+    Nearest = glow::NEAREST,
+    Linear = glow::LINEAR,
+    NearestMipmapNearest = glow::NEAREST_MIPMAP_NEAREST,
+    NearestMipmapLinear = glow::NEAREST_MIPMAP_LINEAR,
+    LinearMipmapNearest = glow::LINEAR_MIPMAP_NEAREST,
+    LinearMipmapLinear = glow::LINEAR_MIPMAP_LINEAR,
+}
+
+impl MinFilter {
+    pub fn raw(self) -> u32 {
+        self as u32
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[repr(u32)]
+pub enum MagFilter {
+    Nearest = glow::NEAREST,
+    Linear = glow::LINEAR
+}
+
+impl MagFilter {
+    pub fn raw(self) -> u32 {
+        self as u32
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[repr(u32)]
+pub enum TextureWrap {
+    ClampToEdge = glow::CLAMP_TO_EDGE,
+    ClampToBorder = glow::CLAMP_TO_BORDER,
+    MirroredRepeat = glow::MIRRORED_REPEAT,
+    Repeat = glow::REPEAT,
+    MirrorClampToEdge = glow::MIRROR_CLAMP_TO_EDGE
+}
+
+impl TextureWrap {
+    pub fn raw(self) -> u32 {
+        self as u32
+    }
+}

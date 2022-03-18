@@ -49,7 +49,7 @@ impl Context {
         let gl = self.raw();
         let color = color.into();
         unsafe {
-            gl.clear_color(color.r, color.g, color.b, color.a);
+            gl.clear_color(color.red(), color.green(), color.blue(), color.alpha());
             gl.clear(COLOR_BUFFER_BIT | DEPTH_BUFFER_BIT);
         }
 

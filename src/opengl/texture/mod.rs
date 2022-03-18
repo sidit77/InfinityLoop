@@ -7,6 +7,7 @@ pub use enums::*;
 use bytemuck::Pod;
 use glow::{HasContext, PixelUnpackData};
 use crate::{Context, DataType};
+use crate::types::Rgba;
 
 type GlowTexture = glow::Texture;
 
@@ -95,6 +96,37 @@ impl Texture {
                                 region.width as i32, region.height as i32, format.raw(),
                                 data_type.raw(), PixelUnpackData::Slice(bytemuck::cast_slice(data)));
 
+        }
+    }
+
+    pub fn set_filter_mode(&self, mode: FilterMode) {
+        let gl = self.ctx.raw();
+        unsafe {
+            gl.tex_parameter_i32(self.target.raw(), glow::TEXTURE_MIN_FILTER, mode.min.raw() as i32);
+            gl.tex_parameter_i32(self.target.raw(), glow::TEXTURE_MAG_FILTER, mode.mag.raw() as i32);
+        }
+    }
+
+    pub fn set_wrap_mode(&self, mode: WrapMode) {
+        let gl = self.ctx.raw();
+        unsafe {
+            gl.tex_parameter_i32(self.target.raw(), glow::TEXTURE_WRAP_S, mode.s.raw() as i32);
+            gl.tex_parameter_i32(self.target.raw(), glow::TEXTURE_WRAP_T, mode.t.raw() as i32);
+            gl.tex_parameter_i32(self.target.raw(), glow::TEXTURE_WRAP_R, mode.r.raw() as i32);
+        }
+    }
+
+    pub fn set_lod_bias(&self, bias: f32) {
+        let gl = self.ctx.raw();
+        unsafe {
+            gl.tex_parameter_f32(self.target.raw(), glow::TEXTURE_LOD_BIAS, bias);
+        }
+    }
+
+    pub fn set_border_color(&self, color: impl Into<Rgba<f32>>) {
+        let gl = self.ctx.raw();
+        unsafe {
+            gl.tex_parameter_f32_slice(self.target.raw(), glow::TEXTURE_BORDER_COLOR, color.into().as_ref());
         }
     }
 

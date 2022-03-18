@@ -57,8 +57,6 @@ impl DataType {
 
 }
 
-
-
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u32)]
 pub enum BlendFactor {

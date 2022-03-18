@@ -3,7 +3,7 @@ use enum_iterator::IntoEnumIterator;
 use glam::Vec2;
 use sdf2d::{Constant, Ops, Sdf, Shapes};
 use crate::{Context, DataType, InternalFormat, MipmapLevels, Texture, TextureType};
-use crate::opengl::{Format, Region3d};
+use crate::opengl::{FilterMode, Format, MagFilter, MinFilter, Region3d, TextureWrap, WrapMode};
 use crate::types::Angle;
 
 #[derive(Debug, IntoEnumIterator, Copy, Clone, Eq, PartialEq)]
@@ -226,6 +226,15 @@ impl ArrayTextureBuilder {
 
     fn finalize(self) -> Texture {
         self.texture.generate_mipmaps();
+        self.texture.set_filter_mode(FilterMode {
+            min: MinFilter::LinearMipmapLinear,
+            mag: MagFilter::Linear
+        });
+        self.texture.set_wrap_mode(WrapMode {
+            s: TextureWrap::ClampToEdge,
+            t: TextureWrap::ClampToEdge,
+            r: TextureWrap::ClampToEdge
+        });
         self.texture
     }
 
