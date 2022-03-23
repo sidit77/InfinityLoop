@@ -7,7 +7,7 @@ use glutin::window::{Window, WindowBuilder};
 use log::LevelFilter;
 use infinity_loop::{Game, GlowContext, InfinityLoop, Platform, PlatformWindow};
 
-pub struct GlutinWindow(ContextWrapper<PossiblyCurrent, Window>);
+struct GlutinWindow(ContextWrapper<PossiblyCurrent, Window>);
 
 impl PlatformWindow for GlutinWindow {
     fn window(&self) -> &Window {
@@ -23,7 +23,7 @@ impl PlatformWindow for GlutinWindow {
     }
 }
 
-pub struct GlutinPlatform;
+struct GlutinPlatform;
 
 impl Platform for GlutinPlatform {
     type Window = GlutinWindow;
