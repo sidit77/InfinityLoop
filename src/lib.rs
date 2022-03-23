@@ -18,7 +18,6 @@ pub use crate::app::{Game, GlowContext, Platform, PlatformWindow};
 
 pub struct InfinityLoop {
     _vertex_buffer: Buffer,
-    _index_buffer: Buffer,
     framebuffer: Framebuffer,
     framebuffer_dst: Texture,
     vertex_array: VertexArray,
@@ -38,14 +37,8 @@ impl Game for InfinityLoop {
         vertex_buffer.set_data::<f32>(&[
             -1., -1., 0., 0.,
             1., -1., 1., 0.,
-            1.,  1., 1., 1.,
             -1.,  1., 0., 1.,
-        ]);
-
-        let index_buffer = Buffer::new(ctx, BufferTarget::ElementArray).unwrap();
-        index_buffer.set_data::<u16>(&[
-            0, 1, 2,
-            0, 2, 3
+            1.,  1., 1., 1.,
         ]);
 
         vertex_array.set_bindings(&[
@@ -81,7 +74,7 @@ impl Game for InfinityLoop {
         Self {
             vertex_array,
             _vertex_buffer: vertex_buffer,
-            _index_buffer: index_buffer,
+            //_index_buffer: index_buffer,
             program,
             pp_program,
             camera,
@@ -129,7 +122,7 @@ impl Game for InfinityLoop {
                     conf.angle().to_radians(),
                     hex.into()
                 ));
-                ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, 0..6);
+                ctx.draw_arrays(PrimitiveType::TriangleStrip, 0, 4);
             }
         }
 
@@ -140,7 +133,7 @@ impl Game for InfinityLoop {
         self.pp_program.set_uniform_by_name("tex", 0);
         self.pp_program.set_uniform_by_name("camera", Mat3::IDENTITY);
         self.pp_program.set_uniform_by_name("model", Mat3::IDENTITY);
-        ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, 0..6);
+        ctx.draw_arrays(PrimitiveType::TriangleStrip, 0, 4);
     }
 
     fn event(&mut self, ctx: &Context, event: app::Event) {
