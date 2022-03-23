@@ -22,8 +22,8 @@ log = "0.4"
 winit = "0.26"
 glow = "0.11"
 instant = "0.1"
-bytemuck = "1.7"
-glam = "0.20"
+bytemuck = { version = "1.7", features = ["derive"] }
+glam = { version = "0.20", features = ["bytemuck"]}
 fastrand = "1.5"
 smallbitset = "0.3.0"
 lazy_static = "1.4"

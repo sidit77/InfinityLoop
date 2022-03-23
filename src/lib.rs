@@ -8,16 +8,25 @@ mod util;
 use std::ops::Sub;
 use std::time::Duration;
 use glam::{Mat3, Vec2};
+use bytemuck::{Pod, Zeroable};
 use crate::app::Event;
 use crate::camera::Camera;
-use crate::opengl::{Texture, Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute, BlendFactor, BlendState, BlendEquation, Framebuffer, TextureType, InternalFormat, MipmapLevels, FramebufferAttachment};
+use crate::opengl::{Texture, Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute, BlendFactor, BlendState, BlendEquation, Framebuffer, TextureType, InternalFormat, MipmapLevels, FramebufferAttachment, VertexStepMode};
 use crate::types::{Color, HexPos};
 use crate::world::{World};
 
 pub use crate::app::{Game, GlowContext, Platform, PlatformWindow};
 
+#[derive(Debug, Copy, Clone, Pod, Zeroable)]
+#[repr(C)]
+struct Instance {
+    model: Mat3,
+    texture: u32
+}
+
 pub struct InfinityLoop {
     _vertex_buffer: Buffer,
+    instance_buffer: Buffer,
     framebuffer: Framebuffer,
     framebuffer_dst: Texture,
     vertex_array: VertexArray,
@@ -41,9 +50,18 @@ impl Game for InfinityLoop {
             1.,  1., 1., 1.,
         ]);
 
-        vertex_array.set_bindings(&[
-            VertexArrayAttribute::Float(DataType::F32, 2, false),
-            VertexArrayAttribute::Float(DataType::F32, 2, false)
+        vertex_array.set_bindings(VertexStepMode::Vertex, &[
+            VertexArrayAttribute::Float(0, DataType::F32, 2, false),
+            VertexArrayAttribute::Float(1, DataType::F32, 2, false)
+        ]);
+
+        let instance_buffer = Buffer::new(ctx, BufferTarget::Array).unwrap();
+        ctx.bind_buffer(&instance_buffer);
+        vertex_array.set_bindings(VertexStepMode::Instance, &[
+            VertexArrayAttribute::Float(2, DataType::F32, 3, false),
+            VertexArrayAttribute::Float(3, DataType::F32, 3, false),
+            VertexArrayAttribute::Float(4, DataType::F32, 3, false),
+            VertexArrayAttribute::Integer(5, DataType::U32, 1)
         ]);
 
         let program = ShaderProgram::new(ctx, &[
@@ -81,7 +99,8 @@ impl Game for InfinityLoop {
             world,
             textures,
             framebuffer_dst,
-            framebuffer
+            framebuffer,
+            instance_buffer
         }
     }
 
@@ -114,17 +133,25 @@ impl Game for InfinityLoop {
         //    }
         //}
 
+        //self.program.set_uniform_by_name("tex_id", 6i32); //
+
+        let mut instances = Vec::new();
         for (hex, conf) in self.world.iter() {
             if !conf.is_empty() {
-                self.program.set_uniform_by_name("tex_id", conf.model() as i32); //
-                self.program.set_uniform_by_name("model", Mat3::from_scale_angle_translation(
-                    Vec2::ONE * 1.16,
-                    conf.angle().to_radians(),
-                    hex.into()
-                ));
-                ctx.draw_arrays(PrimitiveType::TriangleStrip, 0, 4);
+                instances.push(Instance {
+                    model: Mat3::from_scale_angle_translation(
+                        Vec2::ONE * 1.16,
+                        conf.angle().to_radians(),
+                        hex.into()
+                    ),
+                    texture: conf.model() as u32
+                });
             }
         }
+
+        self.instance_buffer.set_data(instances.as_slice());
+        ctx.draw_arrays_instanced(PrimitiveType::TriangleStrip, 0, 4, instances.len() as i32);
+
 
         ctx.use_framebuffer(None);
         ctx.set_blend_state(None);

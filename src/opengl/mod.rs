@@ -79,6 +79,14 @@ impl Context {
         }
     }
 
+    pub fn draw_arrays_instanced(&self, primitive_type: PrimitiveType, first: i32, count: i32, instance_count: i32) {
+        let gl = self.raw();
+        unsafe {
+            gl.draw_arrays_instanced(primitive_type.raw(), first, count, instance_count);
+        }
+    }
+
+
     pub fn draw_elements_range(&self, primitive_type: PrimitiveType, index_type: DataType, range: Range<i32>) {
         debug_assert!(matches!(index_type, DataType::U8 | DataType::U16 | DataType::U32));
         let gl = self.raw();
