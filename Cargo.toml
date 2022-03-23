@@ -15,6 +15,7 @@ members = [
     "platforms/desktop",
     "platforms/wasm"
 ]
+default-members = ["platforms/desktop"]
 
 [dependencies]
 log = "0.4"

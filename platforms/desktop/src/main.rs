@@ -32,6 +32,7 @@ impl Platform for GlutinPlatform {
         unsafe {
             let window_builder = WindowBuilder::new()
                 .with_inner_size(PhysicalSize::new(1280, 720))
+                .with_min_inner_size(PhysicalSize::new(100, 100))
                 .with_title("Infinity Loop");
             let window = glutin::ContextBuilder::new()
                 .with_vsync(true)
