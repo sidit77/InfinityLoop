@@ -1,5 +1,3 @@
-#![windows_subsystem = "windows"]
-
 mod opengl;
 mod types;
 mod app;
@@ -10,13 +8,15 @@ mod util;
 use std::ops::Sub;
 use std::time::Duration;
 use glam::{Mat4, Quat, Vec2, Vec3};
-use crate::app::{Event, EventHandler};
+use crate::app::Event;
 use crate::camera::Camera;
 use crate::opengl::{Texture, Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute, BlendFactor, BlendState, BlendEquation, Framebuffer, TextureType, InternalFormat, MipmapLevels, FramebufferAttachment};
 use crate::types::{Color, HexPos};
 use crate::world::{World};
 
-struct Game {
+pub use crate::app::{Game, GlowContext, Platform, PlatformWindow};
+
+pub struct InfinityLoop {
     _vertex_buffer: Buffer,
     _index_buffer: Buffer,
     framebuffer: Framebuffer,
@@ -29,20 +29,16 @@ struct Game {
     world: World
 }
 
-impl Game {
-
-    fn new(ctx: &Context) -> Self {
-
-
-
+impl Game for InfinityLoop {
+    fn initialize(ctx: &Context) -> Self {
         let vertex_array = VertexArray::new(ctx).unwrap();
         ctx.use_vertex_array(&vertex_array);
 
         let vertex_buffer = Buffer::new(ctx, BufferTarget::Array).unwrap();
         vertex_buffer.set_data::<f32>(&[
             -1., -1., 0., 0.,
-             1., -1., 1., 0.,
-             1.,  1., 1., 1.,
+            1., -1., 1., 0.,
+            1.,  1., 1., 1.,
             -1.,  1., 0., 1.,
         ]);
 
@@ -95,9 +91,7 @@ impl Game {
             framebuffer
         }
     }
-}
 
-impl EventHandler for Game {
     fn draw(&mut self, ctx: &Context, _delta: Duration) {
 
         ctx.use_vertex_array(&self.vertex_array);
@@ -182,7 +176,3 @@ impl EventHandler for Game {
     }
 }
 
-
-fn main() {
-    app::run(Game::new)
-}

@@ -270,6 +270,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "desktop"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "glutin",
+ "infinity_loop",
+ "log",
+]
+
+[[package]]
 name = "dispatch"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -499,11 +509,9 @@ dependencies = [
  "console_error_panic_hook",
  "console_log",
  "enum-iterator",
- "env_logger",
  "fastrand",
  "glam",
  "glow",
- "glutin",
  "instant",
  "lazy_static",
  "log",

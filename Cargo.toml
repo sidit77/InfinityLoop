@@ -1,15 +1,19 @@
 # You must change these to your own details.
 [package]
 name = "infinity_loop"
-description = "The Infinity Loop game as web app"
+description = "The Infinity Loop game as cross-platform app"
 version = "0.1.0"
 authors = ["sidit77 <sidit77@gmail.com>"]
-categories = ["wasm"]
 readme = "README.md"
-edition = "2018"
+edition = "2021"
 
 [profile.release]
 lto = true
+
+[workspace]
+members = [
+    "platforms/desktop"
+]
 
 [dependencies]
 log = "0.4"
@@ -31,7 +35,3 @@ wasm-bindgen = "0.2"
 console_log = "0.2"
 web-sys = "0.3"
 console_error_panic_hook = "0.1"
-
-[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
-glutin = "0.28"
-env_logger = "0.9"
