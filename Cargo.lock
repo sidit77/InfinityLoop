@@ -270,16 +270,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "desktop"
-version = "0.1.0"
-dependencies = [
- "env_logger",
- "glutin",
- "infinity_loop",
- "log",
-]
-
-[[package]]
 name = "dispatch"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -506,8 +496,6 @@ name = "infinity_loop"
 version = "0.1.0"
 dependencies = [
  "bytemuck",
- "console_error_panic_hook",
- "console_log",
  "enum-iterator",
  "fastrand",
  "glam",
@@ -519,9 +507,28 @@ dependencies = [
  "priority-queue",
  "sdf2d",
  "smallbitset",
+ "winit",
+]
+
+[[package]]
+name = "infinity_loop_desktop"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "glutin",
+ "infinity_loop",
+ "log",
+]
+
+[[package]]
+name = "infinity_loop_wasm"
+version = "0.1.0"
+dependencies = [
+ "console_error_panic_hook",
+ "console_log",
+ "log",
  "wasm-bindgen",
  "web-sys",
- "winit",
 ]
 
 [[package]]
