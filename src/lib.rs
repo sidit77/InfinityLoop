@@ -47,13 +47,13 @@ impl Game for InfinityLoop {
         ]);
 
         let program = ShaderProgram::new(ctx, &[
-            &Shader::new(ctx, ShaderType::Vertex, include_str!("shader/vertex.glsl")).unwrap(),
-            &Shader::new(ctx, ShaderType::Fragment, include_str!("shader/fragment.glsl")).unwrap(),
+            &Shader::new(ctx, ShaderType::Vertex, include_str!("shader/tiles.vert")).unwrap(),
+            &Shader::new(ctx, ShaderType::Fragment, include_str!("shader/tiles.frag")).unwrap(),
         ]).unwrap();
 
         let pp_program = ShaderProgram::new(ctx, &[
-            &Shader::new(ctx, ShaderType::Vertex, include_str!("shader/vertex.glsl")).unwrap(),
-            &Shader::new(ctx, ShaderType::Fragment, include_str!("shader/pp_fragment.glsl")).unwrap(),
+            &Shader::new(ctx, ShaderType::Vertex, include_str!("shader/postprocess.vert")).unwrap(),
+            &Shader::new(ctx, ShaderType::Fragment, include_str!("shader/postprocess.frag")).unwrap(),
         ]).unwrap();
 
         let framebuffer_dst = Texture::new(ctx, TextureType::Texture2d(1280, 720), InternalFormat::R8, MipmapLevels::None).unwrap();
@@ -131,8 +131,6 @@ impl Game for InfinityLoop {
         ctx.use_program(&self.pp_program);
         ctx.bind_texture(0, &self.framebuffer_dst);
         self.pp_program.set_uniform_by_name("tex", 0);
-        self.pp_program.set_uniform_by_name("camera", Mat3::IDENTITY);
-        self.pp_program.set_uniform_by_name("model", Mat3::IDENTITY);
         ctx.draw_arrays(PrimitiveType::TriangleStrip, 0, 4);
     }
 
