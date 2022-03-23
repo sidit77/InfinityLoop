@@ -3,12 +3,13 @@
 layout(location = 0) in vec2 position;
 layout(location = 1) in vec2 texcoords;
 
-uniform mat4 camera;
-uniform mat4 model;
+uniform mat3 camera;
+uniform mat3 model;
 
 out vec2 tex_coords;
 
 void main() {
-    gl_Position = camera * model * vec4(position, 0, 1);
+    vec3 pos = camera * model * vec3(position, 1);
+    gl_Position = vec4(pos.xy / pos.z, 0, 1);
     tex_coords = texcoords;
 }

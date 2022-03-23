@@ -7,7 +7,7 @@ mod util;
 
 use std::ops::Sub;
 use std::time::Duration;
-use glam::{Mat4, Quat, Vec2, Vec3};
+use glam::{Mat3, Vec2};
 use crate::app::Event;
 use crate::camera::Camera;
 use crate::opengl::{Texture, Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute, BlendFactor, BlendState, BlendEquation, Framebuffer, TextureType, InternalFormat, MipmapLevels, FramebufferAttachment};
@@ -124,10 +124,11 @@ impl Game for InfinityLoop {
         for (hex, conf) in self.world.iter() {
             if !conf.is_empty() {
                 self.program.set_uniform_by_name("tex_id", conf.model() as i32); //
-                self.program.set_uniform_by_name("model", Mat4::from_scale_rotation_translation(
-                    Vec3::ONE * 1.16,
-                    Quat::from_rotation_z(conf.angle().to_radians()),
-                    Vec2::from(hex).extend(0.0)));
+                self.program.set_uniform_by_name("model", Mat3::from_scale_angle_translation(
+                    Vec2::ONE * 1.16,
+                    conf.angle().to_radians(),
+                    hex.into()
+                ));
                 ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, 0..6);
             }
         }
@@ -137,8 +138,8 @@ impl Game for InfinityLoop {
         ctx.use_program(&self.pp_program);
         ctx.bind_texture(0, &self.framebuffer_dst);
         self.pp_program.set_uniform_by_name("tex", 0);
-        self.pp_program.set_uniform_by_name("camera", Mat4::IDENTITY);
-        self.pp_program.set_uniform_by_name("model", Mat4::IDENTITY);
+        self.pp_program.set_uniform_by_name("camera", Mat3::IDENTITY);
+        self.pp_program.set_uniform_by_name("model", Mat3::IDENTITY);
         ctx.draw_elements_range(PrimitiveType::Triangles, DataType::U16, 0..6);
     }
 

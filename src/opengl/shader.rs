@@ -1,4 +1,4 @@
-use glam::{Mat4, Vec2};
+use glam::{Mat3, Mat4, Vec2};
 use glow::HasContext;
 use crate::opengl::Context;
 use crate::types::Rgba;
@@ -130,6 +130,14 @@ impl SetUniform<Mat4> for ShaderProgram {
     fn set_uniform(&self, location: &UniformLocation, data: Mat4) {
         unsafe {
             self.ctx.raw().uniform_matrix_4_f32_slice(Some(location), false, &data.to_cols_array())
+        }
+    }
+}
+
+impl SetUniform<Mat3> for ShaderProgram {
+    fn set_uniform(&self, location: &UniformLocation, data: Mat3) {
+        unsafe {
+            self.ctx.raw().uniform_matrix_3_f32_slice(Some(location), false, &data.to_cols_array())
         }
     }
 }

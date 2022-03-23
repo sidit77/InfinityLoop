@@ -25,19 +25,13 @@ impl Camera {
     pub fn to_world_coords(self, screen_coords: Vec2) -> Vec2 {
         self.to_matrix()
             .inverse()
-            .transform_point3(
-                (2.0 * screen_coords - Vec2::ONE).extend(0.0))
-            .xy()
+            .transform_point2(2.0 * screen_coords - Vec2::ONE)
     }
 
-    pub fn to_matrix(self) -> Mat4 {
-        Mat4::orthographic_rh(-(self.scale * self.aspect),
-                              self.scale * self.aspect,
-                              -self.scale,
-                              self.scale, 0.0, 100.0) *
-        Mat4::from_rotation_z(-self.rotation.to_radians()) *
-        Mat4::from_translation(-self.position.extend(0.0))
-
+    pub fn to_matrix(self) -> Mat3 {
+        Mat3::from_scale(1.0 / (Vec2::new(self.aspect, 1.0) * self.scale)) *
+        Mat3::from_angle(-self.rotation.to_radians()) *
+        Mat3::from_translation(-self.position)
     }
 
 }
