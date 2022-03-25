@@ -7,63 +7,9 @@ use crate::opengl::*;
 use crate::types::Angle;
 use crate::world::{generate_tile_texture, HexMap, TileConfig, World};
 
-#[derive(Debug, Copy, Clone, Default, Pod, Zeroable)]
-#[repr(C)]
-struct Instance {
-    model: Mat3,
-    texture: u32
-}
-
-#[derive(Debug, Copy, Clone, Default)]
-struct RenderState {
-    pos: Vec2,
-    scale: f32,
-    texture: u32,
-    current_rotation: Angle,
-    target_rotation: Angle
-}
-
-impl RenderState {
-
-    fn new(pos: HexPos, config: TileConfig) -> Self {
-        Self {
-            pos: pos.into(),
-            scale: 1.16,
-            texture: config.model() as u32,
-            current_rotation: config.angle(),
-            target_rotation: config.angle()
-        }
-    }
-
-    fn as_instance(&self) -> Instance {
-        Instance {
-            model: Mat3::from_scale_angle_translation(
-                Vec2::ONE * self.scale,
-                self.current_rotation.to_radians(),
-                self.pos
-            ),
-            texture: self.texture
-        }
-    }
-
-    fn update(&mut self, delta: Duration) {
-        self.current_rotation = Angle::lerp_snap(self.current_rotation, self.target_rotation,
-                                            1.0 - f32::exp(-14.0 * delta.as_secs_f32()),
-                                                Angle::radians(0.03));
-    }
-
-    fn update_required(&self) -> bool {
-        self.current_rotation != self.target_rotation
-    }
-
-    fn update_target_rotation(&mut self, target: Angle) {
-        self.target_rotation = target;
-    }
-
-}
-
 pub struct RenderableWorld {
     shader: ShaderProgram,
+    camera_location: UniformLocation,
     textures: Texture,
     vertex_array: VertexArray,
     instance_buffer: Buffer,
@@ -90,6 +36,8 @@ impl RenderableWorld {
             &Shader::new(ctx, ShaderType::Vertex, include_str!("../shader/tiles.vert"))?,
             &Shader::new(ctx, ShaderType::Fragment, include_str!("../shader/tiles.frag"))?,
         ])?;
+        ctx.use_program(&shader);
+        shader.set_uniform_by_name("tex", 0);
 
         let textures = generate_tile_texture(ctx)?;
 
@@ -103,8 +51,11 @@ impl RenderableWorld {
         let instance_data = instances.values().map(RenderState::as_instance).collect::<Vec<Instance>>();
         instance_buffer.set_data(instance_data.as_slice(), BufferUsage::DynamicDraw);
 
+        let camera_location = shader.get_uniform_name("camera").unwrap();
+
         Ok(Self {
             shader,
+            camera_location,
             textures,
             vertex_array,
             instance_buffer,
@@ -125,8 +76,7 @@ impl RenderableWorld {
         });
         ctx.use_program(&self.shader);
         ctx.bind_texture(0, &self.textures);
-        self.shader.set_uniform_by_name("tex", 0);
-        self.shader.set_uniform_by_name("camera", camera.to_matrix());
+        self.shader.set_uniform(&self.camera_location, camera.to_matrix());
 
         ctx.draw_arrays_instanced(PrimitiveType::TriangleStrip, 0, 4, self.instances.len() as i32);
 
@@ -157,6 +107,65 @@ impl RenderableWorld {
 
     pub fn is_completed(&self) -> bool {
         self.world.is_completed()
+    }
+
+}
+
+
+#[derive(Debug, Copy, Clone, Default, Pod, Zeroable)]
+#[repr(C)]
+struct Instance {
+    model: Mat3,
+    texture: u32
+}
+
+#[derive(Debug, Copy, Clone, Default)]
+struct RenderState {
+    pos: Vec2,
+    scale: f32,
+    texture: u32,
+    current_rotation: Angle,
+    target_rotation: Angle
+}
+
+impl RenderState {
+
+    fn new(pos: HexPos, config: TileConfig) -> Self {
+        Self {
+            pos: pos.into(),
+            scale: match config {
+                TileConfig::Empty => 0.0,
+                TileConfig::Tile(_, _) => 1.16,
+            },
+            texture: config.model() as u32,
+            current_rotation: config.angle(),
+            target_rotation: config.angle()
+        }
+    }
+
+    fn as_instance(&self) -> Instance {
+        Instance {
+            model: Mat3::from_scale_angle_translation(
+                Vec2::ONE * self.scale,
+                self.current_rotation.to_radians(),
+                self.pos
+            ),
+            texture: self.texture
+        }
+    }
+
+    fn update(&mut self, delta: Duration) {
+        self.current_rotation = Angle::lerp_snap(self.current_rotation, self.target_rotation,
+                                                 1.0 - f32::exp(-14.0 * delta.as_secs_f32()),
+                                                 Angle::radians(0.03));
+    }
+
+    fn update_required(&self) -> bool {
+        self.current_rotation != self.target_rotation
+    }
+
+    fn update_target_rotation(&mut self, target: Angle) {
+        self.target_rotation = target;
     }
 
 }
