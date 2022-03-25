@@ -4,13 +4,12 @@ mod generator;
 
 use std::collections::HashSet;
 use fastrand::Rng;
-use map::HexMap;
 use generator::PossibilityMap;
 use crate::HexPos;
 use crate::util::Update;
 
 pub use tiles::*;
-
+pub use map::HexMap;
 
 #[derive(Debug, Clone)]
 pub struct World {
@@ -52,6 +51,10 @@ impl World {
             elements,
             incomplete: HashSet::new()
         }
+    }
+
+    pub fn tiles(&self) -> &HexMap<TileConfig> {
+        &self.elements
     }
 
     pub fn scramble(&mut self) {

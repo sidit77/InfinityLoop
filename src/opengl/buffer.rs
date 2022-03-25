@@ -27,6 +27,26 @@ impl BufferTarget {
     }
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[repr(u32)]
+pub enum BufferUsage {
+    StreamDraw = glow::STREAM_DRAW,
+    StreamRead = glow::STREAM_READ,
+    StreamCopy = glow::STREAM_COPY,
+    DynamicDraw = glow::DYNAMIC_DRAW,
+    DynamicRead = glow::DYNAMIC_READ,
+    DynamicCopy = glow::DYNAMIC_COPY,
+    StaticDraw = glow::STATIC_DRAW,
+    StaticRead = glow::STATIC_READ,
+    StaticCopy = glow::STATIC_COPY
+}
+
+impl BufferUsage {
+    pub fn raw(self) -> u32 {
+        self as u32
+    }
+}
+
 type GlowBuffer = glow::Buffer;
 
 pub struct Buffer {
@@ -49,14 +69,24 @@ impl Buffer {
         }
     }
 
-    pub fn set_data<T: Pod>(&self, data: &[T]){
+    pub fn set_data<T: Pod>(&self, data: &[T], usage: BufferUsage){
         self.ctx.bind_buffer(self);
         let data = bytemuck::cast_slice(data);
         let gl = self.ctx.raw();
         unsafe {
-            gl.buffer_data_u8_slice(self.target.raw(), data, glow::STATIC_DRAW);
+            gl.buffer_data_u8_slice(self.target.raw(), data, usage.raw());
         }
     }
+
+    pub fn set_sub_data<T: Pod>(&self, offset: usize, data: &[T]){
+        self.ctx.bind_buffer(self);
+        let data = bytemuck::cast_slice(data);
+        let gl = self.ctx.raw();
+        unsafe {
+            gl.buffer_sub_data_u8_slice(self.target.raw(), (std::mem::size_of::<T>() * offset) as i32, data);
+        }
+    }
+
 
     pub fn raw(&self) -> GlowBuffer {
         self.id

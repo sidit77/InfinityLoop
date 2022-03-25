@@ -7,6 +7,12 @@ pub struct HexMap<T> {
     elements: Box<[T]>
 }
 
+impl<T> AsRef<[T]> for HexMap<T> {
+    fn as_ref(&self) -> &[T] {
+        &self.elements
+    }
+}
+
 impl<T: Debug> Debug for HexMap<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_map().entries(self.keys().map(|k| (k, self.get(k).unwrap()))).finish()
@@ -31,15 +37,17 @@ impl<T: Default + Clone> HexMap<T> {
 }
 
 impl<T> HexMap<T> {
-    pub fn from<U>(old: HexMap<U>, func: impl Fn(&U) -> T) -> Self {
+
+    pub fn from<U>(old: &HexMap<U>, func: impl Fn(&U) -> T) -> Self {
         Self {
             radius: old.radius,
             elements: old.elements.iter().map(func).collect()
         }
     }
-}
 
-impl<T> HexMap<T> {
+    pub fn len(&self) -> usize {
+        self.elements.len()
+    }
 
     pub fn keys(&self) -> impl Iterator<Item=HexPos> {
         HexPos::spiral_iter(self.center(), self.radius)
@@ -61,7 +69,7 @@ impl<T> HexMap<T> {
         HexPos::CENTER
     }
 
-    fn index(&self, pos: HexPos) -> Option<usize> {
+    pub fn index(&self, pos: HexPos) -> Option<usize> {
         if !self.contains(pos) {
             None
         } else {

@@ -104,7 +104,7 @@ impl From<PossibilityMap> for HexMap<TileConfig> {
 
     fn from(map: PossibilityMap) -> Self {
         assert!(!map.map.values().any(|set| set.len() != 1));
-        Self::from(map.map, |set| ELEMENT_TABLE[set.iter().next().unwrap() as usize])
+        Self::from(&map.map, |set| ELEMENT_TABLE[set.iter().next().unwrap() as usize])
     }
 
 }

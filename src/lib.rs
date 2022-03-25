@@ -11,7 +11,7 @@ use std::time::Duration;
 use glam::Vec2;
 use crate::app::Event;
 use crate::camera::Camera;
-use crate::opengl::{Texture, Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, VertexArray, VertexArrayAttribute, BlendFactor, BlendState, BlendEquation, Framebuffer, TextureType, InternalFormat, MipmapLevels, FramebufferAttachment, VertexStepMode};
+use crate::opengl::{Texture, Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, Framebuffer, TextureType, InternalFormat, MipmapLevels, FramebufferAttachment};
 use crate::types::{Color, HexPos};
 use crate::world::{World};
 

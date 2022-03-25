@@ -101,7 +101,7 @@ impl TileConfig {
 
     pub fn model(self) -> usize {
         match self {
-            TileConfig::Empty => panic!("TileConfig::Empty has no model"),
+            TileConfig::Empty => 0,
             TileConfig::Tile(t, _) => t.model(),
         }
     }

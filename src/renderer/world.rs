@@ -1,9 +1,10 @@
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat3, Vec2};
-use crate::{BlendEquation, BlendFactor, BlendState, Buffer, BufferTarget, Camera, Color, Context, DataType, HexPos, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, Texture, VertexArray, VertexArrayAttribute, VertexStepMode, World};
-use crate::world::generate_tile_texture;
+use crate::{Camera, Color, HexPos};
+use crate::opengl::*;
+use crate::world::{generate_tile_texture, HexMap, World};
 
-#[derive(Debug, Copy, Clone, Pod, Zeroable)]
+#[derive(Debug, Copy, Clone, Default, Pod, Zeroable)]
 #[repr(C)]
 struct Instance {
     model: Mat3,
@@ -15,7 +16,8 @@ pub struct RenderableWorld {
     textures: Texture,
     vertex_array: VertexArray,
     instance_buffer: Buffer,
-    world: World
+    world: World,
+    tile_data: HexMap<()>
 }
 
 impl RenderableWorld {
@@ -39,12 +41,29 @@ impl RenderableWorld {
 
         let textures = generate_tile_texture(ctx)?;
 
+
+        let mut instances = HexMap::new(world.tiles().radius());
+
+        for (pos, tc) in world.iter() {
+            *instances.get_mut(pos).unwrap() = Instance {
+                model: Mat3::from_scale_angle_translation(
+                    Vec2::ONE * 1.16,
+                    tc.angle().to_radians(),
+                    pos.into()
+                ),
+                texture: tc.model() as u32
+            };
+        }
+
+        instance_buffer.set_data(instances.as_ref(), BufferUsage::DynamicDraw);
+
         Ok(Self {
             shader,
             textures,
             vertex_array,
             instance_buffer,
-            world
+            world,
+            tile_data: HexMap::new(instances.radius())
         })
     }
 
@@ -62,27 +81,26 @@ impl RenderableWorld {
         self.shader.set_uniform_by_name("tex", 0);
         self.shader.set_uniform_by_name("camera", camera.to_matrix());
 
-        let mut instances = Vec::new();
-        for (hex, conf) in self.world.iter() {
-            if !conf.is_empty() {
-                instances.push(Instance {
-                    model: Mat3::from_scale_angle_translation(
-                        Vec2::ONE * 1.16,
-                        conf.angle().to_radians(),
-                        hex.into()
-                    ),
-                    texture: conf.model() as u32
-                });
-            }
-        }
-
-        self.instance_buffer.set_data(instances.as_slice());
-        ctx.draw_arrays_instanced(PrimitiveType::TriangleStrip, 0, 4, instances.len() as i32);
+        ctx.draw_arrays_instanced(PrimitiveType::TriangleStrip, 0, 4, self.tile_data.len() as i32);
 
     }
 
     pub fn try_rotate(&mut self, pos: HexPos) -> bool {
-        self.world.try_rotate(pos)
+        let result = self.world.try_rotate(pos);
+        if result {
+            let offset = self.tile_data.index(pos).unwrap();
+            let tc = self.world.tiles().get(pos).unwrap();
+            self.instance_buffer.set_sub_data(offset, &[Instance {
+                model: Mat3::from_scale_angle_translation(
+                    Vec2::ONE * 1.16,
+                    tc.angle().to_radians(),
+                    pos.into()
+                ),
+                texture: tc.model() as u32
+            }])
+        }
+
+        result
     }
 
     pub fn is_completed(&self) -> bool {
