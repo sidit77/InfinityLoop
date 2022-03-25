@@ -25,7 +25,6 @@ struct Instance {
 }
 
 pub struct InfinityLoop {
-    _vertex_buffer: Buffer,
     instance_buffer: Buffer,
     framebuffer: Framebuffer,
     framebuffer_dst: Texture,
@@ -42,26 +41,12 @@ impl Game for InfinityLoop {
         let vertex_array = VertexArray::new(ctx).unwrap();
         ctx.use_vertex_array(&vertex_array);
 
-        let vertex_buffer = Buffer::new(ctx, BufferTarget::Array).unwrap();
-        vertex_buffer.set_data::<f32>(&[
-            -1., -1., 0., 0.,
-            1., -1., 1., 0.,
-            -1.,  1., 0., 1.,
-            1.,  1., 1., 1.,
-        ]);
-
-        vertex_array.set_bindings(VertexStepMode::Vertex, &[
-            VertexArrayAttribute::Float(0, DataType::F32, 2, false),
-            VertexArrayAttribute::Float(1, DataType::F32, 2, false)
-        ]);
-
         let instance_buffer = Buffer::new(ctx, BufferTarget::Array).unwrap();
-        ctx.bind_buffer(&instance_buffer);
-        vertex_array.set_bindings(VertexStepMode::Instance, &[
+        vertex_array.set_bindings(&instance_buffer, VertexStepMode::Instance, &[
+            VertexArrayAttribute::Float(0, DataType::F32, 3, false),
+            VertexArrayAttribute::Float(1, DataType::F32, 3, false),
             VertexArrayAttribute::Float(2, DataType::F32, 3, false),
-            VertexArrayAttribute::Float(3, DataType::F32, 3, false),
-            VertexArrayAttribute::Float(4, DataType::F32, 3, false),
-            VertexArrayAttribute::Integer(5, DataType::U32, 1)
+            VertexArrayAttribute::Integer(3, DataType::U32, 1)
         ]);
 
         let program = ShaderProgram::new(ctx, &[
@@ -91,8 +76,6 @@ impl Game for InfinityLoop {
 
         Self {
             vertex_array,
-            _vertex_buffer: vertex_buffer,
-            //_index_buffer: index_buffer,
             program,
             pp_program,
             camera,

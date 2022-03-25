@@ -1,4 +1,5 @@
 use glow::HasContext;
+use crate::{Buffer, BufferTarget};
 use crate::opengl::{Context, DataType};
 
 type GlowVertexArray = glow::VertexArray;
@@ -63,7 +64,9 @@ impl VertexArray {
         }
     }
 
-    pub fn set_bindings(&self, mode: VertexStepMode, bindings: &[VertexArrayAttribute]) {
+    pub fn set_bindings(&self, buffer: &Buffer, mode: VertexStepMode, bindings: &[VertexArrayAttribute]) {
+        debug_assert_eq!(buffer.target(), BufferTarget::Array);
+        self.ctx.bind_buffer(buffer);
         let gl = self.ctx.raw();
         let stride = bindings.iter().map(|b|b.size()).sum::<u32>() as i32;
         let mut offset = 0;

@@ -1,16 +1,24 @@
 #version 300 es
 
-layout(location = 0) in vec2 position;
-layout(location = 1) in vec2 texcoords;
-layout(location = 2) in mat3 model;
-layout(location = 5) in uint texId;
+layout(location = 0) in mat3 model;
+layout(location = 3) in uint texId;
+
+const vec2 vertex_positions[4] = vec2[4](
+    vec2(-1., -1.),
+    vec2( 1., -1.),
+    vec2(-1.,  1.),
+    vec2( 1.,  1.)
+);
+
 
 uniform mat3 camera;
 
 out vec3 tex_coords;
 
 void main() {
-    vec3 pos = camera * model * vec3(position, 1);
-    gl_Position = vec4(pos.xy / pos.z, 0, 1);
-    tex_coords = vec3(texcoords, float(texId));
+    vec2 vertex_position = vertex_positions[gl_VertexID];
+    tex_coords = vec3((vertex_position + vec2(1., 1.)) * 0.5, float(texId));
+    vec3 position = camera * model * vec3(vertex_position, 1);
+    gl_Position = vec4(position.xy / position.z, 0, 1);
+
 }
