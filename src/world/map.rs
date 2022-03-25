@@ -7,12 +7,6 @@ pub struct HexMap<T> {
     elements: Box<[T]>
 }
 
-impl<T> AsRef<[T]> for HexMap<T> {
-    fn as_ref(&self) -> &[T] {
-        &self.elements
-    }
-}
-
 impl<T: Debug> Debug for HexMap<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_map().entries(self.keys().map(|k| (k, self.get(k).unwrap()))).finish()

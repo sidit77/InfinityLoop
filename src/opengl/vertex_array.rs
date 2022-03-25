@@ -73,16 +73,16 @@ impl VertexArray {
         for binding in bindings {
             unsafe {
                 gl.enable_vertex_attrib_array(binding.id());
-                match binding {
-                    &VertexArrayAttribute::Float(id, data_type, size, normalized) => {
+                match *binding {
+                    VertexArrayAttribute::Float(id, data_type, size, normalized) => {
                         debug_assert!(matches!(data_type, DataType::I8 | DataType::U8 | DataType::I16 | DataType::U16 | DataType::I32 | DataType::U32 | DataType::F16 | DataType::F32 | DataType::F64));
                         gl.vertex_attrib_pointer_f32(id, size as i32, data_type.raw(), normalized, stride, offset);
                     }
-                    &VertexArrayAttribute::Integer(id, data_type, size) => {
+                    VertexArrayAttribute::Integer(id, data_type, size) => {
                         debug_assert!(matches!(data_type, DataType::I8 | DataType::U8 | DataType::I16 | DataType::U16 | DataType::I32 | DataType::U32));
                         gl.vertex_attrib_pointer_i32(id, size as i32, data_type.raw(), stride, offset);
                     }
-                    &VertexArrayAttribute::Double(id, data_type, size) => {
+                    VertexArrayAttribute::Double(id, data_type, size) => {
                         debug_assert!(matches!(data_type, DataType::F64));
                         gl.vertex_attrib_pointer_f64(id, size as i32, data_type.raw(), stride, offset);
                     }

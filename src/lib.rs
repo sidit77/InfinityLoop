@@ -1,3 +1,5 @@
+extern crate core;
+
 mod opengl;
 mod types;
 mod app;
@@ -57,7 +59,9 @@ impl Game for InfinityLoop {
         }
     }
 
-    fn draw(&mut self, ctx: &Context, _delta: Duration) {
+    fn draw(&mut self, ctx: &Context, delta: Duration) {
+        self.world.update(delta);
+
         ctx.use_framebuffer(&self.framebuffer);
         self.world.render(ctx, &self.camera);
 

@@ -59,6 +59,22 @@ impl Angle {
         self + diff * factor
     }
 
+    pub fn lerp_snap(self, rhs: Self, factor: f32, threshold: Self) -> Self {
+        let mut diff = (rhs - self).normalized();
+        if diff > Self::half() {
+            diff -= Self::full()
+        }
+        if diff.abs() < threshold {
+            rhs
+        } else {
+            self + diff * factor
+        }
+    }
+
+    pub fn abs(self) -> Self {
+        Angle(self.0.abs())
+    }
+
 }
 
 impl Add for Angle {

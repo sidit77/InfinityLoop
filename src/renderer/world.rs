@@ -1,8 +1,11 @@
+use std::collections::HashSet;
+use std::time::Duration;
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat3, Vec2};
 use crate::{Camera, Color, HexPos};
 use crate::opengl::*;
-use crate::world::{generate_tile_texture, HexMap, World};
+use crate::types::Angle;
+use crate::world::{generate_tile_texture, HexMap, TileConfig, World};
 
 #[derive(Debug, Copy, Clone, Default, Pod, Zeroable)]
 #[repr(C)]
@@ -11,13 +14,62 @@ struct Instance {
     texture: u32
 }
 
+#[derive(Debug, Copy, Clone, Default)]
+struct RenderState {
+    pos: Vec2,
+    scale: f32,
+    texture: u32,
+    current_rotation: Angle,
+    target_rotation: Angle
+}
+
+impl RenderState {
+
+    fn new(pos: HexPos, config: TileConfig) -> Self {
+        Self {
+            pos: pos.into(),
+            scale: 1.16,
+            texture: config.model() as u32,
+            current_rotation: config.angle(),
+            target_rotation: config.angle()
+        }
+    }
+
+    fn as_instance(&self) -> Instance {
+        Instance {
+            model: Mat3::from_scale_angle_translation(
+                Vec2::ONE * self.scale,
+                self.current_rotation.to_radians(),
+                self.pos
+            ),
+            texture: self.texture
+        }
+    }
+
+    fn update(&mut self, delta: Duration) {
+        self.current_rotation = Angle::lerp_snap(self.current_rotation, self.target_rotation,
+                                            1.0 - f32::exp(-14.0 * delta.as_secs_f32()),
+                                                Angle::radians(0.03));
+    }
+
+    fn update_required(&self) -> bool {
+        self.current_rotation != self.target_rotation
+    }
+
+    fn update_target_rotation(&mut self, target: Angle) {
+        self.target_rotation = target;
+    }
+
+}
+
 pub struct RenderableWorld {
     shader: ShaderProgram,
     textures: Texture,
     vertex_array: VertexArray,
     instance_buffer: Buffer,
     world: World,
-    tile_data: HexMap<()>
+    instances: HexMap<RenderState>,
+    active_instances: HashSet<HexPos>
 }
 
 impl RenderableWorld {
@@ -45,17 +97,11 @@ impl RenderableWorld {
         let mut instances = HexMap::new(world.tiles().radius());
 
         for (pos, tc) in world.iter() {
-            *instances.get_mut(pos).unwrap() = Instance {
-                model: Mat3::from_scale_angle_translation(
-                    Vec2::ONE * 1.16,
-                    tc.angle().to_radians(),
-                    pos.into()
-                ),
-                texture: tc.model() as u32
-            };
+            *instances.get_mut(pos).unwrap() = RenderState::new(pos, tc);
         }
 
-        instance_buffer.set_data(instances.as_ref(), BufferUsage::DynamicDraw);
+        let instance_data = instances.values().map(RenderState::as_instance).collect::<Vec<Instance>>();
+        instance_buffer.set_data(instance_data.as_slice(), BufferUsage::DynamicDraw);
 
         Ok(Self {
             shader,
@@ -63,7 +109,8 @@ impl RenderableWorld {
             vertex_array,
             instance_buffer,
             world,
-            tile_data: HexMap::new(instances.radius())
+            instances,
+            active_instances: HashSet::new()
         })
     }
 
@@ -81,23 +128,28 @@ impl RenderableWorld {
         self.shader.set_uniform_by_name("tex", 0);
         self.shader.set_uniform_by_name("camera", camera.to_matrix());
 
-        ctx.draw_arrays_instanced(PrimitiveType::TriangleStrip, 0, 4, self.tile_data.len() as i32);
+        ctx.draw_arrays_instanced(PrimitiveType::TriangleStrip, 0, 4, self.instances.len() as i32);
+
+    }
+
+    pub fn update(&mut self, delta: Duration) {
+        self.active_instances.retain(|pos| self.instances.get(*pos).unwrap().update_required());
+        for pos in self.active_instances.iter().copied() {
+            let offset = self.instances.index(pos).unwrap();
+            let instance = self.instances.get_mut(pos).unwrap();
+            instance.update(delta);
+            self.instance_buffer.set_sub_data(offset, &[instance.as_instance()]);
+        }
 
     }
 
     pub fn try_rotate(&mut self, pos: HexPos) -> bool {
         let result = self.world.try_rotate(pos);
         if result {
-            let offset = self.tile_data.index(pos).unwrap();
             let tc = self.world.tiles().get(pos).unwrap();
-            self.instance_buffer.set_sub_data(offset, &[Instance {
-                model: Mat3::from_scale_angle_translation(
-                    Vec2::ONE * 1.16,
-                    tc.angle().to_radians(),
-                    pos.into()
-                ),
-                texture: tc.model() as u32
-            }])
+            self.instances.get_mut(pos).unwrap().update_target_rotation(tc.angle());
+
+            self.active_instances.insert(pos);
         }
 
         result

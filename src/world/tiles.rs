@@ -74,12 +74,12 @@ impl TileConfig {
         }
     }
 
-    pub fn is_empty(self) -> bool {
-        match self {
-            TileConfig::Empty => true,
-            TileConfig::Tile(_, _) => false
-        }
-    }
+    //pub fn is_empty(self) -> bool {
+    //    match self {
+    //        TileConfig::Empty => true,
+    //        TileConfig::Tile(_, _) => false
+    //    }
+    //}
 
     pub fn angle(self) -> Angle {
         Angle::radians(-std::f32::consts::FRAC_PI_3 * self.rotation() as f32)
