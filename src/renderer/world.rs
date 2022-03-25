@@ -45,7 +45,7 @@ impl RenderableWorld {
         let mut instances = HexMap::new(world.tiles().radius());
 
         for (pos, tc) in world.iter() {
-            *instances.get_mut(pos).unwrap() = RenderState::new(pos, tc);
+            instances[pos] = RenderState::new(pos, tc);
         }
 
         let instance_data = instances.values().map(RenderState::as_instance).collect::<Vec<Instance>>();
@@ -83,10 +83,10 @@ impl RenderableWorld {
     }
 
     pub fn update(&mut self, delta: Duration) {
-        self.active_instances.retain(|pos| self.instances.get(*pos).unwrap().update_required());
+        self.active_instances.retain(|pos| self.instances[*pos].update_required());
         for pos in self.active_instances.iter().copied() {
             let offset = self.instances.index(pos).unwrap();
-            let instance = self.instances.get_mut(pos).unwrap();
+            let instance = &mut self.instances[pos];
             instance.update(delta);
             self.instance_buffer.set_sub_data(offset, &[instance.as_instance()]);
         }
@@ -96,8 +96,8 @@ impl RenderableWorld {
     pub fn try_rotate(&mut self, pos: HexPos) -> bool {
         let result = self.world.try_rotate(pos);
         if result {
-            let tc = self.world.tiles().get(pos).unwrap();
-            self.instances.get_mut(pos).unwrap().update_target_rotation(tc.angle());
+            let tc = self.world.tiles()[pos];
+            self.instances[pos].update_target_rotation(tc.angle());
 
             self.active_instances.insert(pos);
         }

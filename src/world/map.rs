@@ -1,4 +1,5 @@
 use std::fmt::{Debug, Formatter};
+use std::ops::{Index, IndexMut};
 use crate::HexPos;
 
 #[derive(Clone)]
@@ -9,9 +10,26 @@ pub struct HexMap<T> {
 
 impl<T: Debug> Debug for HexMap<T> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        f.debug_map().entries(self.keys().map(|k| (k, self.get(k).unwrap()))).finish()
+        f.debug_map().entries(self.keys().map(|k| (k, &self[k]))).finish()
     }
 }
+
+impl<T> Index<HexPos> for HexMap<T> {
+    type Output = T;
+
+    fn index(&self, index: HexPos) -> &Self::Output {
+        let index = self.index(index).expect("the index is out-of-bounds");
+        &self.elements[index]
+    }
+}
+
+impl<T> IndexMut<HexPos> for HexMap<T> {
+    fn index_mut(&mut self, index: HexPos) -> &mut Self::Output {
+        let index = self.index(index).expect("the index is out-of-bounds");
+        &mut self.elements[index]
+    }
+}
+
 
 impl<T: Default + Clone> HexMap<T> {
     pub fn new(radius: i32) -> Self {

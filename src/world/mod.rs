@@ -107,7 +107,7 @@ impl World {
     }
 
     pub fn iter(&self) -> impl Iterator<Item=(HexPos, TileConfig)> + '_ {
-        self.elements.keys().map(move |k|(k, *self.elements.get(k).unwrap()))
+        self.elements.keys().map(move |k|(k, self.elements[k]))
     }
 
 }
