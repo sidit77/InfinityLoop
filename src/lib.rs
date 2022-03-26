@@ -89,9 +89,9 @@ impl Game for InfinityLoop {
                 let pt = self.camera.to_world_coords(pos).into();
                 self.world.try_rotate(pt);
                 if self.world.is_completed() {
-                    //self.world = World::new(self.world.seed() + 1);
-                    //self.world.scramble();
-                    println!("Well done!");
+                    let mut new_world = World::new(self.world.seed() + 1);
+                    new_world.scramble();
+                    self.world.reinitialize(new_world);
                 }
 
             },

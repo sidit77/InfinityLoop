@@ -12,3 +12,12 @@ impl<T: Eq> Update for T {
         }
     }
 }
+
+pub trait Apply: Sized {
+    fn apply<F: FnOnce(&mut Self)>(mut self, func: F) -> Self {
+        func(&mut self);
+        self
+    }
+}
+
+impl<T> Apply for T {}

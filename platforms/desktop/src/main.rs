@@ -1,6 +1,6 @@
 #![windows_subsystem = "windows"]
 
-use glutin::{ContextWrapper, PossiblyCurrent};
+use glutin::{ContextWrapper, GlProfile, PossiblyCurrent};
 use glutin::dpi::PhysicalSize;
 use glutin::event_loop::EventLoopWindowTarget;
 use glutin::window::{Window, WindowBuilder};
@@ -36,6 +36,9 @@ impl Platform for GlutinPlatform {
                 .with_title("Infinity Loop");
             let window = glutin::ContextBuilder::new()
                 .with_vsync(true)
+                .with_depth_buffer(0)
+                .with_stencil_buffer(0)
+                .with_gl_profile(GlProfile::Core)
                 .build_windowed(window_builder, el)
                 .expect("Can not get OpenGL context!")
                 .make_current()

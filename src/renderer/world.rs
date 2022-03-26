@@ -7,6 +7,7 @@ use crate::{Camera, Color, HexPos};
 use crate::opengl::*;
 use crate::renderer::TileRenderResources;
 use crate::types::Angle;
+use crate::util::Apply;
 use crate::world::{HexMap, TileConfig, World};
 
 pub struct RenderableWorld {
@@ -33,14 +34,7 @@ impl RenderableWorld {
         ]);
 
 
-        let mut instances = HexMap::new(world.tiles().radius());
-
-        for (pos, tc) in world.iter() {
-            instances[pos] = RenderState::new(pos, tc);
-        }
-
-        let instance_data = instances.values().map(RenderState::as_instance).collect::<Vec<Instance>>();
-        instance_buffer.set_data(instance_data.as_slice(), BufferUsage::DynamicDraw);
+        let instances = HexMap::new(world.tiles().radius());
 
         Ok(Self {
             resources,
@@ -49,7 +43,25 @@ impl RenderableWorld {
             world,
             instances,
             active_instances: HashSet::new()
-        })
+        }.apply(Self::reset))
+    }
+
+    fn reset(&mut self){
+        debug_assert_eq!(self.instances.len(), self.world.tiles().len());
+        for (pos, tc) in self.world.iter() {
+            self.instances[pos] = RenderState::new(pos, tc);
+        }
+
+        let instance_data = self.instances.values().map(RenderState::as_instance).collect::<Vec<Instance>>();
+        self.instance_buffer.set_data(instance_data.as_slice(), BufferUsage::DynamicDraw);
+    }
+
+    pub fn reinitialize(&mut self, world: World) {
+        if self.instances.len() != world.tiles().len() {
+            self.instances = HexMap::new(world.tiles().radius());
+        }
+        self.world = world;
+        self.reset()
     }
 
     pub fn render(&self, ctx: &Context, camera: &Camera) {
@@ -90,6 +102,10 @@ impl RenderableWorld {
 
     pub fn is_completed(&self) -> bool {
         self.world.is_completed()
+    }
+
+    pub fn seed(&self) -> u64 {
+        self.world.seed()
     }
 
 }
