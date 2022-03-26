@@ -1,16 +1,16 @@
 use std::collections::HashSet;
+use std::rc::Rc;
 use std::time::Duration;
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat3, Vec2};
 use crate::{Camera, Color, HexPos};
 use crate::opengl::*;
+use crate::renderer::TileRenderResources;
 use crate::types::Angle;
-use crate::world::{generate_tile_texture, HexMap, TileConfig, World};
+use crate::world::{HexMap, TileConfig, World};
 
 pub struct RenderableWorld {
-    shader: ShaderProgram,
-    camera_location: UniformLocation,
-    textures: Texture,
+    resources: Rc<TileRenderResources>,
     vertex_array: VertexArray,
     instance_buffer: Buffer,
     world: World,
@@ -20,7 +20,7 @@ pub struct RenderableWorld {
 
 impl RenderableWorld {
 
-    pub fn new(ctx: &Context, world: World) -> Result<Self, String> {
+    pub fn new(ctx: &Context, resources: Rc<TileRenderResources>, world: World) -> Result<Self, String> {
         let vertex_array = VertexArray::new(ctx)?;
         ctx.use_vertex_array(&vertex_array);
 
@@ -32,15 +32,6 @@ impl RenderableWorld {
             VertexArrayAttribute::Integer(3, DataType::U32, 1)
         ]);
 
-        let shader = ShaderProgram::new(ctx, &[
-            &Shader::new(ctx, ShaderType::Vertex, include_str!("../shader/tiles.vert"))?,
-            &Shader::new(ctx, ShaderType::Fragment, include_str!("../shader/tiles.frag"))?,
-        ])?;
-        ctx.use_program(&shader);
-        shader.set_uniform_by_name("tex", 0);
-
-        let textures = generate_tile_texture(ctx)?;
-
 
         let mut instances = HexMap::new(world.tiles().radius());
 
@@ -51,12 +42,8 @@ impl RenderableWorld {
         let instance_data = instances.values().map(RenderState::as_instance).collect::<Vec<Instance>>();
         instance_buffer.set_data(instance_data.as_slice(), BufferUsage::DynamicDraw);
 
-        let camera_location = shader.get_uniform_name("camera").unwrap();
-
         Ok(Self {
-            shader,
-            camera_location,
-            textures,
+            resources,
             vertex_array,
             instance_buffer,
             world,
@@ -66,18 +53,14 @@ impl RenderableWorld {
     }
 
     pub fn render(&self, ctx: &Context, camera: &Camera) {
-        ctx.use_vertex_array(&self.vertex_array);
-
         ctx.clear(Color::new(0, 0, 0, 255));
         ctx.set_blend_state(BlendState {
             src: BlendFactor::One,
             dst: BlendFactor::One,
             equ: BlendEquation::Max
         });
-        ctx.use_program(&self.shader);
-        ctx.bind_texture(0, &self.textures);
-        self.shader.set_uniform(&self.camera_location, camera.to_matrix());
-
+        self.resources.prepare(ctx, camera);
+        ctx.use_vertex_array(&self.vertex_array);
         ctx.draw_arrays_instanced(PrimitiveType::TriangleStrip, 0, 4, self.instances.len() as i32);
 
     }

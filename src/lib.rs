@@ -7,6 +7,7 @@ mod util;
 mod renderer;
 
 use std::ops::Sub;
+use std::rc::Rc;
 use std::time::Duration;
 use glam::Vec2;
 use crate::app::Event;
@@ -14,7 +15,7 @@ use crate::camera::Camera;
 use crate::opengl::{Texture, Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, Framebuffer, TextureType, InternalFormat, MipmapLevels, FramebufferAttachment};
 use crate::types::{Color, HexPos, Rgba};
 use crate::world::{World};
-use crate::renderer::RenderableWorld;
+use crate::renderer::{RenderableWorld, TileRenderResources};
 
 pub use crate::app::{Game, GlowContext, Platform, PlatformWindow};
 
@@ -47,9 +48,11 @@ impl Game for InfinityLoop {
             ..Default::default()
         };
 
+        let resources = Rc::new(TileRenderResources::new(ctx).unwrap());
+
         let mut world = World::new(1337);
         world.scramble();
-        let world = RenderableWorld::new(ctx, world).unwrap();
+        let world = RenderableWorld::new(ctx, resources, world).unwrap();
 
         Self {
             pp_program,
