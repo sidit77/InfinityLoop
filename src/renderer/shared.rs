@@ -4,6 +4,9 @@ use crate::Camera;
 use crate::opengl::*;
 use crate::world::TileType;
 
+pub const TILE_RES: u32 = 128;
+pub const TILE_RANGE: f32 = 6.0;
+
 pub struct TileRenderResources {
     shader: ShaderProgram,
     camera_location: UniformLocation,
@@ -22,7 +25,10 @@ impl TileRenderResources {
             .ok_or_else(||String::from("Could not find uniform location"))?;
         let tex_location = shader.get_uniform_name("tex")
             .ok_or_else(||String::from("Could not find uniform location"))?;
+        let range_location = shader.get_uniform_name("range")
+            .ok_or_else(||String::from("Could not find uniform location"))?;
         shader.set_uniform(&tex_location, 0);
+        shader.set_uniform(&range_location, 1.0 / TILE_RANGE);
 
         let textures = generate_tile_texture(ctx)?;
 
@@ -43,7 +49,7 @@ impl TileRenderResources {
 
 
 fn generate_tile_texture(ctx: &Context) -> Result<Texture, String> {
-    let mut builder = ArrayTextureBuilder::new(ctx, 64, 64, 8, -5.0)?;
+    let mut builder = ArrayTextureBuilder::new(ctx, TILE_RES, TILE_RES, 8, -TILE_RANGE)?;
 
     let a = 0.75;
     let g = 0.75 * f32::tan(f32::to_radians(30.0));

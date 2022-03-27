@@ -134,7 +134,7 @@ impl RenderState {
             pos: pos.into(),
             scale: match config {
                 TileConfig::Empty => 0.0,
-                TileConfig::Tile(_, _) => 1.16,
+                TileConfig::Tile(_, _) => 1.155,
             },
             texture: config.model() as u32,
             current_rotation: config.angle(),
