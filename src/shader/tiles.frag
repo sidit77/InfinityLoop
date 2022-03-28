@@ -1,7 +1,7 @@
 #version 300 es
 
-precision mediump float;
-precision mediump sampler2DArray;
+precision highp float;
+precision highp sampler2DArray;
 
 out float finalColor;
 
