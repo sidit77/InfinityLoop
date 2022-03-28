@@ -91,6 +91,14 @@ impl ShaderProgram {
         }
     }
 
+    pub fn get_uniform(&self, name: &str) -> Result<UniformLocation, String>  {
+        let gl = self.ctx.raw();
+        unsafe {
+            gl.get_uniform_location(self.id, name)
+                .ok_or_else(|| format!("Could not find uniform: {}", name))
+        }
+    }
+
     pub fn raw(&self) -> GlowProgram {
         self.id
     }
@@ -106,71 +114,55 @@ impl Drop for ShaderProgram {
     }
 }
 
-pub trait GetUniformName {
-    fn get_uniform_name(&self, name: &str) -> Option<UniformLocation>;
-}
-
-impl GetUniformName for ShaderProgram {
-    fn get_uniform_name(&self, name: &str) -> Option<UniformLocation>  {
-        let gl = self.ctx.raw();
-        unsafe {
-            gl.get_uniform_location(self.id, name)
-        }
-    }
-}
-
-pub trait SetUniform<T>: GetUniformName {
+pub trait SetUniform<T> {
     fn set_uniform(&self, location: &UniformLocation, data: T);
-    fn set_uniform_by_name(&self, name: &str, data: T) {
-        self.set_uniform(&self.get_uniform_name(name).unwrap(), data)
-    }
 }
 
-impl SetUniform<Mat4> for ShaderProgram {
+impl SetUniform<Mat4> for Context {
     fn set_uniform(&self, location: &UniformLocation, data: Mat4) {
         unsafe {
-            self.ctx.raw().uniform_matrix_4_f32_slice(Some(location), false, &data.to_cols_array())
+            self.raw().uniform_matrix_4_f32_slice(Some(location), false, &data.to_cols_array())
         }
     }
 }
 
-impl SetUniform<Mat3> for ShaderProgram {
+impl SetUniform<Mat3> for Context {
     fn set_uniform(&self, location: &UniformLocation, data: Mat3) {
         unsafe {
-            self.ctx.raw().uniform_matrix_3_f32_slice(Some(location), false, &data.to_cols_array())
+            self.raw().uniform_matrix_3_f32_slice(Some(location), false, &data.to_cols_array())
         }
     }
 }
 
-impl SetUniform<Vec2> for ShaderProgram {
+impl SetUniform<Vec2> for Context {
     fn set_uniform(&self, location: &UniformLocation, data: Vec2) {
         unsafe {
-            self.ctx.raw().uniform_2_f32(Some(location), data.x, data.y)
+            self.raw().uniform_2_f32(Some(location), data.x, data.y)
         }
     }
 }
 
-impl SetUniform<f32> for ShaderProgram {
+impl SetUniform<f32> for Context {
     fn set_uniform(&self, location: &UniformLocation, data: f32) {
         unsafe {
-            self.ctx.raw().uniform_1_f32(Some(location), data)
+            self.raw().uniform_1_f32(Some(location), data)
         }
     }
 }
 
-impl SetUniform<i32> for ShaderProgram {
+impl SetUniform<i32> for Context {
     fn set_uniform(&self, location: &UniformLocation, data: i32) {
         unsafe {
-            self.ctx.raw().uniform_1_i32(Some(location), data)
+            self.raw().uniform_1_i32(Some(location), data)
         }
     }
 }
 
-impl<T: Into<Rgba<f32>>> SetUniform<T> for ShaderProgram {
+impl<T: Into<Rgba<f32>>> SetUniform<T> for Context {
     fn set_uniform(&self, location: &UniformLocation, data: T) {
         let c = data.into();
         unsafe {
-            self.ctx.raw().uniform_4_f32_slice(Some(location), c.as_ref())
+            self.raw().uniform_4_f32_slice(Some(location), c.as_ref())
         }
     }
 }

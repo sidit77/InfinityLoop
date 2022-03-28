@@ -21,14 +21,11 @@ impl TileRenderResources {
             &Shader::new(ctx, ShaderType::Fragment, include_str!("../shader/tiles.frag"))?,
         ])?;
         ctx.use_program(&shader);
-        let camera_location = shader.get_uniform_name("camera")
-            .ok_or_else(||String::from("Could not find uniform location"))?;
-        let tex_location = shader.get_uniform_name("tex")
-            .ok_or_else(||String::from("Could not find uniform location"))?;
-        let range_location = shader.get_uniform_name("range")
-            .ok_or_else(||String::from("Could not find uniform location"))?;
-        shader.set_uniform(&tex_location, 0);
-        shader.set_uniform(&range_location, 1.0 / TILE_RANGE);
+        let camera_location = shader.get_uniform("camera")?;
+        let tex_location = shader.get_uniform("tex")?;
+        let range_location = shader.get_uniform("range")?;
+        ctx.set_uniform(&tex_location, 0);
+        ctx.set_uniform(&range_location, 1.0 / TILE_RANGE);
 
         let textures = generate_tile_texture(ctx)?;
 
@@ -42,7 +39,7 @@ impl TileRenderResources {
     pub fn prepare(&self, ctx: &Context, camera: &Camera) {
         ctx.use_program(&self.shader);
         ctx.bind_texture(0, &self.textures);
-        self.shader.set_uniform(&self.camera_location, camera.to_matrix());
+        ctx.set_uniform(&self.camera_location, camera.to_matrix());
     }
 
 }

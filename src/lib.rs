@@ -10,6 +10,7 @@ use std::ops::Sub;
 use std::rc::Rc;
 use std::time::Duration;
 use glam::Vec2;
+use instant::Instant;
 use crate::app::Event;
 use crate::camera::Camera;
 use crate::opengl::{Texture, Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, Framebuffer, TextureType, InternalFormat, MipmapLevels, FramebufferAttachment};
@@ -25,7 +26,8 @@ pub struct InfinityLoop {
     framebuffer_dst: Texture,
     pp_program: ShaderProgram,
     camera: Camera,
-    world: RenderableWorld
+    world: RenderableWorld,
+    time: Instant
 }
 
 impl Game for InfinityLoop {
@@ -36,7 +38,7 @@ impl Game for InfinityLoop {
             &Shader::new(ctx, ShaderType::Fragment, include_str!("shader/postprocess.frag")).unwrap(),
         ]).unwrap();
         ctx.use_program(&pp_program);
-        pp_program.set_uniform_by_name("tex", 0);
+        ctx.set_uniform(&pp_program.get_uniform("tex").unwrap(), 0);
 
         let framebuffer_dst = Texture::new(ctx, TextureType::Texture2d(1280, 720), InternalFormat::R8, MipmapLevels::None).unwrap();
         let framebuffer = Framebuffer::new(ctx, &[
@@ -59,11 +61,13 @@ impl Game for InfinityLoop {
             camera,
             world,
             framebuffer_dst,
-            framebuffer
+            framebuffer,
+            time: Instant::now()
         }
     }
 
     fn draw(&mut self, ctx: &Context, delta: Duration) {
+        //self.time += delta.as_secs_f32();
         ctx.clear(Rgba::new(23,23,23,255));
         self.world.update(delta);
 
@@ -73,6 +77,7 @@ impl Game for InfinityLoop {
         ctx.use_framebuffer(None);
         ctx.set_blend_state(None);
         ctx.use_program(&self.pp_program);
+        ctx.set_uniform(&self.pp_program.get_uniform("time").unwrap(), self.time.elapsed().as_secs_f32());
         ctx.bind_texture(0, &self.framebuffer_dst);
         ctx.draw_arrays(PrimitiveType::TriangleStrip, 0, 4);
     }
