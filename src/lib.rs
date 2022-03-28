@@ -10,7 +10,6 @@ use std::ops::{Add, Rem, Sub};
 use std::rc::Rc;
 use std::time::Duration;
 use glam::Vec2;
-use instant::Instant;
 use winit::dpi::PhysicalSize;
 use crate::app::Event;
 use crate::camera::Camera;
@@ -113,7 +112,6 @@ impl Game for InfinityLoop {
                 camera.scale = camera.scale.sub(amount * (camera.scale / 10.0)).max(1.0);
                 let new = camera.to_world_coords(center);
                 camera.position += old - new;
-                println!("{}", camera.scale);
             }
             Event::Drag(delta) => {
                 self.camera.position += self.camera.to_world_coords(-delta.absolute()) - self.camera.to_world_coords(Vec2::ZERO);
