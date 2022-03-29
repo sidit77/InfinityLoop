@@ -8,5 +8,4 @@ edition = "2021"
 [dependencies]
 infinity_loop = { path = "../.." }
 glutin = "0.28"
-log = "0.4"
-env_logger = "0.9"
+glam = "0.20"

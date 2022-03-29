@@ -19,6 +19,10 @@ use crate::world::{World};
 use crate::renderer::{RenderableWorld, TileRenderResources};
 
 pub use crate::app::{Game, GlowContext, Platform, PlatformWindow};
+pub mod export {
+    pub use crate::opengl::Context;
+    pub use crate::app::{Event, MouseDelta};
+}
 
 
 pub struct InfinityLoop {
