@@ -106,7 +106,7 @@ pub trait Game: 'static + Sized {
 }
 
 #[derive(Debug, Copy, Clone)]
-pub struct MouseDelta(Vec2, Duration);
+pub struct MouseDelta(pub Vec2, pub Duration);
 
 impl MouseDelta {
 
