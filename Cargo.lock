@@ -528,6 +528,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "infinity_loop_android"
+version = "0.1.0"
+dependencies = [
+ "env_logger",
+ "glutin",
+ "infinity_loop",
+ "log",
+]
+
+[[package]]
 name = "infinity_loop_desktop"
 version = "0.1.0"
 dependencies = [
