@@ -647,6 +647,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "infinity_loop_android"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "glutin",
+ "infinity_loop",
+]
+
+[[package]]
 name = "infinity_loop_desktop"
 version = "0.1.0"
 dependencies = [
