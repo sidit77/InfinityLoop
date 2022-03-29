@@ -13,7 +13,8 @@ lto = true
 [workspace]
 members = [
     "platforms/desktop",
-    "platforms/wasm"
+    "platforms/wasm",
+    "platforms/android"
 ]
 default-members = ["platforms/desktop"]
 
