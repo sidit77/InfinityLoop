@@ -89,7 +89,7 @@ impl Game for InfinityLoop {
 
     fn event(&mut self, ctx: &Context, event: app::Event) {
         match event {
-            Event::WindowResize(width, height) => {
+            Event::WindowResize(width, height) => if width > 0.0 && height > 0.0 {
                 self.camera.aspect = width / height;
                 self.framebuffer_dst = Texture::new(ctx, TextureType::Texture2d(width as u32, height as u32),
                                                     InternalFormat::R8, MipmapLevels::None).unwrap();
