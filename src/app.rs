@@ -1,5 +1,6 @@
 use std::fmt::Debug;
 use std::mem::take;
+use std::ops::Deref;
 use anyhow::Result;
 use std::time::Duration;
 use glam::Vec2;
@@ -74,6 +75,14 @@ impl<'a> AppContext<'a> {
     }
 }
 
+impl<'a> Deref for AppContext<'a> {
+    type Target = Context;
+
+    fn deref(&self) -> &Self::Target {
+        self.gl
+    }
+}
+
 pub struct Application<G: Game2> {
     state: ApplicationState<G>,
     screen_size: (u32, u32)
@@ -88,15 +97,18 @@ impl<G: Game2> Application<G> {
         })
     }
 
-    pub fn resume(&mut self, gl: GlowContext, screen_size: impl Into<Option<(u32, u32)>>) {
+    pub fn resume(&mut self, ctx: Context, screen_size: impl Into<Option<(u32, u32)>>) {
         if let Some(new_size) = screen_size.into() {
             self.screen_size = new_size;
         }
         self.state = match take(&mut self.state) {
             ApplicationState::Suspended(bundle) => {
-                let ctx = Context::from_glow(gl);
+                //let ctx = Context::from_glow(gl);
                 match G::resume(AppContext::new(&ctx, self.screen_size), bundle.clone()) {
-                    Ok(active) => ApplicationState::Active(active, ctx),
+                    Ok(active) => {
+                        log::info!("Resumed app");
+                        ApplicationState::Active(active, ctx)
+                    },
                     Err(err) => {
                         log::error!("Can't resume application:\n{}", err);
                         ApplicationState::Suspended(bundle)
@@ -109,7 +121,10 @@ impl<G: Game2> Application<G> {
 
     pub fn suspend(&mut self) {
         self.state = match take(&mut self.state) {
-            ApplicationState::Active(active, _) => ApplicationState::Suspended(active.suspend()),
+            ApplicationState::Active(active, _) => {
+                log::info!("Suspended app");
+                ApplicationState::Suspended(active.suspend())
+            },
             state => state
         }
     }
@@ -121,6 +136,12 @@ impl<G: Game2> Application<G> {
     pub fn set_screen_size(&mut self, screen_size: (u32, u32)) {
         self.screen_size = screen_size;
         self.call_event(Event2::Resize(screen_size.0, screen_size.1));
+    }
+
+    pub fn redraw(&mut self) {
+        if let ApplicationState::Active(game, gl) = &mut self.state {
+            game.draw(AppContext::new(gl, self.screen_size));
+        }
     }
 
     fn call_event(&mut self, event: Event2) {
