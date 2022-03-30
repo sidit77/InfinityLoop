@@ -93,7 +93,7 @@ impl Game2 for InfinityLoop {
         }
     }
 
-    fn draw(&mut self, ctx: AppContext) {
+    fn draw(&mut self, ctx: AppContext) -> bool {
         let delta = Duration::from_millis(16);
         self.time = self.time.add(delta.as_secs_f32() * 0.5).rem(10.0); //6.4;//
         ctx.clear(Rgba::new(23,23,23,255));
@@ -110,6 +110,7 @@ impl Game2 for InfinityLoop {
         ctx.set_uniform(&self.pp_program.get_uniform("pxRange").unwrap(), self.screen_size.height as f32 / (2.0 * self.camera.scale));
         ctx.bind_texture(0, &self.framebuffer_dst);
         ctx.draw_arrays(PrimitiveType::TriangleStrip, 0, 4);
+        true
     }
 
     fn event(&mut self, ctx: AppContext, event: Event2) {
@@ -122,6 +123,16 @@ impl Game2 for InfinityLoop {
                                                     InternalFormat::R8, MipmapLevels::None).unwrap();
                 self.framebuffer.update_attachments(&[(FramebufferAttachment::Color(0), &self.framebuffer_dst)]).unwrap();
                 self.screen_size = PhysicalSize::new(width, height);
+            }
+            Event2::Click(pos) => {
+                let pt = self.camera.to_world_coords(pos).into();
+                self.world.try_rotate(pt);
+                if self.world.is_completed() {
+                    let mut new_world = World::new(self.world.seed() + 1);
+                    new_world.scramble();
+                    self.world.reinitialize(new_world);
+                }
+
             }
         }
     }

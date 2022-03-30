@@ -1,11 +1,11 @@
 #![windows_subsystem = "windows"]
 
 use glutin::{ContextWrapper, GlProfile, PossiblyCurrent};
-use glutin::dpi::PhysicalSize;
-use glutin::event::{Event, WindowEvent};
+use glutin::dpi::{PhysicalPosition, PhysicalSize};
+use glutin::event::{ElementState, Event, MouseButton, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 use glutin::window::{Window, WindowBuilder};
-use log::LevelFilter;
+use log::{LevelFilter};
 use infinity_loop::{GlowContext, InfinityLoop};
 use infinity_loop::export::{Application, Context};
 
@@ -46,7 +46,12 @@ fn main() {
 
     app.resume(gl.clone(), Some(window.window().inner_size().into()));
 
+    let mut pos = PhysicalPosition::new(0.0, 0.0);
     event_loop.run(move |event, _event_loop, control_flow| {
+        *control_flow = match app.should_redraw() {
+            true => ControlFlow::Poll,
+            false => ControlFlow::Wait
+        };
         match event {
             Event::WindowEvent { event, window_id, } if window_id == window.window().id() => match event {
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
@@ -58,17 +63,23 @@ fn main() {
                     }
                     app.set_screen_size(size.into())
                 },
+                WindowEvent::CursorMoved { position,.. }
+                    => pos = position,
+                WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, ..}
+                    => app.on_click(pos.x as f32, pos.y as f32),
                 _ => {}
             },
             Event::RedrawRequested(window_id) if window_id == window.window().id() => {
                 app.redraw();
-                *control_flow = ControlFlow::Poll;
+                window.window().request_redraw();
                 if window.swap_buffers().is_err() {
                     println!("Corrupted render context...");
                 }
             },
             Event::MainEventsCleared =>  {
-                window.window().request_redraw()
+                if app.should_redraw() {
+                    window.window().request_redraw();
+                }
             },
             Event::LoopDestroyed => app.suspend(),
             _ => {}
