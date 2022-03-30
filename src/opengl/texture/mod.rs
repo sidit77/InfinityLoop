@@ -7,6 +7,7 @@ pub use enums::*;
 use bytemuck::Pod;
 use glow::{HasContext, PixelUnpackData};
 use crate::{Context, DataType};
+use crate::opengl::GlResult;
 use crate::types::Rgba;
 
 type GlowTexture = glow::Texture;
@@ -51,20 +52,16 @@ pub struct Texture {
 
 impl Texture {
 
-    fn empty(ctx: &Context, target: TextureTarget) -> Result<Self, String> {
+    pub fn new(ctx: &Context, tex_type: TextureType, format: InternalFormat, levels: MipmapLevels) -> GlResult<Self> {
         let gl = ctx.raw();
-        unsafe {
+        let tex = unsafe {
             let id = gl.create_texture()?;
-            Ok(Self {
+            Self {
                 ctx: ctx.clone(),
                 id,
-                target
-            })
-        }
-    }
-
-    pub fn new(ctx: &Context, tex_type: TextureType, format: InternalFormat, levels: MipmapLevels) -> Result<Self, String> {
-        let tex = Self::empty(ctx, tex_type.target())?;
+                target: tex_type.target()
+            }
+        };
         ctx.bind_texture(0, &tex);
         let gl = ctx.raw();
         unsafe {

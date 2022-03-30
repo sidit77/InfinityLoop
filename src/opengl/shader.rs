@@ -1,6 +1,6 @@
 use glam::{Mat3, Mat4, Vec2};
 use glow::HasContext;
-use crate::opengl::Context;
+use crate::opengl::{Context, GlResult};
 use crate::types::Rgba;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
@@ -32,7 +32,7 @@ pub struct Shader {
 
 impl Shader {
 
-    pub fn new(ctx: &Context, shader_type: ShaderType, source: &str) -> Result<Self, String> {
+    pub fn new(ctx: &Context, shader_type: ShaderType, source: &str) -> GlResult<Self> {
         unsafe {
             let gl = ctx.raw();
             let id = gl.create_shader(shader_type.raw())?;
@@ -43,7 +43,7 @@ impl Shader {
                     ctx: ctx.clone(),
                     id
                 }),
-                false => Err(gl.get_shader_info_log(id))
+                false => Err(gl.get_shader_info_log(id).into())
             }
         }
     }
@@ -70,7 +70,7 @@ pub struct ShaderProgram {
 
 impl ShaderProgram {
 
-    pub fn new(ctx: &Context, shaders: &[&Shader]) -> Result<Self, String> {
+    pub fn new(ctx: &Context, shaders: &[&Shader]) -> GlResult<Self> {
         unsafe {
             let gl = ctx.raw();
             let id = gl.create_program()?;
@@ -86,16 +86,16 @@ impl ShaderProgram {
                     ctx: ctx.clone(),
                     id
                 }),
-                false => Err(gl.get_program_info_log(id))
+                false => Err(gl.get_program_info_log(id).into())
             }
         }
     }
 
-    pub fn get_uniform(&self, name: &str) -> Result<UniformLocation, String>  {
+    pub fn get_uniform(&self, name: &str) -> GlResult<UniformLocation>  {
         let gl = self.ctx.raw();
         unsafe {
             gl.get_uniform_location(self.id, name)
-                .ok_or_else(|| format!("Could not find uniform: {}", name))
+                .ok_or_else(|| format!("Could not find uniform: {}", name).into())
         }
     }
 

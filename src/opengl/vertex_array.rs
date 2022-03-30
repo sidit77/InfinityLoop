@@ -1,6 +1,6 @@
 use glow::HasContext;
 use crate::{Buffer, BufferTarget};
-use crate::opengl::{Context, DataType};
+use crate::opengl::{Context, DataType, GlResult};
 
 type GlowVertexArray = glow::VertexArray;
 
@@ -53,7 +53,7 @@ pub struct VertexArray {
 
 impl VertexArray {
 
-    pub fn new(ctx: &Context) -> Result<Self, String> {
+    pub fn new(ctx: &Context) -> GlResult<Self> {
         let gl = ctx.raw();
         unsafe {
             let id = gl.create_vertex_array()?;

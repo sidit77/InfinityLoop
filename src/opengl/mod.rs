@@ -6,6 +6,7 @@ mod enums;
 mod buffer;
 mod framebuffer;
 mod texture;
+mod error;
 
 use std::ops::Range;
 pub use shader::*;
@@ -14,6 +15,7 @@ pub use buffer::*;
 pub use enums::*;
 pub use texture::*;
 pub use framebuffer::*;
+pub use error::*;
 
 use std::rc::Rc;
 use glow::{COLOR_BUFFER_BIT, DEPTH_BUFFER_BIT, HasContext};

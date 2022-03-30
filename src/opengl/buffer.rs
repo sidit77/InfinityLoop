@@ -1,6 +1,6 @@
 use bytemuck::Pod;
 use glow::HasContext;
-use crate::opengl::Context;
+use crate::opengl::{Context, GlResult};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 #[repr(u32)]
@@ -57,7 +57,7 @@ pub struct Buffer {
 
 impl Buffer {
 
-    pub fn new(ctx: &Context, target: BufferTarget) -> Result<Self, String> {
+    pub fn new(ctx: &Context, target: BufferTarget) -> GlResult<Self> {
         let gl = ctx.raw();
         unsafe {
             let id = gl.create_buffer()?;

@@ -15,7 +15,7 @@ pub struct TileRenderResources {
 
 impl TileRenderResources {
 
-    pub fn new(ctx: &Context) -> Result<Self, String> {
+    pub fn new(ctx: &Context) -> anyhow::Result<Self> {
         let shader = ShaderProgram::new(ctx, &[
             &Shader::new(ctx, ShaderType::Vertex, include_str!("../shader/tiles.vert"))?,
             &Shader::new(ctx, ShaderType::Fragment, include_str!("../shader/tiles.frag"))?,
@@ -45,7 +45,7 @@ impl TileRenderResources {
 }
 
 
-fn generate_tile_texture(ctx: &Context) -> Result<Texture, String> {
+fn generate_tile_texture(ctx: &Context) -> GlResult<Texture> {
     let mut builder = ArrayTextureBuilder::new(ctx, TILE_RES, TILE_RES, 8, -TILE_RANGE)?;
 
     let a = 0.75;
@@ -130,7 +130,7 @@ struct ArrayTextureBuilder {
 
 impl ArrayTextureBuilder {
 
-    fn new(ctx: &Context, width: u32, height: u32, layers: u32, factor: f32) -> Result<Self, String> {
+    fn new(ctx: &Context, width: u32, height: u32, layers: u32, factor: f32) -> GlResult<Self> {
         let texture = Texture::new(ctx, TextureType::Texture2dArray(width, height, layers),
                                    InternalFormat::R8, MipmapLevels::Full)?;
         Ok(Self {

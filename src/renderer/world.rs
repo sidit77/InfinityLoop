@@ -21,7 +21,7 @@ pub struct RenderableWorld {
 
 impl RenderableWorld {
 
-    pub fn new(ctx: &Context, resources: Rc<TileRenderResources>, world: World) -> Result<Self, String> {
+    pub fn new(ctx: &Context, resources: Rc<TileRenderResources>, world: World) -> anyhow::Result<Self> {
         let vertex_array = VertexArray::new(ctx)?;
         ctx.use_vertex_array(&vertex_array);
 
