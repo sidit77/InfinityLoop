@@ -1,4 +1,6 @@
-
+use std::fmt::Debug;
+use std::mem::take;
+use anyhow::Result;
 use std::time::Duration;
 use glam::Vec2;
 use instant::Instant;
@@ -30,6 +32,117 @@ pub enum Event {
     Drag(MouseDelta),
     DragEnd(MouseDelta),
     Zoom(Vec2, f32),
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum Event2 {
+    Resize(u32, u32),
+}
+
+enum ApplicationState<G: Game2> {
+    Active(G, Context),
+    Suspended(G::Bundle),
+    Invalid
+}
+
+impl<G: Game2> Default for ApplicationState<G> {
+    fn default() -> Self {
+        Self::Invalid
+    }
+}
+
+pub struct AppContext<'a> {
+    gl: &'a Context,
+    screen_size: (u32, u32)
+}
+
+impl<'a> AppContext<'a> {
+    fn new(gl: &'a Context, screen_size: (u32, u32)) -> Self {
+        Self { gl, screen_size }
+    }
+
+    pub fn gl(&self) -> &'a Context {
+        self.gl
+    }
+
+    pub fn screen_width(&self) -> u32 {
+        self.screen_size.0
+    }
+
+    pub fn screen_height(&self) -> u32 {
+        self.screen_size.0
+    }
+}
+
+pub struct Application<G: Game2> {
+    state: ApplicationState<G>,
+    screen_size: (u32, u32)
+}
+
+impl<G: Game2> Application<G> {
+    pub fn new() -> Result<Self> {
+        let bundle = G::Bundle::new()?;
+        Ok(Self {
+            state: ApplicationState::Suspended(bundle),
+            screen_size: (100, 100)
+        })
+    }
+
+    pub fn resume(&mut self, gl: GlowContext, screen_size: impl Into<Option<(u32, u32)>>) {
+        if let Some(new_size) = screen_size.into() {
+            self.screen_size = new_size;
+        }
+        self.state = match take(&mut self.state) {
+            ApplicationState::Suspended(bundle) => {
+                let ctx = Context::from_glow(gl);
+                match G::resume(AppContext::new(&ctx, self.screen_size), bundle.clone()) {
+                    Ok(active) => ApplicationState::Active(active, ctx),
+                    Err(err) => {
+                        log::error!("Can't resume application:\n{}", err);
+                        ApplicationState::Suspended(bundle)
+                    }
+                }
+            },
+            state => state
+        }
+    }
+
+    pub fn suspend(&mut self) {
+        self.state = match take(&mut self.state) {
+            ApplicationState::Active(active, _) => ApplicationState::Suspended(active.suspend()),
+            state => state
+        }
+    }
+
+    pub fn get_screen_size(&self) -> (u32, u32) {
+        self.screen_size
+    }
+
+    pub fn set_screen_size(&mut self, screen_size: (u32, u32)) {
+        self.screen_size = screen_size;
+        self.call_event(Event2::Resize(screen_size.0, screen_size.1));
+    }
+
+    fn call_event(&mut self, event: Event2) {
+        if let ApplicationState::Active(game, gl) = &mut self.state {
+            game.event(AppContext::new(gl, self.screen_size), event);
+        }
+    }
+
+}
+
+pub trait Bundle: Clone + Sized {
+    fn new() -> Result<Self>;
+}
+
+pub trait Game2: Sized {
+    type Bundle: Bundle;
+
+    fn resume(ctx: AppContext, bundle: Self::Bundle) -> Result<Self>;
+    fn suspend(self) -> Self::Bundle;
+
+    fn draw(&mut self, ctx: AppContext);
+    fn event(&mut self, ctx: AppContext, event: Event2);
 }
 
 pub trait Game: 'static + Sized {

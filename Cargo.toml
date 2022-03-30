@@ -19,6 +19,7 @@ members = [
 default-members = ["platforms/desktop"]
 
 [dependencies]
+anyhow = "1.0"
 log = "0.4"
 winit = "0.26"
 glow = "0.11"
