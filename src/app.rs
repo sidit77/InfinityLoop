@@ -154,10 +154,11 @@ impl<G: Game2, A: AppContext> Application<G, A> {
         }
     }
 
-    pub fn with_ctx(&self, f: impl FnOnce(&A)) {
+    pub fn with_ctx<R: Default>(&self, f: impl FnOnce(&A) -> R) -> R{
         if let ApplicationState::Active{  ctx, ..} = &self.state {
-            f(ctx)
+            return f(ctx)
         }
+        R::default()
     }
 
     fn call_event(&mut self, event: Event2) {

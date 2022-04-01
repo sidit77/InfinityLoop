@@ -3,9 +3,9 @@
 use std::ops::Deref;
 use glutin::{ContextWrapper, GlProfile, PossiblyCurrent};
 use glutin::dpi::{PhysicalPosition, PhysicalSize};
-use glutin::event::{ElementState, Event, MouseButton, WindowEvent};
+use glutin::event::{ElementState, Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
-use glutin::window::{Window, WindowBuilder};
+use glutin::window::{Fullscreen, Window, WindowBuilder};
 use log::{LevelFilter};
 use infinity_loop::{GlowContext, InfinityLoop};
 use infinity_loop::export::{AppContext, Application, Context};
@@ -87,14 +87,22 @@ fn main() {
                     => pos = position,
                 WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, ..}
                     => app.on_click(pos.x as f32, pos.y as f32),
+                WindowEvent::KeyboardInput {  input: KeyboardInput {  state: ElementState::Pressed, virtual_keycode: Some(VirtualKeyCode::F11), .. }, .. } => {
+                    app.with_ctx(|ctx| {
+                        let window = ctx.0.window();
+                        window.set_fullscreen(match window.fullscreen() {
+                            None => Some(Fullscreen::Borderless(None)),
+                            Some(_) => None
+                        })
+                    })
+                }
                 _ => {}
             },
             Event::RedrawRequested(_) => {
                 app.redraw();
-                //if window.swap_buffers().is_err() {
-                //    println!("Corrupted render context...");
-                //}
-                app.with_ctx(|ctx| ctx.0.swap_buffers().unwrap())
+                if app.with_ctx(|ctx| ctx.0.swap_buffers().is_err()) {
+                    log::error!("Corrupted render context...");
+                }
             },
             Event::MainEventsCleared =>  {
                 if app.should_redraw() {
