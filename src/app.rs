@@ -41,63 +41,47 @@ pub enum Event2 {
     Click(Vec2),
 }
 
-enum ApplicationState<G: Game2> {
+enum ApplicationState<G: Game2, A: AppContext> {
     Active{
         game: G,
-        gl: Context,
+        ctx: A,
         should_redraw: bool
     },
     Suspended(G::Bundle),
     Invalid
 }
 
-impl<G: Game2> Default for ApplicationState<G> {
+impl<G: Game2, A: AppContext> Default for ApplicationState<G, A> {
     fn default() -> Self {
         Self::Invalid
     }
 }
 
-pub struct AppContext<'a> {
-    gl: &'a Context,
-    screen_size: (u32, u32)
-}
+pub trait AppContext: Deref<Target = Context> {
 
-impl<'a> AppContext<'a> {
-    fn new(gl: &'a Context, screen_size: (u32, u32)) -> Self {
-        Self { gl, screen_size }
+    fn gl(&self) -> &Context;
+
+    fn screen_size(&self) -> (u32, u32);
+
+    fn screen_width(&self) -> u32 {
+        self.screen_size().0
     }
 
-    pub fn gl(&self) -> &'a Context {
-        self.gl
-    }
-
-    pub fn screen_width(&self) -> u32 {
-        self.screen_size.0
-    }
-
-    pub fn screen_height(&self) -> u32 {
-        self.screen_size.0
+    fn screen_height(&self) -> u32 {
+        self.screen_size().1
     }
 }
 
-impl<'a> Deref for AppContext<'a> {
-    type Target = Context;
 
-    fn deref(&self) -> &Self::Target {
-        self.gl
-    }
-}
-
-pub struct Application<G: Game2> {
-    state: ApplicationState<G>,
+pub struct Application<G: Game2, A: AppContext> {
+    state: ApplicationState<G, A>,
     screen_size: (u32, u32)
 }
 
 /**
 - error handling in events
-- window reference
 **/
-impl<G: Game2> Application<G> {
+impl<G: Game2, A: AppContext> Application<G, A> {
     pub fn new() -> Result<Self> {
         let bundle = G::Bundle::new()?;
         Ok(Self {
@@ -106,19 +90,17 @@ impl<G: Game2> Application<G> {
         })
     }
 
-    pub fn resume(&mut self, ctx: Context, screen_size: impl Into<Option<(u32, u32)>>) {
-        if let Some(new_size) = screen_size.into() {
-            self.screen_size = new_size;
-        }
+    pub fn resume(&mut self, ctx_func: impl FnOnce() -> A) {
         self.state = match take(&mut self.state) {
             ApplicationState::Suspended(bundle) => {
-                //let ctx = Context::from_glow(gl);
-                match G::resume(AppContext::new(&ctx, self.screen_size), bundle.clone()) {
+                let ctx = ctx_func();
+                self.screen_size = ctx.screen_size();
+                match G::resume(&ctx, bundle.clone()) {
                     Ok(game) => {
                         log::info!("Resumed app");
                         ApplicationState::Active{
                             game,
-                            gl: ctx,
+                            ctx,
                             should_redraw: true
                         }
                     },
@@ -132,18 +114,16 @@ impl<G: Game2> Application<G> {
         }
     }
 
-    pub fn suspend(&mut self) {
-        self.state = match take(&mut self.state) {
-            ApplicationState::Active{ game, ..} => {
+    pub fn suspend(&mut self) -> Option<A> {
+        let (ctx, state) = match take(&mut self.state) {
+            ApplicationState::Active{ game, ctx, ..} => {
                 log::info!("Suspended app");
-                ApplicationState::Suspended(game.suspend())
+                (Some(ctx), ApplicationState::Suspended(game.suspend()))
             },
-            state => state
-        }
-    }
-
-    pub fn get_screen_size(&self) -> (u32, u32) {
-        self.screen_size
+            state => (None, state)
+        };
+        self.state = state;
+        ctx
     }
 
     pub fn set_screen_size(&mut self, screen_size: (u32, u32)) {
@@ -152,8 +132,8 @@ impl<G: Game2> Application<G> {
     }
 
     pub fn redraw(&mut self) {
-        if let ApplicationState::Active{game, gl, should_redraw} = &mut self.state {
-            *should_redraw = game.draw(AppContext::new(gl, self.screen_size))
+        if let ApplicationState::Active{game, ctx, should_redraw} = &mut self.state {
+            *should_redraw = game.draw(ctx)
         }
     }
 
@@ -170,9 +150,15 @@ impl<G: Game2> Application<G> {
         self.call_event(Event2::Click(pos))
     }
 
+    pub fn with_ctx(&self, f: impl FnOnce(&A)) {
+        if let ApplicationState::Active{  ctx, ..} = &self.state {
+            f(ctx)
+        }
+    }
+
     fn call_event(&mut self, event: Event2) {
-        if let ApplicationState::Active{ game, gl, should_redraw} = &mut self.state {
-            game.event(AppContext::new(gl, self.screen_size), event);
+        if let ApplicationState::Active{ game, ctx, should_redraw} = &mut self.state {
+            game.event(ctx, event);
             *should_redraw = true;
         }
     }
@@ -186,11 +172,11 @@ pub trait Bundle: Clone + Sized {
 pub trait Game2: Sized {
     type Bundle: Bundle;
 
-    fn resume(ctx: AppContext, bundle: Self::Bundle) -> Result<Self>;
+    fn resume<A: AppContext>(ctx: &A, bundle: Self::Bundle) -> Result<Self>;
     fn suspend(self) -> Self::Bundle;
 
-    fn draw(&mut self, ctx: AppContext) -> bool;
-    fn event(&mut self, ctx: AppContext, event: Event2);
+    fn draw<A: AppContext>(&mut self, ctx: &A) -> bool;
+    fn event<A: AppContext>(&mut self, ctx: &A, event: Event2);
 }
 
 pub trait Game: 'static + Sized {

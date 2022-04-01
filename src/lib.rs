@@ -21,7 +21,7 @@ use crate::renderer::{RenderableWorld, TileRenderResources};
 pub use crate::app::{Game, GlowContext, Platform, PlatformWindow};
 pub mod export {
     pub use crate::opengl::Context;
-    pub use crate::app::{Event, MouseDelta, Application};
+    pub use crate::app::{Event, MouseDelta, Application, AppContext};
 }
 
 #[derive(Clone)]
@@ -50,7 +50,7 @@ pub struct InfinityLoop {
 impl Game2 for InfinityLoop {
     type Bundle = InfinityLoopBundle;
 
-    fn resume(ctx: AppContext, bundle: Self::Bundle) -> anyhow::Result<Self> {
+    fn resume<A: AppContext>(ctx: &A, bundle: Self::Bundle) -> anyhow::Result<Self> {
         let pp_program = ShaderProgram::new(&ctx, &[
             &Shader::new(&ctx, ShaderType::Vertex, include_str!("shader/postprocess.vert"))?,
             &Shader::new(&ctx, ShaderType::Fragment, include_str!("shader/postprocess.frag"))?,
@@ -93,7 +93,7 @@ impl Game2 for InfinityLoop {
         }
     }
 
-    fn draw(&mut self, ctx: AppContext) -> bool {
+    fn draw<A: AppContext>(&mut self, ctx: &A) -> bool {
         let delta = Duration::from_millis(16);
         self.time = self.time.add(delta.as_secs_f32() * 0.5).rem(10.0); //6.4;//
         ctx.clear(Rgba::new(23,23,23,255));
@@ -113,7 +113,7 @@ impl Game2 for InfinityLoop {
         true
     }
 
-    fn event(&mut self, ctx: AppContext, event: Event2) {
+    fn event<A: AppContext>(&mut self, ctx: &A, event: Event2) {
         match event {
             Event2::Resize(width, height) => {
                 assert!(width != 0 && height != 0);
