@@ -7,8 +7,8 @@ use glutin::event::{ElementState, Event, KeyboardInput, MouseButton, VirtualKeyC
 use glutin::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 use glutin::window::{Fullscreen, Window, WindowBuilder};
 use log::{LevelFilter};
-use infinity_loop::{GlowContext, InfinityLoop};
-use infinity_loop::export::{AppContext, Application, Context};
+use infinity_loop::{InfinityLoop};
+use infinity_loop::export::{AppContext, Application, Context, GlowContext};
 
 struct GlutinContext(ContextWrapper<PossiblyCurrent, Window>, Context);
 

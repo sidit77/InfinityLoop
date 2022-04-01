@@ -637,7 +637,6 @@ dependencies = [
  "priority-queue",
  "sdf2d",
  "smallbitset",
- "winit 0.26.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
