@@ -80,9 +80,6 @@ pub struct Application<G: Game2, A: AppContext> {
     last_update: Instant
 }
 
-/**
-- error handling in events
-**/
 impl<G: Game2, A: AppContext> Application<G, A> {
     pub fn new() -> Result<Self> {
         let bundle = G::Bundle::new()?;
@@ -122,7 +119,8 @@ impl<G: Game2, A: AppContext> Application<G, A> {
         let (ctx, state) = match take(&mut self.state) {
             ApplicationState::Active{ game, ctx, ..} => {
                 log::info!("Suspended app");
-                (Some(ctx), ApplicationState::Suspended(game.suspend()))
+                let bundle = game.suspend(&ctx);
+                (Some(ctx), ApplicationState::Suspended(bundle))
             },
             state => (None, state)
         };
@@ -166,7 +164,7 @@ impl<G: Game2, A: AppContext> Application<G, A> {
             if ! *should_redraw {
                 self.last_update = Instant::now();
             }
-            *should_redraw = game.event(ctx, event);
+            *should_redraw = game.event(ctx, event).unwrap();
 
         }
     }
@@ -181,9 +179,9 @@ pub trait Game2: Sized {
     type Bundle: Bundle;
 
     fn resume<A: AppContext>(ctx: &A, bundle: Self::Bundle) -> Result<Self>;
-    fn suspend(self) -> Self::Bundle;
+    fn suspend<A: AppContext>(self, ctx: &A) -> Self::Bundle;
 
-    fn event<A: AppContext>(&mut self, ctx: &A, event: Event2) -> bool;
+    fn event<A: AppContext>(&mut self, ctx: &A, event: Event2) -> Result<bool>;
 }
 
 pub trait Game: 'static + Sized {

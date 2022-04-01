@@ -87,13 +87,13 @@ impl Game2 for InfinityLoop {
         })
     }
 
-    fn suspend(self) -> Self::Bundle {
+    fn suspend<A: AppContext>(self, _ctx: &A) -> Self::Bundle {
         Self::Bundle {
             time: self.time
         }
     }
 
-    fn event<A: AppContext>(&mut self, ctx: &A, event: Event2) -> bool{
+    fn event<A: AppContext>(&mut self, ctx: &A, event: Event2) -> anyhow::Result<bool> {
         match event {
             Event2::Draw(delta) => {
                 self.time = self.time.add(delta.as_secs_f32() * 0.5).rem(10.0); //6.4;//
@@ -106,9 +106,9 @@ impl Game2 for InfinityLoop {
                 ctx.use_framebuffer(None);
                 ctx.set_blend_state(None);
                 ctx.use_program(&self.pp_program);
-                ctx.set_uniform(&self.pp_program.get_uniform("time").unwrap(), self.time); //
-                ctx.set_uniform(&self.pp_program.get_uniform("inv_camera").unwrap(), self.camera.to_matrix().inverse());
-                ctx.set_uniform(&self.pp_program.get_uniform("pxRange").unwrap(), self.screen_size.height as f32 / (2.0 * self.camera.scale));
+                ctx.set_uniform(&self.pp_program.get_uniform("time")?, self.time); //
+                ctx.set_uniform(&self.pp_program.get_uniform("inv_camera")?, self.camera.to_matrix().inverse());
+                ctx.set_uniform(&self.pp_program.get_uniform("pxRange")?, self.screen_size.height as f32 / (2.0 * self.camera.scale));
                 ctx.bind_texture(0, &self.framebuffer_dst);
                 ctx.draw_arrays(PrimitiveType::TriangleStrip, 0, 4);
             },
@@ -117,8 +117,8 @@ impl Game2 for InfinityLoop {
                 ctx.viewport(0, 0, width as i32, height as i32);
                 self.camera.aspect = width as f32 / height as f32;
                 self.framebuffer_dst = Texture::new(&ctx, TextureType::Texture2d(width, height),
-                                                    InternalFormat::R8, MipmapLevels::None).unwrap();
-                self.framebuffer.update_attachments(&[(FramebufferAttachment::Color(0), &self.framebuffer_dst)]).unwrap();
+                                                    InternalFormat::R8, MipmapLevels::None)?;
+                self.framebuffer.update_attachments(&[(FramebufferAttachment::Color(0), &self.framebuffer_dst)])?;
                 self.screen_size = PhysicalSize::new(width, height);
             }
             Event2::Click(pos) => {
@@ -131,7 +131,7 @@ impl Game2 for InfinityLoop {
                 }
             }
         }
-        self.world.update_required()
+        Ok(self.world.update_required())
     }
 }
 
