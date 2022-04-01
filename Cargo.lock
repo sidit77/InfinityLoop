@@ -644,11 +644,11 @@ name = "infinity_loop_android"
 version = "0.1.0"
 dependencies = [
  "android_logger",
- "glam",
  "glutin 0.28.0 (git+https://github.com/sidit77/glutin.git)",
  "infinity_loop",
  "jni",
  "log",
+ "ndk-context",
  "ndk-glue 0.6.1",
 ]
 

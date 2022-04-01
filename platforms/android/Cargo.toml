@@ -12,8 +12,25 @@ crate-type = ["cdylib"]
 infinity_loop = { path = "../.." }
 glutin = { git = "https://github.com/sidit77/glutin.git" }
 #winit = "0.26.1"
-glam = "0.20"
+#glam = "0.20"
 ndk-glue = "0.6"
+ndk-context = "0.1"
 jni = "0.19"
 log = "0.4.1"
 android_logger = "0.11"
+
+[package.metadata.android]
+build_targets = [ "armv7-linux-androideabi", "aarch64-linux-android"]
+apk_name = "infinity_loop"
+
+[[package.metadata.android.uses_feature]]
+required = true
+version = 0x00030000
+
+[package.metadata.android.application]
+isGame = true
+label = "Infinity Loop"
+
+[package.metadata.android.application.activity]
+immersive = true
+orientation = "userPortrait"

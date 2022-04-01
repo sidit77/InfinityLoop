@@ -1,15 +1,16 @@
-use std::fmt::{Display, Error, Formatter};
+mod android;
+
+use std::fmt::{Display, Formatter};
 use std::ops::Deref;
-use std::time::Instant;
 use android_logger::Config;
-use glam::Vec2;
 use glutin::{Api, ContextWrapper, GlRequest, PossiblyCurrent};
-use glutin::event::{ElementState, Event, MouseButton, MouseScrollDelta, Touch, TouchPhase, WindowEvent};
+use glutin::event::{Event, Touch, TouchPhase, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 use glutin::window::{Window, WindowBuilder};
 use log::{Level};
 use infinity_loop::export::{AppContext, Application, Context, GlowContext, Result};
 use infinity_loop::InfinityLoop;
+use crate::android::enable_immersive;
 
 struct GlutinContext(ContextWrapper<PossiblyCurrent, Window>, Context);
 
@@ -57,6 +58,7 @@ fn main() {
             .with_tag("infinity_loop")
     );
 
+    enable_immersive().unwrap();
     let mut app = Application::<InfinityLoop, GlutinContext>::new().unwrap();
 
     let event_loop = EventLoop::new();
@@ -121,46 +123,3 @@ impl Display for NoNativeWindow {
 
 impl std::error::Error for NoNativeWindow {}
 
-//fn enable_immersive() {
-//    let vm_ptr = ndk_glue::native_activity().vm();
-//    let vm = unsafe { jni::JavaVM::from_raw(vm_ptr) }.unwrap();
-//    let env = vm.attach_current_thread_permanently().unwrap();
-//    let activity = ndk_glue::native_activity().activity();
-//    let window = env
-//        .call_method(activity, "getWindow", "()Landroid/view/Window;", &[])
-//        .unwrap()
-//        .l()
-//        .unwrap();
-//    let view = env
-//        .call_method(window, "getDecorView", "()Landroid/view/View;", &[])
-//        .unwrap()
-//        .l()
-//        .unwrap();
-//    let view_class = env.find_class("android/view/View").unwrap();
-//    let flag_fullscreen = env
-//        .get_static_field(view_class, "SYSTEM_UI_FLAG_FULLSCREEN", "I")
-//        .unwrap()
-//        .i()
-//        .unwrap();
-//    let flag_hide_navigation = env
-//        .get_static_field(view_class, "SYSTEM_UI_FLAG_HIDE_NAVIGATION", "I")
-//        .unwrap()
-//        .i()
-//        .unwrap();
-//    let flag_immersive_sticky = env
-//        .get_static_field(view_class, "SYSTEM_UI_FLAG_IMMERSIVE_STICKY", "I")
-//        .unwrap()
-//        .i()
-//        .unwrap();
-//    let flag = flag_fullscreen | flag_hide_navigation | flag_immersive_sticky;
-//    match env.call_method(
-//        view,
-//        "setSystemUiVisibility",
-//        "(I)V",
-//        &[jni::objects::JValue::Int(flag)],
-//    ) {
-//        Err(_) => log::warn!("Failed to enable immersive mode"),
-//        Ok(_) => {}
-//    }
-//    env.exception_clear().unwrap();
-//}
