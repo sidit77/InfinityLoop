@@ -8,12 +8,12 @@ use glutin::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 use glutin::window::{Fullscreen, Window, WindowBuilder};
 use log::{LevelFilter};
 use infinity_loop::{InfinityLoop};
-use infinity_loop::export::{AppContext, Application, Context, GlowContext};
+use infinity_loop::export::{AppContext, Application, Context, GlowContext, Result};
 
 struct GlutinContext(ContextWrapper<PossiblyCurrent, Window>, Context);
 
 impl GlutinContext {
-    fn new(el: &EventLoopWindowTarget<()>) -> Self {
+    fn new(el: &EventLoopWindowTarget<()>) -> Result<Self> {
         unsafe {
             let window_builder = WindowBuilder::new()
                 .with_inner_size(PhysicalSize::new(1280, 720))
@@ -24,12 +24,11 @@ impl GlutinContext {
                 .with_depth_buffer(0)
                 .with_stencil_buffer(0)
                 .with_gl_profile(GlProfile::Core)
-                .build_windowed(window_builder, el)
-                .expect("Can not get OpenGL context!")
+                .build_windowed(window_builder, el)?
                 .make_current()
-                .expect("Can set OpenGL context as current!");
+                .map_err(|(_, err)| err)?;
             let gl = GlowContext::from_loader_function(|s| window.get_proc_address(s) as *const _);
-            Self(window, Context::from_glow(gl))
+            Ok(Self(window, Context::from_glow(gl)))
         }
     }
 }
@@ -79,7 +78,7 @@ fn main() {
                     app.with_ctx(|ctx| ctx.0.resize(size));
                     match size.width == 0 || size.height == 0 {
                         true => ctx = app.suspend().or(ctx.take()),
-                        false => app.resume(|| ctx.take().unwrap_or_else(|| GlutinContext::new(event_loop)))
+                        false => app.resume(|| ctx.take().map_or_else(|| GlutinContext::new(event_loop), |ctx| Ok(ctx)))
                     }
                     app.set_screen_size(size.into())
                 },

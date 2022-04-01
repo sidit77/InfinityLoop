@@ -17,7 +17,7 @@ use crate::renderer::{RenderableWorld, TileRenderResources};
 
 pub mod export {
     pub use crate::opengl::Context;
-    pub use crate::app::{GlowContext, Application, AppContext};
+    pub use crate::app::{GlowContext, Application, AppContext, Result};
 }
 
 #[derive(Clone)]

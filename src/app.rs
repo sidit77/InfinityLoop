@@ -1,13 +1,13 @@
 use std::fmt::Debug;
 use std::mem::{replace, take};
 use std::ops::Deref;
-use anyhow::Result;
 use std::time::{Duration};
 use glam::Vec2;
 use instant::Instant;
 use crate::opengl::Context;
 
 pub type GlowContext = glow::Context;
+pub type Result<T> = anyhow::Result<T>;
 
 #[derive(Debug, Copy, Clone)]
 pub enum Event2 {
@@ -64,25 +64,30 @@ impl<G: Game2, A: AppContext> Application<G, A> {
         })
     }
 
-    pub fn resume(&mut self, ctx_func: impl FnOnce() -> A) {
+    pub fn resume(&mut self, ctx_func: impl FnOnce() -> Result<A>) {
         self.state = match take(&mut self.state) {
-            ApplicationState::Suspended(bundle) => {
-                let ctx = ctx_func();
-                self.screen_size = ctx.screen_size();
-                self.last_update = Instant::now();
-                match G::resume(&ctx, bundle.clone()) {
-                    Ok(game) => {
-                        log::info!("Resumed app");
-                        ApplicationState::Active{
-                            game,
-                            ctx,
-                            should_redraw: true
+            ApplicationState::Suspended(bundle) => match ctx_func() {
+                Ok(ctx) => {
+                    self.screen_size = ctx.screen_size();
+                    self.last_update = Instant::now();
+                    match G::resume(&ctx, bundle.clone()) {
+                        Ok(game) => {
+                            log::info!("Resumed app");
+                            ApplicationState::Active{
+                                game,
+                                ctx,
+                                should_redraw: true
+                            }
+                        },
+                        Err(err) => {
+                            log::error!("Can't resume application:\n{}", err);
+                            ApplicationState::Suspended(bundle)
                         }
-                    },
-                    Err(err) => {
-                        log::error!("Can't resume application:\n{}", err);
-                        ApplicationState::Suspended(bundle)
                     }
+                },
+                Err(err) => {
+                    log::error!("Can't create context:\n{}", err);
+                    ApplicationState::Suspended(bundle)
                 }
             },
             state => state

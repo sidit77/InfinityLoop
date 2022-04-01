@@ -1,13 +1,53 @@
+use std::fmt::{Display, Error, Formatter};
+use std::ops::Deref;
 use std::time::Instant;
 use android_logger::Config;
 use glam::Vec2;
 use glutin::{Api, ContextWrapper, GlRequest, PossiblyCurrent};
-use glutin::event::{ElementState, Event, MouseButton, MouseScrollDelta, WindowEvent};
+use glutin::event::{ElementState, Event, MouseButton, MouseScrollDelta, Touch, TouchPhase, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 use glutin::window::{Window, WindowBuilder};
-use log::{info, Level};
-use infinity_loop::{Game, GlowContext, InfinityLoop};
-use infinity_loop::export::{Context, Event as GameEvent, MouseDelta};
+use log::{Level};
+use infinity_loop::export::{AppContext, Application, Context, GlowContext, Result};
+use infinity_loop::InfinityLoop;
+
+struct GlutinContext(ContextWrapper<PossiblyCurrent, Window>, Context);
+
+impl GlutinContext {
+    fn new(el: &EventLoopWindowTarget<()>) -> Result<Self> {
+        check_native_window()?;
+        unsafe {
+            let window_builder = WindowBuilder::new()
+                .with_title("Infinity Loop");
+            let window = glutin::ContextBuilder::new()
+                .with_vsync(true)
+                .with_gl(GlRequest::Specific(Api::OpenGlEs, (3, 0)))
+                .build_windowed(window_builder, el)?
+                .make_current()
+                .map_err(|(_, err)| err)?;
+            let gl = GlowContext::from_loader_function(|s| window.get_proc_address(s) as *const _);
+            Ok(Self(window, Context::from_glow(gl)))
+        }
+    }
+}
+
+impl Deref for GlutinContext {
+    type Target = Context;
+    fn deref(&self) -> &Self::Target {
+        self.gl()
+    }
+}
+
+impl AppContext for GlutinContext {
+    fn gl(&self) -> &Context {
+        &self.1
+    }
+
+    fn screen_size(&self) -> (u32, u32) {
+        let size = self.0.window().inner_size();
+        (size.width, size.height)
+    }
+}
 
 #[cfg_attr(target_os = "android", ndk_glue::main(backtrace = "on"))]
 fn main() {
@@ -17,166 +57,69 @@ fn main() {
             .with_tag("infinity_loop")
     );
 
-    run_andrid::<InfinityLoop>()
-}
+    let mut app = Application::<InfinityLoop, GlutinContext>::new().unwrap();
 
-struct Device<G: Game> {
-    game: G,
-    ctx: Context,
-    window: ContextWrapper<PossiblyCurrent, Window>,
-}
-
-impl<G: Game> Device<G> {
-
-    fn new(event_loop: &EventLoopWindowTarget<()>) -> Self {
-        let (window, ctx) = unsafe {
-            let window_builder = WindowBuilder::new()
-                .with_title("Infinity Loop");
-            let window = glutin::ContextBuilder::new()
-                .with_vsync(true)
-                .with_gl(GlRequest::Specific(Api::OpenGlEs, (3, 0)))
-                .build_windowed(window_builder, &event_loop)
-                .expect("Can not get OpenGL context!")
-                .make_current()
-                .expect("Can set OpenGL context as current!");
-            let gl = GlowContext::from_loader_function(|s| window.get_proc_address(s) as *const _);
-            (window, gl)
-        };
-        let ctx = Context::from_glow(ctx);
-        let game = G::initialize(&ctx);
-        Self {
-            window,
-            ctx,
-            game
-        }
-    }
-
-}
-
-fn run_andrid<G: Game>() -> ! {
-    info!("Starting the game");
     let event_loop = EventLoop::new();
 
-    let mut handler: Option<Device<G>> = None;
-    
-    let mut last_update = Instant::now();
-    let mut mouse_tracker = MouseTracker::new();
-    let mut dragging = false;
-
-    event_loop.run(move |event, _event_loop, control_flow| {
-        if !matches!(event, Event::NewEvents(_) | Event::MainEventsCleared | Event::RedrawEventsCleared | Event::RedrawRequested(_)){
-            info!("{:?}", event);
-        }
-
+    event_loop.run(move |event, event_loop, control_flow| {
+        *control_flow = match app.should_redraw() {
+            true => ControlFlow::Poll,
+            false => ControlFlow::Wait
+        };
         match event {
-            Event::WindowEvent { event, window_id, } => if let Some(device) = handler.as_mut() {
-                if window_id == device.window.window().id() {
-                    match event {
-                        WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                        WindowEvent::Resized(size) => {
-                            device.ctx.viewport(0, 0, size.width as i32, size.height as i32);
-                            device.game.event(&device.ctx, GameEvent::WindowResize(size.width as f32, size.height as f32));
-                            device.window.resize(size);
-                        },
-                        WindowEvent::MouseWheel { delta, .. } => {
-                            let dy = match delta {
-                                MouseScrollDelta::LineDelta(_, dy) => dy,
-                                MouseScrollDelta::PixelDelta(pos) => pos.y as f32 / 100.0
-                            };
-                            device.game.event(&device.ctx, GameEvent::Zoom(mouse_tracker.position(), dy));
-                        },
-                        WindowEvent::CursorMoved { position, .. } => {
-                            let size = device.window.window().inner_size();
-                            mouse_tracker.update_position(Vec2::new(position.x as f32 / size.width as f32, 1.0 - position.y as f32 / size.height as f32));
-
-                            if dragging {
-                                device.game.event(&device.ctx, GameEvent::Drag(mouse_tracker.delta()));
-                            }
-                        }
-                        WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, .. } => {
-                            device.game.event(&device.ctx, GameEvent::Click(mouse_tracker.position()));
-                        },
-                        WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Middle, .. } => {
-                            dragging = true;
-                            device.game.event(&device.ctx, GameEvent::DragStart(mouse_tracker.delta()));
-                        },
-                        WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Middle, .. } => {
-                            dragging = false;
-                            device.game.event(&device.ctx, GameEvent::DragEnd(mouse_tracker.delta()));
-                        },
-                        _ => {}
-                    }
+            Event::WindowEvent { event, ..} => match event {
+                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                WindowEvent::Resized(size) => {
+                    app.with_ctx(|ctx| ctx.0.resize(size));
+                    app.set_screen_size(size.into())
+                },
+                WindowEvent::Touch(Touch{ phase: TouchPhase::Started, location, .. })
+                    => app.on_click(location.x as f32, location.y as f32),
+                _ => {}
+            },
+            Event::RedrawRequested(_) => {
+                app.redraw();
+                if app.with_ctx(|ctx| ctx.0.swap_buffers().is_err()) {
+                    log::error!("Corrupted render context...");
                 }
             },
-            Event::RedrawRequested(window_id) => if let Some(device) = handler.as_mut() {
-                if window_id == device.window.window().id() {
-                    let now = Instant::now();
-                    device.game.draw(&device.ctx, now - last_update);
-                    last_update = now;
-                    *control_flow = ControlFlow::Poll;
-                    if device.window.swap_buffers().is_err() {
-                        info!("Corrupted render context, try recovering ...");
-                        if ndk_glue::native_window().is_some() {
-                            *device = Device::new(_event_loop);
-                            info!("... recovering successful!");
-                        }
-                    }
+            Event::MainEventsCleared =>  {
+                if app.should_redraw() {
+                    app.with_ctx(|ctx| ctx.0.window().request_redraw());
                 }
             },
-            Event::MainEventsCleared => if let Some(device) = handler.as_mut() {
-                device.window.window().request_redraw()
-            },
-            Event::LoopDestroyed => println!("Destroyed"),
             Event::Resumed => {
-                info!("Resumend");
-                //enable_immersive();
-                if handler.is_none() && ndk_glue::native_window().is_some() {
-                    info!("trying to create screen");
-                    handler = Some(Device::<G>::new(_event_loop));
-                }
-
+                app.resume(|| GlutinContext::new(event_loop));
             },
             Event::Suspended => {
-                info!("Suspended");
-                handler = None;
+                app.suspend();
+            }
+            Event::LoopDestroyed => {
+                app.suspend();
             },
-
             _ => {}
         }
     });
-}
-
-struct MouseTracker {
-    current_position: (Vec2, Instant),
-    previous_position: (Vec2, Instant)
-}
-
-impl MouseTracker {
-
-    fn new() -> Self {
-        Self {
-            current_position: (Vec2::ZERO, Instant::now()),
-            previous_position: (Vec2::ZERO, Instant::now())
-        }
-    }
-
-    fn position(&self) -> Vec2 {
-        self.current_position.0
-    }
-
-    fn delta(&self) -> MouseDelta {
-        MouseDelta(
-            self.current_position.0 - self.previous_position.0,
-            self.current_position.1.saturating_duration_since(self.previous_position.1)
-        )
-    }
-
-    fn update_position(&mut self, position: Vec2) {
-        self.previous_position = self.current_position;
-        self.current_position = (position, Instant::now());
-    }
 
 }
+
+fn check_native_window() -> std::result::Result<(), NoNativeWindow> {
+    match ndk_glue::native_window().is_some() {
+        true => Ok(()),
+        false => Err(NoNativeWindow)
+    }
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+struct NoNativeWindow;
+
+impl Display for NoNativeWindow {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Native window not available")
+    }
+}
+
+impl std::error::Error for NoNativeWindow {}
 
 //fn enable_immersive() {
 //    let vm_ptr = ndk_glue::native_activity().vm();
