@@ -114,6 +114,11 @@ impl RenderableWorld {
 
 }
 
+impl From<RenderableWorld> for World {
+    fn from(renderer: RenderableWorld) -> Self {
+        renderer.world
+    }
+}
 
 #[derive(Debug, Copy, Clone, Default, Pod, Zeroable)]
 #[repr(C)]

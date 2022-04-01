@@ -22,12 +22,24 @@ pub mod export {
 
 #[derive(Clone)]
 pub struct InfinityLoopBundle {
+    world: World,
+    camera: Camera,
     time: f32
 }
 
 impl Bundle for InfinityLoopBundle {
     fn new() -> anyhow::Result<Self> {
+        let camera = Camera {
+            scale: 6.0,
+            ..Default::default()
+        };
+
+        let mut world = World::new(1337);
+        world.scramble();
+
         Ok(Self {
+            world,
+            camera,
             time: 0.0
         })
     }
@@ -61,16 +73,13 @@ impl Game2 for InfinityLoop {
         ])?;
 
         let camera = Camera {
-            scale: 6.0,
             aspect: width as f32 / height as f32,
-            ..Default::default()
+            ..bundle.camera
         };
 
         let resources = Rc::new(TileRenderResources::new(&ctx)?);
 
-        let mut world = World::new(1337);
-        world.scramble();
-        let world = RenderableWorld::new(&ctx, resources, world)?;
+        let world = RenderableWorld::new(&ctx, resources, bundle.world)?;
 
         Ok(Self {
             pp_program,
@@ -84,6 +93,8 @@ impl Game2 for InfinityLoop {
 
     fn suspend<A: AppContext>(self, _ctx: &A) -> Self::Bundle {
         Self::Bundle {
+            world: self.world.into(),
+            camera: self.camera,
             time: self.time
         }
     }
