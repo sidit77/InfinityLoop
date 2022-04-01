@@ -93,28 +93,25 @@ impl Game2 for InfinityLoop {
         }
     }
 
-    fn draw<A: AppContext>(&mut self, ctx: &A) -> bool {
-        let delta = Duration::from_millis(16);
-        self.time = self.time.add(delta.as_secs_f32() * 0.5).rem(10.0); //6.4;//
-        ctx.clear(Rgba::new(23,23,23,255));
-        self.world.update(delta);
-
-        ctx.use_framebuffer(&self.framebuffer);
-        self.world.render(&ctx, &self.camera);
-
-        ctx.use_framebuffer(None);
-        ctx.set_blend_state(None);
-        ctx.use_program(&self.pp_program);
-        ctx.set_uniform(&self.pp_program.get_uniform("time").unwrap(), self.time); //
-        ctx.set_uniform(&self.pp_program.get_uniform("inv_camera").unwrap(), self.camera.to_matrix().inverse());
-        ctx.set_uniform(&self.pp_program.get_uniform("pxRange").unwrap(), self.screen_size.height as f32 / (2.0 * self.camera.scale));
-        ctx.bind_texture(0, &self.framebuffer_dst);
-        ctx.draw_arrays(PrimitiveType::TriangleStrip, 0, 4);
-        true
-    }
-
-    fn event<A: AppContext>(&mut self, ctx: &A, event: Event2) {
+    fn event<A: AppContext>(&mut self, ctx: &A, event: Event2) -> bool{
         match event {
+            Event2::Draw(delta) => {
+                self.time = self.time.add(delta.as_secs_f32() * 0.5).rem(10.0); //6.4;//
+                ctx.clear(Rgba::new(23,23,23,255));
+                self.world.update(delta);
+
+                ctx.use_framebuffer(&self.framebuffer);
+                self.world.render(&ctx, &self.camera);
+
+                ctx.use_framebuffer(None);
+                ctx.set_blend_state(None);
+                ctx.use_program(&self.pp_program);
+                ctx.set_uniform(&self.pp_program.get_uniform("time").unwrap(), self.time); //
+                ctx.set_uniform(&self.pp_program.get_uniform("inv_camera").unwrap(), self.camera.to_matrix().inverse());
+                ctx.set_uniform(&self.pp_program.get_uniform("pxRange").unwrap(), self.screen_size.height as f32 / (2.0 * self.camera.scale));
+                ctx.bind_texture(0, &self.framebuffer_dst);
+                ctx.draw_arrays(PrimitiveType::TriangleStrip, 0, 4);
+            },
             Event2::Resize(width, height) => {
                 assert!(width != 0 && height != 0);
                 ctx.viewport(0, 0, width as i32, height as i32);
@@ -132,9 +129,9 @@ impl Game2 for InfinityLoop {
                     new_world.scramble();
                     self.world.reinitialize(new_world);
                 }
-
             }
         }
+        self.world.update_required()
     }
 }
 

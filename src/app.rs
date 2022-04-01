@@ -1,8 +1,8 @@
 use std::fmt::Debug;
-use std::mem::take;
+use std::mem::{replace, take};
 use std::ops::Deref;
 use anyhow::Result;
-use std::time::Duration;
+use std::time::{Duration};
 use glam::Vec2;
 use instant::Instant;
 use winit::dpi::PhysicalSize;
@@ -37,6 +37,7 @@ pub enum Event {
 
 #[derive(Debug, Copy, Clone)]
 pub enum Event2 {
+    Draw(Duration),
     Resize(u32, u32),
     Click(Vec2),
 }
@@ -75,7 +76,8 @@ pub trait AppContext: Deref<Target = Context> {
 
 pub struct Application<G: Game2, A: AppContext> {
     state: ApplicationState<G, A>,
-    screen_size: (u32, u32)
+    screen_size: (u32, u32),
+    last_update: Instant
 }
 
 /**
@@ -86,7 +88,8 @@ impl<G: Game2, A: AppContext> Application<G, A> {
         let bundle = G::Bundle::new()?;
         Ok(Self {
             state: ApplicationState::Suspended(bundle),
-            screen_size: (100, 100)
+            screen_size: (100, 100),
+            last_update: Instant::now()
         })
     }
 
@@ -95,6 +98,7 @@ impl<G: Game2, A: AppContext> Application<G, A> {
             ApplicationState::Suspended(bundle) => {
                 let ctx = ctx_func();
                 self.screen_size = ctx.screen_size();
+                self.last_update = Instant::now();
                 match G::resume(&ctx, bundle.clone()) {
                     Ok(game) => {
                         log::info!("Resumed app");
@@ -131,10 +135,16 @@ impl<G: Game2, A: AppContext> Application<G, A> {
         self.call_event(Event2::Resize(screen_size.0, screen_size.1));
     }
 
+    pub fn on_click(&mut self, x: f32, y: f32) {
+        let (width, height) = self.screen_size;
+        let pos = Vec2::new(x / width as f32, 1.0 - y / height as f32);
+        self.call_event(Event2::Click(pos))
+    }
+
     pub fn redraw(&mut self) {
-        if let ApplicationState::Active{game, ctx, should_redraw} = &mut self.state {
-            *should_redraw = game.draw(ctx)
-        }
+        let now = Instant::now();
+        let delta = now - replace(&mut self.last_update, now);
+        self.call_event(Event2::Draw(delta))
     }
 
     pub fn should_redraw(&self) -> bool {
@@ -142,12 +152,6 @@ impl<G: Game2, A: AppContext> Application<G, A> {
             ApplicationState::Active { should_redraw, ..} => should_redraw,
             _ => false
         }
-    }
-
-    pub fn on_click(&mut self, x: f32, y: f32) {
-        let (width, height) = self.screen_size;
-        let pos = Vec2::new(x / width as f32, 1.0 - y / height as f32);
-        self.call_event(Event2::Click(pos))
     }
 
     pub fn with_ctx(&self, f: impl FnOnce(&A)) {
@@ -158,8 +162,11 @@ impl<G: Game2, A: AppContext> Application<G, A> {
 
     fn call_event(&mut self, event: Event2) {
         if let ApplicationState::Active{ game, ctx, should_redraw} = &mut self.state {
-            game.event(ctx, event);
-            *should_redraw = true;
+            if ! *should_redraw {
+                self.last_update = Instant::now();
+            }
+            *should_redraw = game.event(ctx, event);
+
         }
     }
 
@@ -175,8 +182,7 @@ pub trait Game2: Sized {
     fn resume<A: AppContext>(ctx: &A, bundle: Self::Bundle) -> Result<Self>;
     fn suspend(self) -> Self::Bundle;
 
-    fn draw<A: AppContext>(&mut self, ctx: &A) -> bool;
-    fn event<A: AppContext>(&mut self, ctx: &A, event: Event2);
+    fn event<A: AppContext>(&mut self, ctx: &A, event: Event2) -> bool;
 }
 
 pub trait Game: 'static + Sized {

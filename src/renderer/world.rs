@@ -88,9 +88,9 @@ impl RenderableWorld {
 
     }
 
-    //pub fn update_required(&self) -> bool {
-    //    !self.active_instances.is_empty()
-    //}
+    pub fn update_required(&self) -> bool {
+        !self.active_instances.is_empty()
+    }
 
     pub fn try_rotate(&mut self, pos: HexPos) -> bool {
         let result = self.world.try_rotate(pos);
