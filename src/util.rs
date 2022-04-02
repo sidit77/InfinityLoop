@@ -13,11 +13,12 @@ impl<T: Eq> Update for T {
     }
 }
 
-pub trait Apply: Sized {
-    fn apply<F: FnOnce(&mut Self)>(mut self, func: F) -> Self {
-        func(&mut self);
-        self
-    }
+#[macro_export]
+macro_rules! log_assert {
+    ($($arg:tt)*) => (if !($($arg)*) { log::warn!("Assertion failed: {} at {}:{}", std::stringify!($($arg)*), std::file!(), std::line!()); })
 }
 
-impl<T> Apply for T {}
+#[macro_export]
+macro_rules! log_unreachable {
+    ($($arg:tt)*) => (log::warn!("Unreachable line was reached: {}:{}", std::file!(), std::line!()))
+}

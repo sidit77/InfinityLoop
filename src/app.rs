@@ -5,6 +5,7 @@ use std::ops::Deref;
 use std::time::{Duration};
 use glam::Vec2;
 use instant::Instant;
+use crate::{log_assert, log_unreachable};
 use crate::opengl::Context;
 
 pub type GlowContext = glow::Context;
@@ -123,14 +124,14 @@ impl<G: Game, A: AppContext> Application<G, A> {
 
     pub fn on_press(&mut self, x: f32, y: f32, id: u64) {
         log::info!("Down: {}", id);
-        assert_eq!(self.touches.insert(id, self.normalize(x, y)), None);
+        log_assert!(self.touches.insert(id, self.normalize(x, y)).is_none());
         match self.input_state {
             InputState::Up => {
-                assert_eq!(self.touches.len(), 1);
+                log_assert!(self.touches.len() == 1);
                 self.input_state = InputState::Click(self.touch_center());
             }
             InputState::Click(_) => {
-                assert!(self.touches.len() > 1);
+                log_assert!(self.touches.len() > 1);
                 self.input_state = InputState::Drag(self.touch_center());
             }
             InputState::Drag(_) => {
@@ -144,7 +145,7 @@ impl<G: Game, A: AppContext> Application<G, A> {
         self.touches.remove(&id);
         if self.touches.is_empty() {
             match self.input_state {
-                InputState::Up => unreachable!(),
+                InputState::Up => log_unreachable!(),
                 InputState::Click(pos) => self.call_event(Event::Click(pos)),
                 InputState::Drag(_) => {}
             }
@@ -154,17 +155,17 @@ impl<G: Game, A: AppContext> Application<G, A> {
                 InputState::Drag(_) => {
                     self.input_state = InputState::Drag(self.touch_center());
                 }
-                _ => unreachable!()
+                _ => log_unreachable!()
             }
         }
     }
 
     pub fn on_move(&mut self, x: f32, y: f32, id: u64) {
         log::info!("Move: {}", id);
-        assert_ne!(self.touches.insert(id, self.normalize(x, y)), None);
+        log_assert!(self.touches.insert(id, self.normalize(x, y)).is_some());
         let npos = self.touch_center();
         match self.input_state {
-            InputState::Up => unreachable!(),
+            InputState::Up => log_unreachable!(),
             InputState::Click(pos) => if pos.distance(npos) > 0.01 {
                 self.input_state = InputState::Drag(npos);
                 self.call_event(Event::Drag(npos - pos));
@@ -183,7 +184,7 @@ impl<G: Game, A: AppContext> Application<G, A> {
             sum += *vec;
             count += 1;
         }
-        assert!(count > 0);
+        log_assert!(count > 0);
         sum / count as f32
     }
 

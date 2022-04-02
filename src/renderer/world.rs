@@ -7,7 +7,6 @@ use crate::{Camera, Color, HexPos};
 use crate::opengl::*;
 use crate::renderer::TileRenderResources;
 use crate::types::Angle;
-use crate::util::Apply;
 use crate::world::{HexMap, TileConfig, World};
 
 pub struct RenderableWorld {
@@ -36,14 +35,16 @@ impl RenderableWorld {
 
         let instances = HexMap::new(world.tiles().radius());
 
-        Ok(Self {
+        let mut renderer = Self {
             resources,
             vertex_array,
             instance_buffer,
             world,
             instances,
             active_instances: HashSet::new()
-        }.apply(Self::reset))
+        };
+        renderer.reset();
+        Ok(renderer)
     }
 
     fn reset(&mut self){
