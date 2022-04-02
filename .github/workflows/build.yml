@@ -22,6 +22,7 @@ jobs:
       run: |
         curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh
         rustup target add wasm32-unknown-unknown
+        cd platforms/wasm
         npm install
         npm run build
         
