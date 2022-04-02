@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt::Debug;
 use std::mem::{replace, take};
 use std::ops::Deref;
@@ -123,7 +122,6 @@ impl<G: Game, A: AppContext> Application<G, A> {
     }
 
     pub fn on_press(&mut self, x: f32, y: f32, id: u64) {
-        log::info!("Down: {}", id);
         if self.touches.insert(id, self.normalize(x, y)) {
             match self.input_state {
                 InputState::Up => {
@@ -142,7 +140,6 @@ impl<G: Game, A: AppContext> Application<G, A> {
     }
 
     pub fn on_release(&mut self, _x: f32, _y: f32, id: u64) {
-        log::info!("Up: {}", id);
         self.touches.remove(id);
         if self.touches.len() == 0 {
             match self.input_state {
@@ -162,10 +159,14 @@ impl<G: Game, A: AppContext> Application<G, A> {
     }
 
     pub fn on_move(&mut self, x: f32, y: f32, id: u64) {
-        log::info!("Move: {}", id);
         if self.touches.contains(id) {
+            let dist1 = self.touches.distance();
             self.touches.update(id, self.normalize(x, y));
             let npos = self.touches.center().unwrap();
+            if let Some(dist1) = dist1 {
+                let dist2 = self.touches.distance().unwrap();
+                self.call_event(Event::Zoom(npos, (dist2 - dist1) * 30.0));
+            }
             match self.input_state {
                 InputState::Up => log_unreachable!(),
                 InputState::Click(pos) => if pos.distance(npos) > 0.01 {
@@ -178,6 +179,10 @@ impl<G: Game, A: AppContext> Application<G, A> {
                 }
             }
         }
+    }
+
+    pub fn on_mouse_wheel(&mut self, x: f32, y: f32, amt: f32){
+        self.call_event(Event::Zoom(self.normalize(x, y), amt))
     }
 
     fn normalize(&self, x: f32, y: f32) -> Vec2 {
@@ -309,6 +314,15 @@ impl TouchMap {
         } else {
             None
         }
+    }
+
+    fn distance(&self) -> Option<f32> {
+        if let Some((_, v1)) = self.touches[0] {
+            if let Some((_, v2)) = self.touches[1] {
+                return Some(v1.distance(v2))
+            }
+        }
+        None
     }
 
 }

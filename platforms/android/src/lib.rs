@@ -4,7 +4,8 @@ use std::fmt::{Display, Formatter};
 use std::ops::Deref;
 use android_logger::Config;
 use glutin::{Api, ContextWrapper, GlRequest, PossiblyCurrent};
-use glutin::event::{Event, Touch, TouchPhase, WindowEvent};
+use glutin::dpi::PhysicalPosition;
+use glutin::event::{ElementState, Event, MouseButton, MouseScrollDelta, Touch, TouchPhase, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 use glutin::window::{Window, WindowBuilder};
 use log::{Level};
@@ -63,6 +64,8 @@ fn main() {
 
     let event_loop = EventLoop::new();
 
+    let mut pos = PhysicalPosition::new(0.0, 0.0);
+    let mut down = false;
     event_loop.run(move |event, event_loop, control_flow| {
         *control_flow = match app.should_redraw() {
             true => ControlFlow::Poll,
@@ -74,6 +77,27 @@ fn main() {
                 WindowEvent::Resized(size) => {
                     app.with_ctx(|ctx| ctx.0.resize(size));
                     app.set_screen_size(size.into())
+                },
+                WindowEvent::CursorMoved { position,.. } => {
+                    pos = position;
+                    if down {
+                        app.on_move(pos.x as f32, pos.y as f32, 0);
+                    }
+                },
+                WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, ..}  => {
+                    app.on_press(pos.x as f32, pos.y as f32, 0);
+                    down = true;
+                },
+                WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Left, ..} => {
+                    app.on_release(pos.x as f32, pos.y as f32, 0);
+                    down = false;
+                },
+                WindowEvent::MouseWheel { delta, .. } => {
+                    let dy = match delta {
+                        MouseScrollDelta::LineDelta(_, dy) => dy,
+                        MouseScrollDelta::PixelDelta(pos) => pos.y as f32 / 100.0
+                    };
+                    app.on_mouse_wheel(pos.x as f32, pos.y as f32, dy)
                 },
                 WindowEvent::Touch(Touch{ phase, location, id, .. }) => match phase {
                     TouchPhase::Started => app.on_press(location.x as f32, location.y as f32, id),

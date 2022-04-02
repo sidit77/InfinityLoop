@@ -4,7 +4,7 @@ use std::collections::VecDeque;
 use std::ops::Deref;
 use glutin::{ContextWrapper, GlProfile, PossiblyCurrent};
 use glutin::dpi::{PhysicalPosition, PhysicalSize};
-use glutin::event::{ElementState, Event, KeyboardInput, MouseButton, Touch, TouchPhase, VirtualKeyCode, WindowEvent};
+use glutin::event::{ElementState, Event, KeyboardInput, MouseButton, MouseScrollDelta, Touch, TouchPhase, VirtualKeyCode, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 use glutin::window::{Fullscreen, Window, WindowBuilder};
 use log::{LevelFilter};
@@ -68,7 +68,7 @@ fn main() {
     let mut ctx = None;
     let mut pos = PhysicalPosition::new(0.0, 0.0);
     let mut down = false;
-    let mut touchStack = VecDeque::new();
+    let mut touch_stack = VecDeque::new();
     event_loop.run(move |event, event_loop, control_flow| {
         *control_flow = match app.should_redraw() {
             true => ControlFlow::Poll,
@@ -90,7 +90,6 @@ fn main() {
                     if down {
                         app.on_move(pos.x as f32, pos.y as f32, 0);
                     }
-
                 },
                 WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, ..}  => {
                     app.on_press(pos.x as f32, pos.y as f32, 0);
@@ -99,6 +98,19 @@ fn main() {
                 WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Left, ..} => {
                     app.on_release(pos.x as f32, pos.y as f32, 0);
                     down = false;
+                },
+                WindowEvent::MouseWheel { delta, .. } => {
+                    let dy = match delta {
+                        MouseScrollDelta::LineDelta(_, dy) => dy,
+                        MouseScrollDelta::PixelDelta(pos) => pos.y as f32 / 100.0
+                    };
+                    app.on_mouse_wheel(pos.x as f32, pos.y as f32, dy)
+                },
+                WindowEvent::Touch(Touch{ phase, location, id, .. }) => match phase {
+                    TouchPhase::Started => app.on_press(location.x as f32, location.y as f32, id),
+                    TouchPhase::Moved => app.on_move(location.x as f32, location.y as f32, id),
+                    TouchPhase::Ended => app.on_release(location.x as f32, location.y as f32, id),
+                    TouchPhase::Cancelled => app.on_release(location.x as f32, location.y as f32, id)
                 },
                 WindowEvent::KeyboardInput {  input: KeyboardInput {  state: ElementState::Pressed, virtual_keycode, .. }, .. } => match virtual_keycode{
                     Some(VirtualKeyCode::F11) => app.with_ctx(|ctx| {
@@ -109,12 +121,12 @@ fn main() {
                         })
                     }),
                     Some(VirtualKeyCode::Return) => {
-                        app.on_press(pos.x as f32, pos.y as f32, 1 + touchStack.len() as u64);
-                        touchStack.push_back(pos);
+                        app.on_press(pos.x as f32, pos.y as f32, 1 + touch_stack.len() as u64);
+                        touch_stack.push_back(pos);
                     },
                     Some(VirtualKeyCode::Back) => {
-                        if let Some(pos) = touchStack.pop_back() {
-                            app.on_release(pos.x as f32, pos.y as f32, 1 + touchStack.len() as u64);
+                        if let Some(pos) = touch_stack.pop_back() {
+                            app.on_release(pos.x as f32, pos.y as f32, 1 + touch_stack.len() as u64);
                         }
                     }
                     _ => {}
