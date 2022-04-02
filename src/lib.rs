@@ -6,8 +6,9 @@ mod world;
 mod util;
 mod renderer;
 
-use std::ops::{Add, Rem};
+use std::ops::{Add, Rem, Sub};
 use std::rc::Rc;
+use glam::Vec2;
 use crate::app::{AppContext, Bundle, Event, Game};
 use crate::camera::Camera;
 use crate::opengl::{Texture, Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, Framebuffer, TextureType, InternalFormat, MipmapLevels, FramebufferAttachment};
@@ -100,6 +101,7 @@ impl Game for InfinityLoop {
     }
 
     fn event<A: AppContext>(&mut self, ctx: &A, event: Event) -> anyhow::Result<bool> {
+        let mut camera_update = false;
         match event {
             Event::Draw(delta) => {
                 self.time = self.time.add(delta.as_secs_f32() * 0.5).rem(10.0); //6.4;//
@@ -125,7 +127,8 @@ impl Game for InfinityLoop {
                 self.framebuffer_dst = Texture::new(&ctx, TextureType::Texture2d(width, height),
                                                     InternalFormat::R8, MipmapLevels::None)?;
                 self.framebuffer.update_attachments(&[(FramebufferAttachment::Color(0), &self.framebuffer_dst)])?;
-            }
+                camera_update = true;
+            },
             Event::Click(pos) => {
                 let pt = self.camera.to_world_coords(pos).into();
                 self.world.try_rotate(pt);
@@ -134,9 +137,21 @@ impl Game for InfinityLoop {
                     new_world.scramble();
                     self.world.reinitialize(new_world);
                 }
+            },
+            Event::Zoom(center, amount) => {
+                let camera = &mut self.camera;
+                let old = camera.to_world_coords(center);
+                camera.scale = camera.scale.sub(amount * (camera.scale / 10.0)).max(1.0);
+                let new = camera.to_world_coords(center);
+                camera.position += old - new;
+                camera_update = true;
+            }
+            Event::Drag(delta) => {
+                self.camera.position += self.camera.to_world_coords(-delta) - self.camera.to_world_coords(Vec2::ZERO);
+                camera_update = true;
             }
         }
-        Ok(self.world.update_required())
+        Ok(camera_update || self.world.update_required())
     }
 }
 

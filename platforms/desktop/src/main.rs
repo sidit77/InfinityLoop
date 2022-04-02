@@ -3,7 +3,7 @@
 use std::ops::Deref;
 use glutin::{ContextWrapper, GlProfile, PossiblyCurrent};
 use glutin::dpi::{PhysicalPosition, PhysicalSize};
-use glutin::event::{ElementState, Event, KeyboardInput, MouseButton, VirtualKeyCode, WindowEvent};
+use glutin::event::{ElementState, Event, KeyboardInput, MouseButton, Touch, TouchPhase, VirtualKeyCode, WindowEvent};
 use glutin::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 use glutin::window::{Fullscreen, Window, WindowBuilder};
 use log::{LevelFilter};
@@ -82,10 +82,20 @@ fn main() {
                     }
                     app.set_screen_size(size.into())
                 },
-                WindowEvent::CursorMoved { position,.. }
-                    => pos = position,
+                WindowEvent::CursorMoved { position,.. } => {
+                    pos = position;
+                    app.on_move(pos.x as f32, pos.y as f32);
+                },
                 WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, ..}
-                    => app.on_click(pos.x as f32, pos.y as f32),
+                    => app.on_press(pos.x as f32, pos.y as f32),
+                WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Left, ..}
+                    => app.on_release(pos.x as f32, pos.y as f32),
+                WindowEvent::Touch(Touch{ phase, location, .. }) => match phase {
+                    TouchPhase::Started => app.on_press(location.x as f32, location.y as f32),
+                    TouchPhase::Moved => app.on_move(location.x as f32, location.y as f32),
+                    TouchPhase::Ended => app.on_release(location.x as f32, location.y as f32),
+                    TouchPhase::Cancelled => log::info!("{:?}", phase)
+                }
                 WindowEvent::KeyboardInput {  input: KeyboardInput {  state: ElementState::Pressed, virtual_keycode: Some(VirtualKeyCode::F11), .. }, .. } => {
                     app.with_ctx(|ctx| {
                         let window = ctx.0.window();

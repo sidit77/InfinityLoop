@@ -14,6 +14,8 @@ pub enum Event {
     Draw(Duration),
     Resize(u32, u32),
     Click(Vec2),
+    Drag(Vec2),
+    Zoom(Vec2, f32),
 }
 
 enum ApplicationState<G: Game, A: AppContext> {
@@ -51,7 +53,8 @@ pub trait AppContext: Deref<Target = Context> {
 pub struct Application<G: Game, A: AppContext> {
     state: ApplicationState<G, A>,
     screen_size: (u32, u32),
-    last_update: Instant
+    last_update: Instant,
+    input_state: InputState
 }
 
 impl<G: Game, A: AppContext> Application<G, A> {
@@ -60,7 +63,8 @@ impl<G: Game, A: AppContext> Application<G, A> {
         Ok(Self {
             state: ApplicationState::Suspended(bundle),
             screen_size: (100, 100),
-            last_update: Instant::now()
+            last_update: Instant::now(),
+            input_state: InputState::Up
         })
     }
 
@@ -70,6 +74,7 @@ impl<G: Game, A: AppContext> Application<G, A> {
                 Ok(ctx) => {
                     self.screen_size = ctx.screen_size();
                     self.last_update = Instant::now();
+                    self.input_state = InputState::Up;
                     match G::resume(&ctx, bundle.clone()) {
                         Ok(game) => {
                             log::info!("Resumed app");
@@ -112,10 +117,37 @@ impl<G: Game, A: AppContext> Application<G, A> {
         self.call_event(Event::Resize(screen_size.0, screen_size.1));
     }
 
-    pub fn on_click(&mut self, x: f32, y: f32) {
+    pub fn on_press(&mut self, x: f32, y: f32) {
+        if let InputState::Up = self.input_state {
+            self.input_state = InputState::Click(self.normalize(x, y));
+        }
+    }
+
+    pub fn on_release(&mut self, _x: f32, _y: f32) {
+        if let InputState::Click(pos) = self.input_state {
+            self.call_event(Event::Click(pos))
+        }
+        self.input_state = InputState::Up;
+    }
+
+    pub fn on_move(&mut self, x: f32, y: f32) {
+        let npos = self.normalize(x, y);
+        match self.input_state {
+            InputState::Up => {}
+            InputState::Click(pos) => if pos.distance(npos) > 0.01 {
+                self.input_state = InputState::Drag(npos);
+                self.call_event(Event::Drag(npos - pos));
+            }
+            InputState::Drag(pos) => {
+                self.input_state = InputState::Drag(npos);
+                self.call_event(Event::Drag(npos - pos));
+            }
+        }
+    }
+
+    fn normalize(&self, x: f32, y: f32) -> Vec2 {
         let (width, height) = self.screen_size;
-        let pos = Vec2::new(x / width as f32, 1.0 - y / height as f32);
-        self.call_event(Event::Click(pos))
+        Vec2::new(x / width as f32, 1.0 - y / height as f32)
     }
 
     pub fn redraw(&mut self) {
@@ -163,3 +195,9 @@ pub trait Game: Sized {
     fn event<A: AppContext>(&mut self, ctx: &A, event: Event) -> Result<bool>;
 }
 
+#[derive(Copy, Clone, Debug)]
+enum InputState {
+    Up,
+    Click(Vec2),
+    Drag(Vec2)
+}
