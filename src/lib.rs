@@ -8,7 +8,7 @@ mod renderer;
 
 use std::ops::{Add, Rem};
 use std::rc::Rc;
-use crate::app::{AppContext, Bundle, Event2, Game2};
+use crate::app::{AppContext, Bundle, Event, Game};
 use crate::camera::Camera;
 use crate::opengl::{Texture, Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, Framebuffer, TextureType, InternalFormat, MipmapLevels, FramebufferAttachment};
 use crate::types::{Color, HexPos, Rgba};
@@ -54,7 +54,7 @@ pub struct InfinityLoop {
     time: f32
 }
 
-impl Game2 for InfinityLoop {
+impl Game for InfinityLoop {
     type Bundle = InfinityLoopBundle;
 
     fn resume<A: AppContext>(ctx: &A, bundle: Self::Bundle) -> anyhow::Result<Self> {
@@ -99,9 +99,9 @@ impl Game2 for InfinityLoop {
         }
     }
 
-    fn event<A: AppContext>(&mut self, ctx: &A, event: Event2) -> anyhow::Result<bool> {
+    fn event<A: AppContext>(&mut self, ctx: &A, event: Event) -> anyhow::Result<bool> {
         match event {
-            Event2::Draw(delta) => {
+            Event::Draw(delta) => {
                 self.time = self.time.add(delta.as_secs_f32() * 0.5).rem(10.0); //6.4;//
                 ctx.clear(Rgba::new(23,23,23,255));
                 self.world.update(delta);
@@ -118,7 +118,7 @@ impl Game2 for InfinityLoop {
                 ctx.bind_texture(0, &self.framebuffer_dst);
                 ctx.draw_arrays(PrimitiveType::TriangleStrip, 0, 4);
             },
-            Event2::Resize(width, height) => {
+            Event::Resize(width, height) => {
                 assert!(width != 0 && height != 0);
                 ctx.viewport(0, 0, width as i32, height as i32);
                 self.camera.aspect = width as f32 / height as f32;
@@ -126,7 +126,7 @@ impl Game2 for InfinityLoop {
                                                     InternalFormat::R8, MipmapLevels::None)?;
                 self.framebuffer.update_attachments(&[(FramebufferAttachment::Color(0), &self.framebuffer_dst)])?;
             }
-            Event2::Click(pos) => {
+            Event::Click(pos) => {
                 let pt = self.camera.to_world_coords(pos).into();
                 self.world.try_rotate(pt);
                 if self.world.is_completed() {

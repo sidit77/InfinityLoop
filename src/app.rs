@@ -10,13 +10,13 @@ pub type GlowContext = glow::Context;
 pub type Result<T> = anyhow::Result<T>;
 
 #[derive(Debug, Copy, Clone)]
-pub enum Event2 {
+pub enum Event {
     Draw(Duration),
     Resize(u32, u32),
     Click(Vec2),
 }
 
-enum ApplicationState<G: Game2, A: AppContext> {
+enum ApplicationState<G: Game, A: AppContext> {
     Active{
         game: G,
         ctx: A,
@@ -26,7 +26,7 @@ enum ApplicationState<G: Game2, A: AppContext> {
     Invalid
 }
 
-impl<G: Game2, A: AppContext> Default for ApplicationState<G, A> {
+impl<G: Game, A: AppContext> Default for ApplicationState<G, A> {
     fn default() -> Self {
         Self::Invalid
     }
@@ -48,13 +48,13 @@ pub trait AppContext: Deref<Target = Context> {
 }
 
 
-pub struct Application<G: Game2, A: AppContext> {
+pub struct Application<G: Game, A: AppContext> {
     state: ApplicationState<G, A>,
     screen_size: (u32, u32),
     last_update: Instant
 }
 
-impl<G: Game2, A: AppContext> Application<G, A> {
+impl<G: Game, A: AppContext> Application<G, A> {
     pub fn new() -> Result<Self> {
         let bundle = G::Bundle::new()?;
         Ok(Self {
@@ -109,19 +109,19 @@ impl<G: Game2, A: AppContext> Application<G, A> {
 
     pub fn set_screen_size(&mut self, screen_size: (u32, u32)) {
         self.screen_size = screen_size;
-        self.call_event(Event2::Resize(screen_size.0, screen_size.1));
+        self.call_event(Event::Resize(screen_size.0, screen_size.1));
     }
 
     pub fn on_click(&mut self, x: f32, y: f32) {
         let (width, height) = self.screen_size;
         let pos = Vec2::new(x / width as f32, 1.0 - y / height as f32);
-        self.call_event(Event2::Click(pos))
+        self.call_event(Event::Click(pos))
     }
 
     pub fn redraw(&mut self) {
         let now = Instant::now();
         let delta = now - replace(&mut self.last_update, now);
-        self.call_event(Event2::Draw(delta))
+        self.call_event(Event::Draw(delta))
     }
 
     pub fn should_redraw(&self) -> bool {
@@ -138,7 +138,7 @@ impl<G: Game2, A: AppContext> Application<G, A> {
         R::default()
     }
 
-    fn call_event(&mut self, event: Event2) {
+    fn call_event(&mut self, event: Event) {
         if let ApplicationState::Active{ game, ctx, should_redraw} = &mut self.state {
             if ! *should_redraw {
                 self.last_update = Instant::now();
@@ -154,12 +154,12 @@ pub trait Bundle: Clone + Sized {
     fn new() -> Result<Self>;
 }
 
-pub trait Game2: Sized {
+pub trait Game: Sized {
     type Bundle: Bundle;
 
     fn resume<A: AppContext>(ctx: &A, bundle: Self::Bundle) -> Result<Self>;
     fn suspend<A: AppContext>(self, ctx: &A) -> Self::Bundle;
 
-    fn event<A: AppContext>(&mut self, ctx: &A, event: Event2) -> Result<bool>;
+    fn event<A: AppContext>(&mut self, ctx: &A, event: Event) -> Result<bool>;
 }
 
