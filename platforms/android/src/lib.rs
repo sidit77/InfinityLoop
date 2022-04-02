@@ -75,11 +75,11 @@ fn main() {
                     app.with_ctx(|ctx| ctx.0.resize(size));
                     app.set_screen_size(size.into())
                 },
-                WindowEvent::Touch(Touch{ phase, location, .. }) => match phase {
-                    TouchPhase::Started => app.on_press(location.x as f32, location.y as f32),
-                    TouchPhase::Moved => app.on_move(location.x as f32, location.y as f32),
-                    TouchPhase::Ended => app.on_release(location.x as f32, location.y as f32),
-                    TouchPhase::Cancelled => log::info!("{:?}", phase)
+                WindowEvent::Touch(Touch{ phase, location, id, .. }) => match phase {
+                    TouchPhase::Started => app.on_press(location.x as f32, location.y as f32, id),
+                    TouchPhase::Moved => app.on_move(location.x as f32, location.y as f32, id),
+                    TouchPhase::Ended => app.on_release(location.x as f32, location.y as f32, id),
+                    TouchPhase::Cancelled => app.on_release(location.x as f32, location.y as f32, id)
                 },
                 _ => {}
             },

@@ -1,5 +1,6 @@
 #![windows_subsystem = "windows"]
 
+use std::collections::VecDeque;
 use std::ops::Deref;
 use glutin::{ContextWrapper, GlProfile, PossiblyCurrent};
 use glutin::dpi::{PhysicalPosition, PhysicalSize};
@@ -66,6 +67,8 @@ fn main() {
 
     let mut ctx = None;
     let mut pos = PhysicalPosition::new(0.0, 0.0);
+    let mut down = false;
+    let mut touchStack = VecDeque::new();
     event_loop.run(move |event, event_loop, control_flow| {
         *control_flow = match app.should_redraw() {
             true => ControlFlow::Poll,
@@ -84,26 +87,37 @@ fn main() {
                 },
                 WindowEvent::CursorMoved { position,.. } => {
                     pos = position;
-                    app.on_move(pos.x as f32, pos.y as f32);
+                    if down {
+                        app.on_move(pos.x as f32, pos.y as f32, 0);
+                    }
+
                 },
-                WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, ..}
-                    => app.on_press(pos.x as f32, pos.y as f32),
-                WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Left, ..}
-                    => app.on_release(pos.x as f32, pos.y as f32),
-                WindowEvent::Touch(Touch{ phase, location, .. }) => match phase {
-                    TouchPhase::Started => app.on_press(location.x as f32, location.y as f32),
-                    TouchPhase::Moved => app.on_move(location.x as f32, location.y as f32),
-                    TouchPhase::Ended => app.on_release(location.x as f32, location.y as f32),
-                    TouchPhase::Cancelled => log::info!("{:?}", phase)
-                }
-                WindowEvent::KeyboardInput {  input: KeyboardInput {  state: ElementState::Pressed, virtual_keycode: Some(VirtualKeyCode::F11), .. }, .. } => {
-                    app.with_ctx(|ctx| {
+                WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, ..}  => {
+                    app.on_press(pos.x as f32, pos.y as f32, 0);
+                    down = true;
+                },
+                WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Left, ..} => {
+                    app.on_release(pos.x as f32, pos.y as f32, 0);
+                    down = false;
+                },
+                WindowEvent::KeyboardInput {  input: KeyboardInput {  state: ElementState::Pressed, virtual_keycode, .. }, .. } => match virtual_keycode{
+                    Some(VirtualKeyCode::F11) => app.with_ctx(|ctx| {
                         let window = ctx.0.window();
                         window.set_fullscreen(match window.fullscreen() {
                             None => Some(Fullscreen::Borderless(None)),
                             Some(_) => None
                         })
-                    })
+                    }),
+                    Some(VirtualKeyCode::Return) => {
+                        app.on_press(pos.x as f32, pos.y as f32, 1 + touchStack.len() as u64);
+                        touchStack.push_back(pos);
+                    },
+                    Some(VirtualKeyCode::Back) => {
+                        if let Some(pos) = touchStack.pop_back() {
+                            app.on_release(pos.x as f32, pos.y as f32, 1 + touchStack.len() as u64);
+                        }
+                    }
+                    _ => {}
                 }
                 _ => {}
             },
