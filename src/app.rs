@@ -57,7 +57,7 @@ pub struct Application<G: Game, A: AppContext> {
     screen_size: (u32, u32),
     last_update: Instant,
     input_state: InputState,
-    touches: HashMap<u64, Vec2>
+    touches: TouchMap
 }
 
 impl<G: Game, A: AppContext> Application<G, A> {
@@ -68,7 +68,7 @@ impl<G: Game, A: AppContext> Application<G, A> {
             screen_size: (100, 100),
             last_update: Instant::now(),
             input_state: InputState::Up,
-            touches: HashMap::new()
+            touches: TouchMap::new()
         })
     }
 
@@ -79,7 +79,7 @@ impl<G: Game, A: AppContext> Application<G, A> {
                     self.screen_size = ctx.screen_size();
                     self.last_update = Instant::now();
                     self.input_state = InputState::Up;
-                    self.touches.clear();
+                    self.touches = TouchMap::new();
                     match G::resume(&ctx, bundle.clone()) {
                         Ok(game) => {
                             log::info!("Resumed app");
@@ -124,26 +124,27 @@ impl<G: Game, A: AppContext> Application<G, A> {
 
     pub fn on_press(&mut self, x: f32, y: f32, id: u64) {
         log::info!("Down: {}", id);
-        log_assert!(self.touches.insert(id, self.normalize(x, y)).is_none());
-        match self.input_state {
-            InputState::Up => {
-                log_assert!(self.touches.len() == 1);
-                self.input_state = InputState::Click(self.touch_center());
-            }
-            InputState::Click(_) => {
-                log_assert!(self.touches.len() > 1);
-                self.input_state = InputState::Drag(self.touch_center());
-            }
-            InputState::Drag(_) => {
-                self.input_state = InputState::Drag(self.touch_center());
+        if self.touches.insert(id, self.normalize(x, y)) {
+            match self.input_state {
+                InputState::Up => {
+                    log_assert!(self.touches.len() == 1);
+                    self.input_state = InputState::Click(self.touches.center().unwrap());
+                }
+                InputState::Click(_) => {
+                    log_assert!(self.touches.len() > 1);
+                    self.input_state = InputState::Drag(self.touches.center().unwrap());
+                }
+                InputState::Drag(_) => {
+                    self.input_state = InputState::Drag(self.touches.center().unwrap());
+                }
             }
         }
     }
 
     pub fn on_release(&mut self, _x: f32, _y: f32, id: u64) {
         log::info!("Up: {}", id);
-        self.touches.remove(&id);
-        if self.touches.is_empty() {
+        self.touches.remove(id);
+        if self.touches.len() == 0 {
             match self.input_state {
                 InputState::Up => log_unreachable!(),
                 InputState::Click(pos) => self.call_event(Event::Click(pos)),
@@ -153,7 +154,7 @@ impl<G: Game, A: AppContext> Application<G, A> {
         } else {
             match self.input_state {
                 InputState::Drag(_) => {
-                    self.input_state = InputState::Drag(self.touch_center());
+                    self.input_state = InputState::Drag(self.touches.center().unwrap());
                 }
                 _ => log_unreachable!()
             }
@@ -162,30 +163,21 @@ impl<G: Game, A: AppContext> Application<G, A> {
 
     pub fn on_move(&mut self, x: f32, y: f32, id: u64) {
         log::info!("Move: {}", id);
-        log_assert!(self.touches.insert(id, self.normalize(x, y)).is_some());
-        let npos = self.touch_center();
-        match self.input_state {
-            InputState::Up => log_unreachable!(),
-            InputState::Click(pos) => if pos.distance(npos) > 0.01 {
-                self.input_state = InputState::Drag(npos);
-                self.call_event(Event::Drag(npos - pos));
-            }
-            InputState::Drag(pos) => {
-                self.input_state = InputState::Drag(npos);
-                self.call_event(Event::Drag(npos - pos));
+        if self.touches.contains(id) {
+            self.touches.update(id, self.normalize(x, y));
+            let npos = self.touches.center().unwrap();
+            match self.input_state {
+                InputState::Up => log_unreachable!(),
+                InputState::Click(pos) => if pos.distance(npos) > 0.01 {
+                    self.input_state = InputState::Drag(npos);
+                    self.call_event(Event::Drag(npos - pos));
+                }
+                InputState::Drag(pos) => {
+                    self.input_state = InputState::Drag(npos);
+                    self.call_event(Event::Drag(npos - pos));
+                }
             }
         }
-    }
-
-    fn touch_center(&self) -> Vec2 {
-        let mut count = 0;
-        let mut sum = Vec2::ZERO;
-        for vec in self.touches.values() {
-            sum += *vec;
-            count += 1;
-        }
-        log_assert!(count > 0);
-        sum / count as f32
     }
 
     fn normalize(&self, x: f32, y: f32) -> Vec2 {
@@ -243,4 +235,80 @@ enum InputState {
     Up,
     Click(Vec2),
     Drag(Vec2)
+}
+
+struct TouchMap {
+    touches: [Option<(u64, Vec2)>; 2]
+}
+
+impl TouchMap {
+
+    fn new() -> Self {
+        Self {
+            touches: [None; 2]
+        }
+    }
+
+    fn insert(&mut self, id: u64, pos: Vec2) -> bool {
+        match self.contains(id) {
+            true => false,
+            false => match self.touches.iter_mut().find(|e|e.is_none()) {
+                None => false,
+                Some(slot) => {
+                    *slot = Some((id, pos));
+                    true
+                }
+            }
+        }
+
+    }
+
+    fn remove(&mut self, id: u64) {
+        for touch in &mut self.touches {
+            if let Some((key, _)) = touch {
+                if *key == id {
+                    *touch = None;
+                }
+            }
+        }
+    }
+
+    fn update(&mut self, id: u64, pos: Vec2) {
+        for touch in &mut self.touches {
+            if let Some((key, value)) = touch {
+                if *key == id {
+                    *value = pos;
+                }
+            }
+        }
+    }
+
+    fn len(&self) -> usize {
+        self.touches.iter()
+            .filter_map(|e|*e)
+            .count()
+    }
+
+    fn contains(&self, id: u64) -> bool {
+        self.touches.iter()
+            .filter_map(|e|*e)
+            .any(|(key, _)| key == id)
+    }
+
+    fn center(&self) -> Option<Vec2> {
+        let mut sum = Vec2::ZERO;
+        let mut count = 0;
+        for touch in self.touches {
+            if let Some((_, value)) = touch {
+                sum += value;
+                count += 1;
+            }
+        }
+        if count > 0 {
+            Some(sum / count as f32)
+        } else {
+            None
+        }
+    }
+
 }
