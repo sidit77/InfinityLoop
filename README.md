@@ -18,3 +18,10 @@ npm start
 # Builds the project and places it into the `dist` folder.
 npm run build
 ```
+
+## Run the android version
+
+```sh
+cd platforms/android
+cargo apk run
+```
