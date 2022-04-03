@@ -54,7 +54,7 @@ impl AppContext for GlutinContext {
 
 fn main() {
     env_logger::builder()
-        .filter_level(LevelFilter::Debug)
+        .filter_level(LevelFilter::Trace)
         .format_timestamp(None)
         .format_target(false)
         .init();
@@ -64,6 +64,7 @@ fn main() {
     let event_loop = EventLoop::new();
 
     app.resume(|| GlutinContext::new(&event_loop));
+    assert!(app.is_running());
 
     let mut ctx = None;
     let mut pos = PhysicalPosition::new(0.0, 0.0);

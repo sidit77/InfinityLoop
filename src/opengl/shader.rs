@@ -158,6 +158,15 @@ impl SetUniform<i32> for Context {
     }
 }
 
+impl SetUniform<bool> for Context {
+    fn set_uniform(&self, location: &UniformLocation, data: bool) {
+        unsafe {
+            self.raw().uniform_1_i32(Some(location), if data {1} else {0})
+        }
+    }
+}
+
+
 impl<T: Into<Rgba<f32>>> SetUniform<T> for Context {
     fn set_uniform(&self, location: &UniformLocation, data: T) {
         let c = data.into();

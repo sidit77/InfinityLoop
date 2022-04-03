@@ -6,15 +6,15 @@ mod world;
 mod util;
 mod renderer;
 
-use std::ops::{Add, Rem, Sub};
+use std::ops::{Sub};
 use std::rc::Rc;
 use glam::Vec2;
 use crate::app::{AppContext, Bundle, Event, Game};
 use crate::camera::Camera;
-use crate::opengl::{Texture, Buffer, BufferTarget, Context, DataType, PrimitiveType, SetUniform, Shader, ShaderProgram, ShaderType, Framebuffer, TextureType, InternalFormat, MipmapLevels, FramebufferAttachment};
+use crate::opengl::{Texture, Buffer, BufferTarget, Context, DataType, Framebuffer, TextureType, InternalFormat, MipmapLevels, FramebufferAttachment};
 use crate::types::{Color, HexPos, Rgba};
 use crate::world::{World};
-use crate::renderer::{RenderableWorld, TileRenderResources};
+use crate::renderer::{GameRenderer, GameState, RenderableWorld, TileRenderResources};
 
 pub mod export {
     pub use crate::opengl::Context;
@@ -25,7 +25,7 @@ pub mod export {
 pub struct InfinityLoopBundle {
     world: World,
     camera: Camera,
-    time: f32
+    state: GameState
 }
 
 impl Bundle for InfinityLoopBundle {
@@ -38,10 +38,15 @@ impl Bundle for InfinityLoopBundle {
         let mut world = World::new(1337);
         world.scramble();
 
+        let state = match world.is_completed() {
+            true => GameState::Ending(Vec2::ZERO, f32::INFINITY),
+            false => GameState::InProgress
+        };
+        
         Ok(Self {
             world,
             camera,
-            time: 0.0
+            state
         })
     }
 }
@@ -49,22 +54,17 @@ impl Bundle for InfinityLoopBundle {
 pub struct InfinityLoop {
     framebuffer: Framebuffer,
     framebuffer_dst: Texture,
-    pp_program: ShaderProgram,
+    renderer: GameRenderer,
     camera: Camera,
     world: RenderableWorld,
-    time: f32
+    state: GameState
 }
 
 impl Game for InfinityLoop {
     type Bundle = InfinityLoopBundle;
 
     fn resume<A: AppContext>(ctx: &A, bundle: Self::Bundle) -> anyhow::Result<Self> {
-        let pp_program = ShaderProgram::new(&ctx, &[
-            &Shader::new(&ctx, ShaderType::Vertex, include_str!("shader/postprocess.vert"))?,
-            &Shader::new(&ctx, ShaderType::Fragment, include_str!("shader/postprocess.frag"))?,
-        ])?;
-        ctx.use_program(&pp_program);
-        ctx.set_uniform(&pp_program.get_uniform("tex")?, 0);
+        let renderer = GameRenderer::new(&ctx)?;
 
         let (width, height) = ctx.screen_size();
         ctx.viewport(0, 0, width as i32, height as i32);
@@ -82,13 +82,14 @@ impl Game for InfinityLoop {
 
         let world = RenderableWorld::new(&ctx, resources, bundle.world)?;
 
+        
         Ok(Self {
-            pp_program,
+            renderer,
             camera,
             world,
             framebuffer_dst,
             framebuffer,
-            time: bundle.time
+            state: bundle.state
         })
     }
 
@@ -96,7 +97,7 @@ impl Game for InfinityLoop {
         Self::Bundle {
             world: self.world.into(),
             camera: self.camera,
-            time: self.time
+            state: self.state
         }
     }
 
@@ -104,21 +105,16 @@ impl Game for InfinityLoop {
         let mut camera_update = false;
         match event {
             Event::Draw(delta) => {
-                self.time = self.time.add(delta.as_secs_f32() * 0.5).rem(10.0); //6.4;//
-                ctx.clear(Rgba::new(23,23,23,255));
+                self.state.update(delta, self.world.update_required());
                 self.world.update(delta);
+
+                ctx.clear(Rgba::new(23,23,23,255));
 
                 ctx.use_framebuffer(&self.framebuffer);
                 self.world.render(&ctx, &self.camera);
 
                 ctx.use_framebuffer(None);
-                ctx.set_blend_state(None);
-                ctx.use_program(&self.pp_program);
-                ctx.set_uniform(&self.pp_program.get_uniform("time")?, self.time); //
-                ctx.set_uniform(&self.pp_program.get_uniform("inv_camera")?, self.camera.to_matrix().inverse());
-                ctx.set_uniform(&self.pp_program.get_uniform("pxRange")?, ctx.screen_height() as f32 / (2.0 * self.camera.scale));
-                ctx.bind_texture(0, &self.framebuffer_dst);
-                ctx.draw_arrays(PrimitiveType::TriangleStrip, 0, 4);
+                self.renderer.render(ctx, self.state, &self.camera, &self.framebuffer_dst)?;
             },
             Event::Resize(width, height) => {
                 assert!(width != 0 && height != 0);
@@ -129,14 +125,26 @@ impl Game for InfinityLoop {
                 self.framebuffer.update_attachments(&[(FramebufferAttachment::Color(0), &self.framebuffer_dst)])?;
                 camera_update = true;
             },
-            Event::Click(pos) => {
-                let pt = self.camera.to_world_coords(pos).into();
-                self.world.try_rotate(pt);
-                if self.world.is_completed() {
+            Event::Click(pos) => match self.state{
+                GameState::InProgress => {
+                    let pt = self.camera.to_world_coords(pos).into();
+                    self.world.try_rotate(pt);
+                    if self.world.is_completed() {
+                        self.state.set(GameState::WaitingForEnd(pt.into()));
+                    }
+                }
+                GameState::Ending(_, _) => {
+                    self.state.set(GameState::Ended);
+                    camera_update = true;
+                },
+                GameState::Ended => {
                     let mut new_world = World::new(self.world.seed() + 1);
                     new_world.scramble();
                     self.world.reinitialize(new_world);
+                    self.state.set(GameState::InProgress);
+                    camera_update = true;
                 }
+                _ => {}
             },
             Event::Zoom(center, amount) => {
                 let camera = &mut self.camera;
@@ -151,7 +159,7 @@ impl Game for InfinityLoop {
                 camera_update = true;
             }
         }
-        Ok(camera_update || self.world.update_required())
+        Ok(camera_update || self.world.update_required() || self.state.is_animated())
     }
 }
 

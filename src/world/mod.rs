@@ -24,7 +24,7 @@ impl World {
 
         //let now = Instant::now();
 
-        let mut wfc = PossibilityMap::new(5, seed);
+        let mut wfc = PossibilityMap::new(2, seed);
 
         'outer: loop {
             //println!("Attempt {}", i + 1);
@@ -59,15 +59,19 @@ impl World {
 
     pub fn scramble(&mut self) {
         let rng = Rng::with_seed(self.seed());
-        for tile in self.elements.values_mut() {
-            *tile = tile.with_rotation(rng.u8(..6));
-        }
-        self.incomplete.clear();
-        for pos in self.elements.keys() {
-            if self.is_tile_complete(pos) {
-                self.incomplete.insert(pos);
+        while {
+            for tile in self.elements.values_mut() {
+                *tile = tile.with_rotation(rng.u8(..6));
             }
-        }
+            self.incomplete.clear();
+            for pos in self.elements.keys() {
+                if self.is_tile_complete(pos) {
+                    self.incomplete.insert(pos);
+                }
+            }
+            self.incomplete.is_empty()
+        } {}
+
     }
 
     fn is_tile_complete(&self, pos: HexPos) -> bool {

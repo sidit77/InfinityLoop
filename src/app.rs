@@ -220,6 +220,10 @@ impl<G: Game, A: AppContext> Application<G, A> {
         }
     }
 
+    pub fn is_running(&self) -> bool {
+        matches!(self.state, ApplicationState::Active {..})
+    }
+
 }
 
 pub trait Bundle: Clone + Sized {
