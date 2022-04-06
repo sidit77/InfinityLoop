@@ -1,6 +1,6 @@
 use std::time::Duration;
 use glam::Vec2;
-use crate::{AppContext, Camera};
+use crate::{AppContext, Camera, RenderableWorld};
 use crate::opengl::*;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -69,9 +69,9 @@ impl GameRenderer {
         })
     }
 
-    pub fn render<A: AppContext>(&self, ctx: &A, state: GameState, camera: &Camera, world_tex: &Texture) -> GlResult<()> {
+    pub fn render<A: AppContext>(&self, ctx: &A, state: GameState, camera: &Camera, world: &RenderableWorld) -> GlResult<()> {
         ctx.set_blend_state(None);
-        ctx.bind_texture(0, world_tex);
+        ctx.bind_texture(0, world.get_texture());
         match state {
             GameState::InProgress | GameState::WaitingForEnd(_) => {
                 ctx.use_program(&self.standard_shader);

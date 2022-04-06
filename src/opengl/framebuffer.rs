@@ -1,6 +1,5 @@
 use glow::HasContext;
-use crate::{Context, InternalFormat};
-use crate::opengl::{GlError, GlResult, Texture};
+use crate::opengl::{GlError, GlResult, Texture, Context, InternalFormat};
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq)]
 pub enum FramebufferAttachment {

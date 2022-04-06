@@ -13,6 +13,19 @@ impl<T: Eq> Update for T {
     }
 }
 
+pub trait OptionExt<T> {
+    fn contains_e<U: PartialEq<T>>(&self, x: &U) -> bool;
+}
+
+impl<T> OptionExt<T> for Option<T> {
+    fn contains_e<U: PartialEq<T>>(&self, x: &U) -> bool {
+        match self {
+            Some(y) => x.eq(y),
+            None => false,
+        }
+    }
+}
+
 #[macro_export]
 macro_rules! log_assert {
     ($($arg:tt)*) => (if !($($arg)*) { log::warn!("Assertion failed: {} at {}:{}", std::stringify!($($arg)*), std::file!(), std::line!()); })

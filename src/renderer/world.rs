@@ -7,12 +7,16 @@ use crate::{Camera, Color, HexPos};
 use crate::opengl::*;
 use crate::renderer::TileRenderResources;
 use crate::types::Angle;
+use crate::util::OptionExt;
 use crate::world::{HexMap, TileConfig, World};
 
 pub struct RenderableWorld {
     resources: Rc<TileRenderResources>,
     vertex_array: VertexArray,
     instance_buffer: Buffer,
+    framebuffer: Framebuffer,
+    framebuffer_dst: Texture,
+    last_camera: Option<Camera>,
     world: World,
     instances: HexMap<RenderState>,
     active_instances: HashSet<HexPos>
@@ -20,7 +24,7 @@ pub struct RenderableWorld {
 
 impl RenderableWorld {
 
-    pub fn new(ctx: &Context, resources: Rc<TileRenderResources>, world: World) -> anyhow::Result<Self> {
+    pub fn new(ctx: &Context, resources: Rc<TileRenderResources>, world: World, (width, height): (u32, u32)) -> anyhow::Result<Self> {
         let vertex_array = VertexArray::new(ctx)?;
         ctx.use_vertex_array(&vertex_array);
 
@@ -32,6 +36,11 @@ impl RenderableWorld {
             VertexArrayAttribute::Integer(3, DataType::U32, 1)
         ]);
 
+        let framebuffer_dst = Texture::new(&ctx, TextureType::Texture2d(width, height), InternalFormat::R8, MipmapLevels::None)?;
+        let framebuffer = Framebuffer::new(&ctx, &[
+            (FramebufferAttachment::Color(0), &framebuffer_dst)
+        ])?;
+
 
         let instances = HexMap::new(world.tiles().radius());
 
@@ -39,12 +48,23 @@ impl RenderableWorld {
             resources,
             vertex_array,
             instance_buffer,
+            framebuffer,
+            framebuffer_dst,
+            last_camera: None,
             world,
             instances,
             active_instances: HashSet::new()
         };
         renderer.reset();
         Ok(renderer)
+    }
+
+    pub fn resize(&mut self, ctx: &Context, width: u32, height: u32) -> anyhow::Result<()> {
+        self.framebuffer_dst = Texture::new(ctx, TextureType::Texture2d(width, height),
+                                            InternalFormat::R8, MipmapLevels::None)?;
+        self.framebuffer.update_attachments(&[(FramebufferAttachment::Color(0), &self.framebuffer_dst)])?;
+        self.last_camera = None;
+        Ok(())
     }
 
     fn reset(&mut self){
@@ -65,16 +85,25 @@ impl RenderableWorld {
         self.reset()
     }
 
-    pub fn render(&self, ctx: &Context, camera: &Camera) {
-        ctx.clear(Color::new(0, 0, 0, 255));
-        ctx.set_blend_state(BlendState {
-            src: BlendFactor::One,
-            dst: BlendFactor::One,
-            equ: BlendEquation::Max
-        });
-        self.resources.prepare(ctx, camera);
-        ctx.use_vertex_array(&self.vertex_array);
-        ctx.draw_arrays_instanced(PrimitiveType::TriangleStrip, 0, 4, self.instances.len() as i32);
+    pub fn get_texture(&self) -> &Texture {
+        &self.framebuffer_dst
+    }
+
+    pub fn render(&mut self, ctx: &Context, camera: &Camera) {
+        if !self.last_camera.contains_e(camera) {
+            ctx.use_framebuffer(&self.framebuffer);
+            ctx.clear(Color::new(0, 0, 0, 255));
+            ctx.set_blend_state(BlendState {
+                src: BlendFactor::One,
+                dst: BlendFactor::One,
+                equ: BlendEquation::Max
+            });
+            self.resources.prepare(ctx, camera);
+            ctx.use_vertex_array(&self.vertex_array);
+            ctx.draw_arrays_instanced(PrimitiveType::TriangleStrip, 0, 4, self.instances.len() as i32);
+            self.last_camera = Some(*camera);
+            log::trace!("Rerendering")
+        }
 
     }
 
@@ -85,12 +114,13 @@ impl RenderableWorld {
             let instance = &mut self.instances[pos];
             instance.update(delta);
             self.instance_buffer.set_sub_data(offset, &[instance.as_instance()]);
+            self.last_camera = None;
         }
 
     }
 
     pub fn update_required(&self) -> bool {
-        !self.active_instances.is_empty()
+        !self.active_instances.is_empty() || self.last_camera.is_none()
     }
 
     pub fn try_rotate(&mut self, pos: HexPos) -> bool {

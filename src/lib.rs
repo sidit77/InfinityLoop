@@ -11,7 +11,6 @@ use std::rc::Rc;
 use glam::Vec2;
 use crate::app::{AppContext, Bundle, Event, Game};
 use crate::camera::Camera;
-use crate::opengl::{Texture, Buffer, BufferTarget, Context, DataType, Framebuffer, TextureType, InternalFormat, MipmapLevels, FramebufferAttachment};
 use crate::types::{Color, HexPos, Rgba};
 use crate::world::{World};
 use crate::renderer::{GameRenderer, GameState, RenderableWorld, TileRenderResources};
@@ -52,8 +51,6 @@ impl Bundle for InfinityLoopBundle {
 }
 
 pub struct InfinityLoop {
-    framebuffer: Framebuffer,
-    framebuffer_dst: Texture,
     renderer: GameRenderer,
     camera: Camera,
     world: RenderableWorld,
@@ -68,10 +65,6 @@ impl Game for InfinityLoop {
 
         let (width, height) = ctx.screen_size();
         ctx.viewport(0, 0, width as i32, height as i32);
-        let framebuffer_dst = Texture::new(&ctx, TextureType::Texture2d(width, height), InternalFormat::R8, MipmapLevels::None)?;
-        let framebuffer = Framebuffer::new(&ctx, &[
-            (FramebufferAttachment::Color(0), &framebuffer_dst)
-        ])?;
 
         let camera = Camera {
             aspect: width as f32 / height as f32,
@@ -80,15 +73,13 @@ impl Game for InfinityLoop {
 
         let resources = Rc::new(TileRenderResources::new(&ctx)?);
 
-        let world = RenderableWorld::new(&ctx, resources, bundle.world)?;
+        let world = RenderableWorld::new(&ctx, resources, bundle.world, (width, height))?;
 
         
         Ok(Self {
             renderer,
             camera,
             world,
-            framebuffer_dst,
-            framebuffer,
             state: bundle.state
         })
     }
@@ -105,24 +96,22 @@ impl Game for InfinityLoop {
         let mut camera_update = false;
         match event {
             Event::Draw(delta) => {
+                log::trace!("New Frame");
                 self.state.update(delta, self.world.update_required());
                 self.world.update(delta);
 
                 ctx.clear(Rgba::new(23,23,23,255));
 
-                ctx.use_framebuffer(&self.framebuffer);
                 self.world.render(&ctx, &self.camera);
 
                 ctx.use_framebuffer(None);
-                self.renderer.render(ctx, self.state, &self.camera, &self.framebuffer_dst)?;
+                self.renderer.render(ctx, self.state, &self.camera, &self.world)?;
             },
             Event::Resize(width, height) => {
                 assert!(width != 0 && height != 0);
                 ctx.viewport(0, 0, width as i32, height as i32);
                 self.camera.aspect = width as f32 / height as f32;
-                self.framebuffer_dst = Texture::new(&ctx, TextureType::Texture2d(width, height),
-                                                    InternalFormat::R8, MipmapLevels::None)?;
-                self.framebuffer.update_attachments(&[(FramebufferAttachment::Color(0), &self.framebuffer_dst)])?;
+                self.world.resize(&ctx, width, height)?;
                 camera_update = true;
             },
             Event::Click(pos) => match self.state{

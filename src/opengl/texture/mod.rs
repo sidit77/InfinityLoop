@@ -6,8 +6,7 @@ pub use enums::*;
 
 use bytemuck::Pod;
 use glow::{HasContext, PixelUnpackData};
-use crate::{Context, DataType};
-use crate::opengl::GlResult;
+use crate::opengl::{Context, DataType, GlResult};
 use crate::types::Rgba;
 
 type GlowTexture = glow::Texture;

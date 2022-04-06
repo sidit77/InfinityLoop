@@ -1,7 +1,7 @@
 use glam::*;
 use crate::types::Angle;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct Camera {
     pub position: Vec2,
     pub aspect: f32,

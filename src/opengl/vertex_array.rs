@@ -1,6 +1,5 @@
 use glow::HasContext;
-use crate::{Buffer, BufferTarget};
-use crate::opengl::{Context, DataType, GlResult};
+use crate::opengl::{Context, DataType, GlResult, Buffer, BufferTarget};
 
 type GlowVertexArray = glow::VertexArray;
 
