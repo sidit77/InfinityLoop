@@ -75,6 +75,7 @@ impl RenderableWorld {
 
         let instance_data = self.instances.values().map(RenderState::as_instance).collect::<Vec<Instance>>();
         self.instance_buffer.set_data(instance_data.as_slice(), BufferUsage::DynamicDraw);
+        self.last_camera = None;
     }
 
     pub fn reinitialize(&mut self, world: World) {
@@ -102,7 +103,6 @@ impl RenderableWorld {
             ctx.use_vertex_array(&self.vertex_array);
             ctx.draw_arrays_instanced(PrimitiveType::TriangleStrip, 0, 4, self.instances.len() as i32);
             self.last_camera = Some(*camera);
-            log::trace!("Rerendering")
         }
 
     }

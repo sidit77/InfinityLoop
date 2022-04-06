@@ -41,7 +41,7 @@ impl Bundle for InfinityLoopBundle {
             true => GameState::Ending(Vec2::ZERO, f32::INFINITY),
             false => GameState::InProgress
         };
-        
+
         Ok(Self {
             world,
             camera,
@@ -54,6 +54,7 @@ pub struct InfinityLoop {
     renderer: GameRenderer,
     camera: Camera,
     world: RenderableWorld,
+    old_world: RenderableWorld,
     state: GameState
 }
 
@@ -73,6 +74,8 @@ impl Game for InfinityLoop {
 
         let resources = Rc::new(TileRenderResources::new(&ctx)?);
 
+        let old_world = RenderableWorld::new(&ctx, resources.clone(),
+                                             World::new(bundle.world.seed() - 1), (width, height))?;
         let world = RenderableWorld::new(&ctx, resources, bundle.world, (width, height))?;
 
         
@@ -80,6 +83,7 @@ impl Game for InfinityLoop {
             renderer,
             camera,
             world,
+            old_world,
             state: bundle.state
         })
     }
@@ -96,30 +100,27 @@ impl Game for InfinityLoop {
         let mut camera_update = false;
         match event {
             Event::Draw(delta) => {
-                log::trace!("New Frame");
                 self.state.update(delta, self.world.update_required());
                 self.world.update(delta);
 
                 ctx.clear(Rgba::new(23,23,23,255));
 
-                self.world.render(&ctx, &self.camera);
-
-                ctx.use_framebuffer(None);
-                self.renderer.render(ctx, self.state, &self.camera, &self.world)?;
+                self.renderer.render(ctx, self.state, &self.camera, &mut self.world, &mut self.old_world)?;
             },
             Event::Resize(width, height) => {
                 assert!(width != 0 && height != 0);
                 ctx.viewport(0, 0, width as i32, height as i32);
                 self.camera.aspect = width as f32 / height as f32;
                 self.world.resize(&ctx, width, height)?;
+                self.old_world.resize(&ctx, width, height)?;
                 camera_update = true;
             },
             Event::Click(pos) => match self.state{
                 GameState::InProgress => {
-                    let pt = self.camera.to_world_coords(pos).into();
-                    self.world.try_rotate(pt);
+                    let pt = self.camera.to_world_coords(pos);
+                    self.world.try_rotate(pt.into());
                     if self.world.is_completed() {
-                        self.state.set(GameState::WaitingForEnd(pt.into()));
+                        self.state.set(GameState::WaitingForEnd(pt));
                     }
                 }
                 GameState::Ending(_, _) => {
@@ -127,9 +128,15 @@ impl Game for InfinityLoop {
                     camera_update = true;
                 },
                 GameState::Ended => {
+                    let pt = self.camera.to_world_coords(pos);
                     let mut new_world = World::new(self.world.seed() + 1);
                     new_world.scramble();
+                    std::mem::swap(&mut self.world, &mut self.old_world);
                     self.world.reinitialize(new_world);
+                    self.state.set(GameState::Transition(pt, 0.0));
+                    camera_update = true;
+                },
+                GameState::Transition(_, _) => {
                     self.state.set(GameState::InProgress);
                     camera_update = true;
                 }

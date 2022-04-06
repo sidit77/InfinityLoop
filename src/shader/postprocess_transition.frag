@@ -7,7 +7,8 @@ out vec4 finalColor;
 in vec2 tex_coords;
 in vec2 world_pos;
 
-uniform sampler2D tex;
+uniform sampler2D tex1;
+uniform sampler2D tex2;
 uniform float radius;
 uniform float pxRange;
 uniform vec2 center;
@@ -26,14 +27,21 @@ float opSmoothSubtraction( float d1, float d2, float k ) {
     return mix( d2, -d1, h ) + k*h*(1.0-h);
 }
 
+float opSmoothUnion( float d1, float d2, float k ) {
+    float h = clamp( 0.5 + 0.5*(d2-d1)/k, 0.0, 1.0 );
+    return mix( d2, d1, h ) - k*h*(1.0-h);
+}
+
 void main() {
-    float sd = (texture(tex, tex_coords).r - 0.5) * 10.0;
+    float sd1 = (texture(tex1, tex_coords).r - 0.5) * 10.0;
+
+    float sd2 = (texture(tex2, tex_coords).r - 0.5) * 10.0;
 
     float f = length(world_pos - center) - radius;
 
-    float final_opacity = abs(min(opSmoothSubtraction(sd, (f + 0.1) * pxRange, 12.0), opSmoothSubtraction(sd, -(f - 0.1) * pxRange, 12.0))) - 0.25;
+    float final_opacity = abs(min(opSmoothSubtraction(sd1, (f + 0.1) * pxRange, 12.0), opSmoothSubtraction(sd2, -(f - 0.1) * pxRange, 12.0))) - 0.25;
     final_opacity = abs(final_opacity) - 0.15;
 
-    finalColor = mix(mix(background1, background2, smoothstep(-0.1, 0.1, f)), foreground, 1.0 - clamp(final_opacity, 0.0, 1.0));
+    finalColor = mix(mix(background2, background1, smoothstep(-0.1, 0.1, f)), foreground, 1.0 - clamp(final_opacity, 0.0, 1.0));
 
 }

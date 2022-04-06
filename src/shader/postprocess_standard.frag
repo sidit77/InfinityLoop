@@ -17,7 +17,7 @@ vec4 background2 = vec4(0.231,0.259,0.322,1.0);
 void main() {
     float sd = (texture(tex, tex_coords).r - 0.5) * 10.0;
 
-    float final_opacity = abs(sd) - 0.25;
+    float final_opacity = abs(sd) - 0.3;
 
     finalColor = mix(completed ? background2 : background1, foreground, 1.0 - clamp(final_opacity, 0.0, 1.0));
 
