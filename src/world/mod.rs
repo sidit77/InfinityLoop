@@ -24,7 +24,7 @@ impl World {
 
         //let now = Instant::now();
 
-        let mut wfc = PossibilityMap::new(1 + seed as i32, seed);
+        let mut wfc = PossibilityMap::new(2, seed);
 
         'outer: loop {
             //println!("Attempt {}", i + 1);
@@ -65,13 +65,12 @@ impl World {
             }
             self.incomplete.clear();
             for pos in self.elements.keys() {
-                if self.is_tile_complete(pos) {
+                if !self.is_tile_complete(pos) {
                     self.incomplete.insert(pos);
                 }
             }
             self.incomplete.is_empty()
         } {}
-
     }
 
     fn is_tile_complete(&self, pos: HexPos) -> bool {
