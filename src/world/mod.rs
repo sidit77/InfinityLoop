@@ -24,7 +24,7 @@ impl World {
 
         //let now = Instant::now();
 
-        let mut wfc = PossibilityMap::new(2, seed);
+        let mut wfc = PossibilityMap::new(1 + seed as i32, seed);
 
         'outer: loop {
             //println!("Attempt {}", i + 1);

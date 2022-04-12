@@ -8,6 +8,7 @@ mod renderer;
 
 use std::ops::{Sub};
 use std::rc::Rc;
+use artery_font::ArteryFont;
 use glam::Vec2;
 use crate::app::{AppContext, Bundle, Event, Game};
 use crate::camera::Camera;
@@ -34,7 +35,7 @@ impl Bundle for InfinityLoopBundle {
             ..Default::default()
         };
 
-        let mut world = World::new(1337);
+        let mut world = World::new(1);
         world.scramble();
 
         let state = match world.is_completed() {
@@ -79,7 +80,8 @@ impl Game for InfinityLoop {
                                              World::new(bundle.world.seed() - 1), (width, height))?;
         let world = RenderableWorld::new(&ctx, resources, bundle.world, (width, height))?;
 
-        let text_renderer = TextRenderer::new(&ctx)?;
+        let mut text_renderer = TextRenderer::new(&ctx, &ArteryFont::read(include_bytes!("font/test.arfont").as_slice())?)?;
+        text_renderer.set_text(&format!("Level {}", world.seed()));
         
         Ok(Self {
             renderer,
@@ -109,7 +111,7 @@ impl Game for InfinityLoop {
                 ctx.clear(Rgba::new(23,23,23,255));
 
                 self.renderer.render(ctx, self.state, &self.camera, &mut self.world, &mut self.old_world)?;
-                self.text_renderer.render(&ctx);
+                self.text_renderer.render(ctx)?;
             },
             Event::Resize(width, height) => {
                 assert!(width != 0 && height != 0);
@@ -138,6 +140,7 @@ impl Game for InfinityLoop {
                     std::mem::swap(&mut self.world, &mut self.old_world);
                     self.world.reinitialize(new_world);
                     self.state.set(GameState::Transition(pt, 0.0));
+                    self.text_renderer.set_text(&format!("Level {}", self.world.seed()));
                     camera_update = true;
                 },
                 GameState::Transition(_, _) => {
