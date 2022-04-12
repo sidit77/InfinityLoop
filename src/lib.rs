@@ -13,7 +13,7 @@ use crate::app::{AppContext, Bundle, Event, Game};
 use crate::camera::Camera;
 use crate::types::{Color, HexPos, Rgba};
 use crate::world::{World};
-use crate::renderer::{GameRenderer, GameState, RenderableWorld, TileRenderResources};
+use crate::renderer::{GameRenderer, GameState, RenderableWorld, TextRenderer, TileRenderResources};
 
 pub mod export {
     pub use crate::opengl::Context;
@@ -55,6 +55,7 @@ pub struct InfinityLoop {
     camera: Camera,
     world: RenderableWorld,
     old_world: RenderableWorld,
+    text_renderer: TextRenderer,
     state: GameState
 }
 
@@ -78,12 +79,14 @@ impl Game for InfinityLoop {
                                              World::new(bundle.world.seed() - 1), (width, height))?;
         let world = RenderableWorld::new(&ctx, resources, bundle.world, (width, height))?;
 
+        let text_renderer = TextRenderer::new(&ctx)?;
         
         Ok(Self {
             renderer,
             camera,
             world,
             old_world,
+            text_renderer,
             state: bundle.state
         })
     }
@@ -106,6 +109,7 @@ impl Game for InfinityLoop {
                 ctx.clear(Rgba::new(23,23,23,255));
 
                 self.renderer.render(ctx, self.state, &self.camera, &mut self.world, &mut self.old_world)?;
+                self.text_renderer.render(&ctx);
             },
             Event::Resize(width, height) => {
                 assert!(width != 0 && height != 0);
