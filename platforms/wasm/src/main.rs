@@ -49,8 +49,7 @@ impl AppContext for WasmContext {
     }
 }
 
-#[wasm_bindgen(start)]
-pub fn main_js() -> std::result::Result<(), JsValue> {
+fn main() -> std::result::Result<(), JsValue> {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
     console_log::init_with_level(Level::Debug).expect("error initializing logger");
 
