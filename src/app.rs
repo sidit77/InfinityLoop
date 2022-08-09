@@ -159,6 +159,7 @@ impl<G: Game, A: AppContext> Application<G, A> {
     }
 
     pub fn on_move(&mut self, x: f32, y: f32, id: u64) {
+        //log::debug!("x: {} y: {}", x, y);
         if self.touches.contains(id) {
             let dist1 = self.touches.distance();
             self.touches.update(id, self.normalize(x, y));
