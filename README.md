@@ -8,15 +8,7 @@ cargo run
 
 ```sh
 cd platforms/wasm
-npm install
-
-# Builds the project and opens it in a new browser tab. Auto-reloads when the project changes.
-npm start
-
-#or
-
-# Builds the project and places it into the `dist` folder.
-npm run build
+trunk serve --open
 ```
 
 ## Run the android version

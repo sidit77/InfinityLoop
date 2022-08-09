@@ -11,6 +11,6 @@ path = "src/main.rs"
 
 [dependencies]
 infinity_loop = { path = "../.." }
-glutin = "0.28"
+glutin = "0.29"
 log = "0.4"
 env_logger = "0.9"
