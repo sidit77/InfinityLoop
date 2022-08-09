@@ -134,7 +134,7 @@ impl TextRenderer {
         log::debug!("Changing text to \"{}\"", text);
         let mut vertices = Vec::new();
         let mut x;
-        let mut y = 2.2;
+        let mut y = 0.2;
 
         for line in text.lines() {
             x = 0.2;
