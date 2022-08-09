@@ -36,8 +36,8 @@ impl RenderableWorld {
             VertexArrayAttribute::Integer(3, DataType::U32, 1)
         ]);
 
-        let framebuffer_dst = Texture::new(&ctx, TextureType::Texture2d(width, height), InternalFormat::R8, MipmapLevels::None)?;
-        let framebuffer = Framebuffer::new(&ctx, &[
+        let framebuffer_dst = Texture::new(ctx, TextureType::Texture2d(width, height), InternalFormat::R8, MipmapLevels::None)?;
+        let framebuffer = Framebuffer::new(ctx, &[
             (FramebufferAttachment::Color(0), &framebuffer_dst)
         ])?;
 

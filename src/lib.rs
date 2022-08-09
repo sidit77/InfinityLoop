@@ -64,7 +64,7 @@ impl Game for InfinityLoop {
     type Bundle = InfinityLoopBundle;
 
     fn resume<A: AppContext>(ctx: &A, bundle: Self::Bundle) -> anyhow::Result<Self> {
-        let renderer = GameRenderer::new(&ctx)?;
+        let renderer = GameRenderer::new(ctx)?;
 
         let (width, height) = ctx.screen_size();
         ctx.viewport(0, 0, width as i32, height as i32);
@@ -74,13 +74,13 @@ impl Game for InfinityLoop {
             ..bundle.camera
         };
 
-        let resources = Rc::new(TileRenderResources::new(&ctx)?);
+        let resources = Rc::new(TileRenderResources::new(ctx)?);
 
-        let old_world = RenderableWorld::new(&ctx, resources.clone(),
+        let old_world = RenderableWorld::new(ctx, resources.clone(),
                                              World::new(bundle.world.seed() - 1), (width, height))?;
-        let world = RenderableWorld::new(&ctx, resources, bundle.world, (width, height))?;
+        let world = RenderableWorld::new(ctx, resources, bundle.world, (width, height))?;
 
-        let mut text_renderer = TextRenderer::new(&ctx, &ArteryFont::read(include_bytes!("font/test.arfont").as_slice())?)?;
+        let mut text_renderer = TextRenderer::new(ctx, &ArteryFont::read(include_bytes!("font/test.arfont").as_slice())?)?;
         text_renderer.set_text(&format!("Level {}", world.seed()));
         
         Ok(Self {
@@ -117,8 +117,8 @@ impl Game for InfinityLoop {
                 assert!(width != 0 && height != 0);
                 ctx.viewport(0, 0, width as i32, height as i32);
                 self.camera.aspect = width as f32 / height as f32;
-                self.world.resize(&ctx, width, height)?;
-                self.old_world.resize(&ctx, width, height)?;
+                self.world.resize(ctx, width, height)?;
+                self.old_world.resize(ctx, width, height)?;
                 camera_update = true;
             },
             Event::Click(pos) => match self.state{

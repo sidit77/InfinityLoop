@@ -61,7 +61,7 @@ pub struct Application<G: Game, A: AppContext> {
 
 impl<G: Game, A: AppContext> Application<G, A> {
     pub fn new() -> Result<Self> {
-        let bundle = G::Bundle::new()?;
+        let bundle = Bundle::new()?;
         Ok(Self {
             state: ApplicationState::Suspended(bundle),
             screen_size: (100, 100),
@@ -283,11 +283,9 @@ impl TouchMap {
     }
 
     fn update(&mut self, id: u64, pos: Vec2) {
-        for touch in &mut self.touches {
-            if let Some((key, value)) = touch {
-                if *key == id {
-                    *value = pos;
-                }
+        for (key, value) in self.touches.iter_mut().flatten() {
+            if *key == id {
+                *value = pos;
             }
         }
     }
@@ -307,11 +305,9 @@ impl TouchMap {
     fn center(&self) -> Option<Vec2> {
         let mut sum = Vec2::ZERO;
         let mut count = 0;
-        for touch in self.touches {
-            if let Some((_, value)) = touch {
-                sum += value;
-                count += 1;
-            }
+        for (_, value) in self.touches.into_iter().flatten() {
+            sum += value;
+            count += 1;
         }
         if count > 0 {
             Some(sum / count as f32)

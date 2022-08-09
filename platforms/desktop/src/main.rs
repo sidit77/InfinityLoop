@@ -81,8 +81,8 @@ fn main() {
                 WindowEvent::Resized(size) => {
                     app.with_ctx(|ctx| ctx.0.resize(size));
                     match size.width == 0 || size.height == 0 {
-                        true => ctx = app.suspend().or(ctx.take()),
-                        false => app.resume(|| ctx.take().map_or_else(|| GlutinContext::new(event_loop), |ctx| Ok(ctx)))
+                        true => ctx = app.suspend().or_else(|| ctx.take()),
+                        false => app.resume(|| ctx.take().map_or_else(|| GlutinContext::new(event_loop), Ok))
                     }
                     app.set_screen_size(size.into())
                 },

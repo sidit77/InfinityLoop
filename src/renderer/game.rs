@@ -41,12 +41,10 @@ impl GameState {
     }
 
     pub fn is_animated(&self) -> bool {
-        match self {
+        matches!(self,
             GameState::Ending(_, _) |
             GameState::Transition(_, _) |
-            GameState::WaitingForEnd(_) => true,
-            _ => false
-        }
+            GameState::WaitingForEnd(_))
     }
 
 }
@@ -60,20 +58,20 @@ pub struct GameRenderer {
 impl GameRenderer {
 
     pub fn new(ctx: &Context) -> GlResult<Self> {
-        let vertex = Shader::new(&ctx, ShaderType::Vertex, include_str!("../shader/postprocess.vert"))?;
-        let standard_fragment = Shader::new(&ctx, ShaderType::Fragment, include_str!("../shader/postprocess_standard.frag"))?;
-        let ending_fragment = Shader::new(&ctx, ShaderType::Fragment, include_str!("../shader/postprocess_ending.frag"))?;
-        let transition_fragment = Shader::new(&ctx, ShaderType::Fragment, include_str!("../shader/postprocess_transition.frag"))?;
+        let vertex = Shader::new(ctx, ShaderType::Vertex, include_str!("../shader/postprocess.vert"))?;
+        let standard_fragment = Shader::new(ctx, ShaderType::Fragment, include_str!("../shader/postprocess_standard.frag"))?;
+        let ending_fragment = Shader::new(ctx, ShaderType::Fragment, include_str!("../shader/postprocess_ending.frag"))?;
+        let transition_fragment = Shader::new(ctx, ShaderType::Fragment, include_str!("../shader/postprocess_transition.frag"))?;
 
-        let standard_shader = ShaderProgram::new(&ctx, &[&vertex, &standard_fragment])?;
+        let standard_shader = ShaderProgram::new(ctx, &[&vertex, &standard_fragment])?;
         ctx.use_program(&standard_shader);
         ctx.set_uniform(&standard_shader.get_uniform("tex")?, 0);
 
-        let ending_shader = ShaderProgram::new(&ctx, &[&vertex, &ending_fragment])?;
+        let ending_shader = ShaderProgram::new(ctx, &[&vertex, &ending_fragment])?;
         ctx.use_program(&ending_shader);
         ctx.set_uniform(&ending_shader.get_uniform("tex")?, 0);
 
-        let transition_shader = ShaderProgram::new(&ctx, &[&vertex, &transition_fragment])?;
+        let transition_shader = ShaderProgram::new(ctx, &[&vertex, &transition_fragment])?;
         ctx.use_program(&transition_shader);
         ctx.set_uniform(&transition_shader.get_uniform("tex1")?, 0);
         ctx.set_uniform(&transition_shader.get_uniform("tex2")?, 1);
@@ -86,7 +84,7 @@ impl GameRenderer {
     }
 
     pub fn render<A: AppContext>(&self, ctx: &A, state: GameState, camera: &Camera, world: &mut RenderableWorld, old_world: &mut RenderableWorld) -> GlResult<()> {
-        world.render(&ctx, camera);
+        world.render(ctx, camera);
         ctx.bind_texture(0, world.get_texture());
         match state {
             GameState::InProgress | GameState::WaitingForEnd(_) => {
@@ -105,7 +103,7 @@ impl GameRenderer {
                 ctx.set_uniform(&self.ending_shader.get_uniform("center")?, center);
             },
             GameState::Transition(center, time) => {
-                old_world.render(&ctx, camera);
+                old_world.render(ctx, camera);
                 ctx.bind_texture(1, old_world.get_texture());
                 ctx.use_program(&self.transition_shader);
                 ctx.set_uniform(&self.transition_shader.get_uniform("radius")?, f32::exp(2.0 * time) - 1.0); //
