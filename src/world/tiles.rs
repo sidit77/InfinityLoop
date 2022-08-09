@@ -1,8 +1,8 @@
 use std::fmt::Debug;
-use enum_iterator::IntoEnumIterator;
+use enum_iterator::Sequence;
 use crate::types::Angle;
 
-#[derive(Debug, IntoEnumIterator, Copy, Clone, Eq, PartialEq)]
+#[derive(Debug, Sequence, Copy, Clone, Eq, PartialEq)]
 pub enum TileType {
     Tile0,
     Tile01,

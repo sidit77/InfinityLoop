@@ -1,7 +1,6 @@
 use std::collections::VecDeque;
 use lazy_static::lazy_static;
-use crate::world::tiles::{TileConfig, TileType};
-use enum_iterator::IntoEnumIterator;
+use crate::world::tiles::{TileConfig};
 use fastrand::Rng;
 use priority_queue::PriorityQueue;
 use crate::HexPos;
@@ -112,7 +111,7 @@ impl From<PossibilityMap> for HexMap<TileConfig> {
 lazy_static! {
     static ref ELEMENT_TABLE: Vec<TileConfig> = {
         let mut result = Vec::new();
-        for tile_type in TileType::into_enum_iter() {
+        for tile_type in enum_iterator::all() {
             for rotation in 0..6 {
                 result.push(TileConfig::Tile(tile_type, rotation));
             }

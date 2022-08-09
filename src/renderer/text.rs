@@ -3,7 +3,7 @@ use crate::opengl::*;
 use anyhow::{Result, ensure};
 use artery_font::*;
 use bytemuck::{Pod, Zeroable};
-use glam::{Mat4, Vec2};
+use glam::{Mat4};
 use crate::AppContext;
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]

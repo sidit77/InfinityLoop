@@ -24,11 +24,11 @@ log = "0.4"
 glow = "0.11"
 instant = "0.1"
 bytemuck = { version = "1.7", features = ["derive"] }
-glam = { version = "0.20", features = ["bytemuck"]}
+glam = { version = "0.21", features = ["bytemuck"]}
 fastrand = "1.5"
 smallbitset = "0.3.0"
 lazy_static = "1.4"
-enum-iterator = "0.7"
+enum-iterator = "1.1"
 miniserde = "0.1"
 priority-queue = "1.2"
 sdf2d = {git = "https://github.com/sidit77/sdf2d.git"}
