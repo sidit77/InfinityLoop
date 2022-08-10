@@ -5,7 +5,7 @@ use std::rc::Rc;
 use log::Level;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{HtmlCanvasElement, MouseEvent, WebGl2RenderingContext, WheelEvent};
+use web_sys::{Event, HtmlCanvasElement, MouseEvent, WebGl2RenderingContext, WheelEvent};
 use infinity_loop::export::{AppContext, Application, Context, GlowContext, Result};
 use infinity_loop::InfinityLoop;
 
@@ -25,8 +25,20 @@ impl WasmContext {
             .dyn_into::<WebGl2RenderingContext>().unwrap();
 
         let gl = GlowContext::from_webgl2_context(webgl2_context);
-        Ok(Self(canvas.clone(), Context::from_glow(gl)))
+        let result = Self(canvas.clone(), Context::from_glow(gl));
+        result.resize();
+        Ok(result)
     }
+
+    fn resize(&self) {
+        let dpi = web_sys::window().unwrap().device_pixel_ratio() as f32;
+        let width = (self.0.client_width() as f32 * dpi) as u32;
+        let height = (self.0.client_height() as f32 * dpi) as u32 ;
+
+        self.0.set_width(width);
+        self.0.set_height(height);
+    }
+
 }
 
 impl Deref for WasmContext {
@@ -69,6 +81,7 @@ fn main() -> std::result::Result<(), JsValue> {
     let input = Rc::new(RefCell::new(InputState::default()));
     let f = Rc::new(RefCell::new(None));
 
+    register_resize(app.clone(), f.clone())?;
     register_mousemove(&canvas, app.clone(), input.clone(), f.clone())?;
     register_mousedown(&canvas, app.clone(), input.clone(),f.clone())?;
     register_mouseup(&canvas, app.clone(), input.clone(),f.clone())?;
@@ -76,18 +89,6 @@ fn main() -> std::result::Result<(), JsValue> {
 
     let g = f.clone();
     *g.as_ref().borrow_mut() = Some(Closure::new(move || {
-        {
-            let dpi = window.device_pixel_ratio() as f32;
-            let width = (canvas.client_width() as f32 * dpi) as u32;
-            let height = (canvas.client_height() as f32 * dpi) as u32 ;
-
-            if width != canvas.width() || height != canvas.height(){
-                canvas.set_width(width);
-                canvas.set_height(height);
-
-                app.as_ref().borrow_mut().set_screen_size((width, height));
-            }
-        }
 
         app.as_ref().borrow_mut().redraw();
 
@@ -106,6 +107,21 @@ fn main() -> std::result::Result<(), JsValue> {
 type RcApp = Rc<RefCell<Application<InfinityLoop, WasmContext>>>;
 type RcInput = Rc<RefCell<InputState>>;
 type RcClosure = Rc<RefCell<Option<Closure<dyn FnMut()>>>>;
+
+fn register_resize(app: RcApp, anim: RcClosure) -> std::result::Result<(), JsValue> {
+    let closure = Closure::<dyn Fn(_)>::new(move |_: Event| {
+        let mut app = app.as_ref().borrow_mut();
+        app.with_ctx(WasmContext::resize);
+        let size = app.with_ctx(WasmContext::screen_size);
+        app.set_screen_size(size);
+        if app.should_redraw() {
+            request_animation_frame(anim.borrow().as_ref().unwrap());
+        }
+    });
+    web_sys::window().unwrap().add_event_listener_with_callback("resize", closure.as_ref().unchecked_ref())?;
+    closure.forget();
+    Ok(())
+}
 
 fn register_mousemove(canvas: &HtmlCanvasElement, app: RcApp, input: RcInput, anim: RcClosure) -> std::result::Result<(), JsValue> {
     let closure = Closure::<dyn Fn(_)>::new(move |event: MouseEvent| {
@@ -171,7 +187,7 @@ fn register_wheel(canvas: &HtmlCanvasElement, app: RcApp, input: RcInput, anim: 
         let input = input.as_ref().borrow();
         let dy = match event.delta_mode() {
             WheelEvent::DOM_DELTA_PIXEL => -event.delta_y() as f32 / 100.0,
-            WheelEvent::DOM_DELTA_LINE => -event.delta_y() as f32,
+            WheelEvent::DOM_DELTA_LINE => -event.delta_y() as f32 / 2.0,
             _ => 0.0
         };
         app.as_ref().borrow_mut().on_mouse_wheel(input.mouse_x, input.mouse_y, dy);
