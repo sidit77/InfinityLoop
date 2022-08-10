@@ -15,6 +15,7 @@ fn request_animation_frame(f: &Closure<dyn FnMut()>) {
         .expect("should register `requestAnimationFrame` OK");
 }
 
+
 struct WasmContext(HtmlCanvasElement, Context);
 
 impl WasmContext {
