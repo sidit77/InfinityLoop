@@ -6,7 +6,6 @@ mod world;
 mod util;
 mod renderer;
 
-use std::ops::{Sub};
 use std::rc::Rc;
 use artery_font::ArteryFont;
 use glam::Vec2;
@@ -152,24 +151,18 @@ impl Game for InfinityLoop {
             },
             Event::Zoom(center, amount) => {
                 let camera = &mut self.camera;
-                let old = camera.to_world_coords(center);
-                camera.parent.scale = camera.scale.sub(amount * (camera.scale / 10.0)).max(1.0);
-                let new = camera.to_world_coords(center);
-                camera.parent.position += old - new;
+                //let old = camera.to_world_coords(center);
+                camera.zoom(center, amount);
+                //let new = camera.to_world_coords(center);
+                //camera.parent.position += old - new;
                 camera_update = true;
             }
             Event::Drag(delta) => {
                 self.camera.move_by(self.camera.to_world_coords(-delta) - self.camera.to_world_coords(Vec2::ZERO));
                 camera_update = true;
             }
-            Event::TouchStart => {
-                log::info!("touch start");
-                self.camera.capture();
-            }
-            Event::TouchEnd => {
-                log::info!("touch end");
-                self.camera.release();
-            }
+            Event::TouchStart => self.camera.capture(),
+            Event::TouchEnd => self.camera.release()
         }
         Ok(camera_update || self.camera.update_required() || self.world.update_required() || self.state.is_animated())
     }

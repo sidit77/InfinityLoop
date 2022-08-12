@@ -1,4 +1,4 @@
-use std::ops::Deref;
+use std::ops::{Deref, Sub};
 use std::time::{Duration};
 use glam::*;
 use instant::Instant;
@@ -42,9 +42,13 @@ impl Camera {
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub struct AnimatedCamera {
     pub parent: Camera,
+    new_scale: f32,
+    zoom_center: Vec2,
+
     velocity: Vec2,
     last_position_update: Instant,
-    captured: bool
+    captured: bool,
+
 }
 
 const TIME_STEP: Duration = Duration::from_millis(20);
@@ -55,14 +59,26 @@ fn update_vecity(velocity: Vec2) -> Vec2 {
     velocity - velocity.normalize_or_zero() * f32::max(percent_loss, linear_loss)
 }
 
+fn lerp(a: f32, b: f32, v: f32) -> f32 {
+    a + (b - a) * v
+}
+
 impl AnimatedCamera {
 
     pub fn update_required(&self) -> bool {
+         self.moving() || self.zooming()
+    }
+
+    fn moving(&self) -> bool {
         !self.captured && self.velocity.length_squared() > 0.0
     }
 
+    fn zooming(&self) -> bool {
+        self.parent.scale != self.new_scale
+    }
+
     pub fn update(&mut self, delta: Duration) {
-        if self.update_required() {
+        if self.moving() {
 
             let now = Instant::now();
             while (now - self.last_position_update) >= TIME_STEP {
@@ -74,6 +90,14 @@ impl AnimatedCamera {
                 self.parent.position + self.velocity * delta.as_secs_f32(),
                 self.parent.position + update_vecity(self.velocity) * delta.as_secs_f32(),
                 next);
+
+        }
+
+        if self.zooming() {
+            let old = self.to_world_coords(self.zoom_center);
+            self.parent.scale = lerp(self.parent.scale, self.new_scale, 1.0 - f32::exp(-(8.0 * delta.as_secs_f32())));
+            let new = self.to_world_coords(self.zoom_center);
+            self.parent.position += old - new;
         }
 
     }
@@ -84,6 +108,11 @@ impl AnimatedCamera {
         let time = Instant::now();
         self.velocity = Vec2::lerp(self.velocity, offset / (time - self.last_position_update).as_secs_f32(), 0.5);
         self.last_position_update = time;
+    }
+
+    pub fn zoom(&mut self, center: Vec2, amount: f32) {
+        self.new_scale = self.new_scale.sub(amount * (self.new_scale / 10.0)).max(1.0);
+        self.zoom_center = center;
     }
 
     pub fn capture(&mut self) {
@@ -115,7 +144,9 @@ impl From<Camera> for AnimatedCamera {
             parent: camera,
             velocity: Vec2::ZERO,
             last_position_update: Instant::now(),
-            captured: false
+            captured: false,
+            new_scale: camera.scale,
+            zoom_center: Vec2::ZERO
         }
     }
 }
