@@ -96,6 +96,9 @@ impl AnimatedCamera {
         if self.zooming() {
             let old = self.to_world_coords(self.zoom_center);
             self.parent.scale = lerp(self.parent.scale, self.new_scale, 1.0 - f32::exp(-(8.0 * delta.as_secs_f32())));
+            if (self.parent.scale - self.new_scale).abs() <= 0.01 {
+                self.parent.scale = self.new_scale;
+            }
             let new = self.to_world_coords(self.zoom_center);
             self.parent.position += old - new;
         }
