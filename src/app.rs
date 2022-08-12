@@ -16,7 +16,7 @@ pub enum Event {
     Resize(u32, u32),
     Click(Vec2),
     Drag(Vec2),
-    Zoom(Vec2, f32),
+    Zoom(Vec2, f32, bool),
     TouchStart,
     TouchEnd
 }
@@ -170,7 +170,7 @@ impl<G: Game, A: AppContext> Application<G, A> {
             let npos = self.touches.center().unwrap();
             if let Some(dist1) = dist1 {
                 let dist2 = self.touches.distance().unwrap();
-                self.call_event(Event::Zoom(npos, (dist2 - dist1) * 30.0));
+                self.call_event(Event::Zoom(npos, (dist2 - dist1) * 30.0, false));
             }
             match self.input_state {
                 InputState::Up => log_unreachable!(),
@@ -187,7 +187,7 @@ impl<G: Game, A: AppContext> Application<G, A> {
     }
 
     pub fn on_mouse_wheel(&mut self, x: f32, y: f32, amt: f32){
-        self.call_event(Event::Zoom(self.normalize(x, y), amt))
+        self.call_event(Event::Zoom(self.normalize(x, y), amt, true))
     }
 
     fn normalize(&self, x: f32, y: f32) -> Vec2 {

@@ -60,7 +60,7 @@ fn update_vecity(velocity: Vec2) -> Vec2 {
 }
 
 fn lerp(a: f32, b: f32, v: f32) -> f32 {
-    a + (b - a) * v
+    a + (b - a) * v.clamp(0.0, 1.0)
 }
 
 impl AnimatedCamera {
@@ -94,13 +94,11 @@ impl AnimatedCamera {
         }
 
         if self.zooming() {
-            let old = self.to_world_coords(self.zoom_center);
-            self.parent.scale = lerp(self.parent.scale, self.new_scale, 1.0 - f32::exp(-(8.0 * delta.as_secs_f32())));
-            if (self.parent.scale - self.new_scale).abs() <= 0.01 {
-                self.parent.scale = self.new_scale;
+            let mut new_level = lerp(self.parent.scale, self.new_scale, 1.0 - f32::exp(-(8.0 * delta.as_secs_f32())));
+            if (new_level - self.new_scale).abs() <= 0.01 {
+                new_level = self.new_scale;
             }
-            let new = self.to_world_coords(self.zoom_center);
-            self.parent.position += old - new;
+            self.set_scale(self.zoom_center, new_level);
         }
 
     }
@@ -113,9 +111,19 @@ impl AnimatedCamera {
         self.last_position_update = time;
     }
 
-    pub fn zoom(&mut self, center: Vec2, amount: f32) {
+    fn set_scale(&mut self, center: Vec2, level: f32) {
+        let old = self.to_world_coords(center);
+        self.parent.scale = level;
+        let new = self.to_world_coords(center);
+        self.parent.position += old - new;
+    }
+
+    pub fn zoom(&mut self, center: Vec2, amount: f32, animate: bool) {
         self.new_scale = self.new_scale.sub(amount * (self.new_scale / 10.0)).max(1.0);
         self.zoom_center = center;
+        if !animate {
+            self.set_scale(self.zoom_center, self.new_scale);
+        }
     }
 
     pub fn capture(&mut self) {

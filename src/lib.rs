@@ -149,12 +149,8 @@ impl Game for InfinityLoop {
                 }
                 _ => {}
             },
-            Event::Zoom(center, amount) => {
-                let camera = &mut self.camera;
-                //let old = camera.to_world_coords(center);
-                camera.zoom(center, amount);
-                //let new = camera.to_world_coords(center);
-                //camera.parent.position += old - new;
+            Event::Zoom(center, amount, animate) => {
+                self.camera.zoom(center, amount, animate);
                 camera_update = true;
             }
             Event::Drag(delta) => {
