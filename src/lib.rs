@@ -11,7 +11,7 @@ use std::rc::Rc;
 use artery_font::ArteryFont;
 use glam::Vec2;
 use crate::app::{AppContext, Bundle, Event, Game};
-use crate::camera::Camera;
+use crate::camera::{AnimatedCamera, Camera};
 use crate::types::{Color, HexPos, Rgba};
 use crate::world::{World};
 use crate::renderer::{GameRenderer, GameState, RenderableWorld, TextRenderer, TileRenderResources};
@@ -53,7 +53,7 @@ impl Bundle for InfinityLoopBundle {
 
 pub struct InfinityLoop {
     renderer: GameRenderer,
-    camera: Camera,
+    camera: AnimatedCamera,
     world: RenderableWorld,
     old_world: RenderableWorld,
     text_renderer: TextRenderer,
@@ -72,7 +72,7 @@ impl Game for InfinityLoop {
         let camera = Camera {
             aspect: width as f32 / height as f32,
             ..bundle.camera
-        };
+        }.into();
 
         let resources = Rc::new(TileRenderResources::new(ctx)?);
 
@@ -96,7 +96,7 @@ impl Game for InfinityLoop {
     fn suspend<A: AppContext>(self, _ctx: &A) -> Self::Bundle {
         Self::Bundle {
             world: self.world.into(),
-            camera: self.camera,
+            camera: self.camera.into(),
             state: self.state
         }
     }
@@ -105,6 +105,7 @@ impl Game for InfinityLoop {
         let mut camera_update = false;
         match event {
             Event::Draw(delta) => {
+                self.camera.update(delta);
                 self.state.update(delta, self.world.update_required());
                 self.world.update(delta);
 
@@ -116,7 +117,7 @@ impl Game for InfinityLoop {
             Event::Resize(width, height) => {
                 assert!(width != 0 && height != 0);
                 ctx.viewport(0, 0, width as i32, height as i32);
-                self.camera.aspect = width as f32 / height as f32;
+                self.camera.parent.aspect = width as f32 / height as f32;
                 self.world.resize(ctx, width, height)?;
                 self.old_world.resize(ctx, width, height)?;
                 camera_update = true;
@@ -152,17 +153,25 @@ impl Game for InfinityLoop {
             Event::Zoom(center, amount) => {
                 let camera = &mut self.camera;
                 let old = camera.to_world_coords(center);
-                camera.scale = camera.scale.sub(amount * (camera.scale / 10.0)).max(1.0);
+                camera.parent.scale = camera.scale.sub(amount * (camera.scale / 10.0)).max(1.0);
                 let new = camera.to_world_coords(center);
-                camera.position += old - new;
+                camera.parent.position += old - new;
                 camera_update = true;
             }
             Event::Drag(delta) => {
-                self.camera.position += self.camera.to_world_coords(-delta) - self.camera.to_world_coords(Vec2::ZERO);
+                self.camera.move_by(self.camera.to_world_coords(-delta) - self.camera.to_world_coords(Vec2::ZERO));
                 camera_update = true;
             }
+            Event::TouchStart => {
+                log::info!("touch start");
+                self.camera.capture();
+            }
+            Event::TouchEnd => {
+                log::info!("touch end");
+                self.camera.release();
+            }
         }
-        Ok(camera_update || self.world.update_required() || self.state.is_animated())
+        Ok(camera_update || self.camera.update_required() || self.world.update_required() || self.state.is_animated())
     }
 }
 

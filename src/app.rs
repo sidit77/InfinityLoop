@@ -17,6 +17,8 @@ pub enum Event {
     Click(Vec2),
     Drag(Vec2),
     Zoom(Vec2, f32),
+    TouchStart,
+    TouchEnd
 }
 
 enum ApplicationState<G: Game, A: AppContext> {
@@ -127,6 +129,7 @@ impl<G: Game, A: AppContext> Application<G, A> {
                 InputState::Up => {
                     log_assert!(self.touches.len() == 1);
                     self.input_state = InputState::Click(self.touches.center().unwrap());
+                    self.call_event(Event::TouchStart)
                 }
                 InputState::Click(_) => {
                     log_assert!(self.touches.len() > 1);
@@ -148,6 +151,7 @@ impl<G: Game, A: AppContext> Application<G, A> {
                 InputState::Drag(_) => {}
             }
             self.input_state = InputState::Up;
+            self.call_event(Event::TouchEnd)
         } else {
             match self.input_state {
                 InputState::Drag(_) => {
