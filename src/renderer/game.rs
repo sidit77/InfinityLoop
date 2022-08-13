@@ -5,6 +5,7 @@ use crate::opengl::*;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum GameState {
+    Tutorial,
     InProgress,
     WaitingForEnd(Vec2),
     Ending(Vec2, f32),
@@ -87,7 +88,7 @@ impl GameRenderer {
         world.render(ctx, camera);
         ctx.bind_texture(0, world.get_texture());
         match state {
-            GameState::InProgress | GameState::WaitingForEnd(_) => {
+            GameState::Tutorial | GameState::InProgress | GameState::WaitingForEnd(_) => {
                 ctx.use_program(&self.standard_shader);
                 ctx.set_uniform(&self.standard_shader.get_uniform("completed")?, false);
             }

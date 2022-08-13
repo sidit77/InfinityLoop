@@ -1,16 +1,30 @@
 use std::collections::HashMap;
+use std::ops::Index;
+use std::rc::Rc;
 use crate::opengl::*;
 use anyhow::{Result, ensure};
 use artery_font::*;
 use bytemuck::{Pod, Zeroable};
-use glam::{Mat4};
-use crate::AppContext;
+use glam::{Mat4, Vec2};
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
 #[repr(C)]
 struct Vertex {
-    position: [f32; 2],
-    tex_coord: [f32; 2],
+    position: Vec2,
+    tex_coord: Vec2,
+}
+
+impl Vertex {
+    fn new(position: impl Into<Vec2>, tex_coord: impl Into<Vec2>) -> Self {
+        Self {
+            position: position.into(),
+            tex_coord: tex_coord.into()
+        }
+    }
+    fn move_by(mut self, offset: impl Into<Vec2>) -> Self {
+        self.position += offset.into();
+        self
+    }
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -21,14 +35,14 @@ struct Quad {
 
 impl Quad {
 
-    fn vertices(&self, x_offset: f32, y_offset: f32) -> impl Iterator<Item=Vertex> {
+    fn vertices(&self) -> impl Iterator<Item=Vertex> {
         [
-            Vertex { position: [x_offset + self.plane_bounds.left , y_offset + self.plane_bounds.bottom], tex_coord: [self.atlas_bounds.left , self.atlas_bounds.bottom] },
-            Vertex { position: [x_offset + self.plane_bounds.right, y_offset + self.plane_bounds.bottom], tex_coord: [self.atlas_bounds.right, self.atlas_bounds.bottom] },
-            Vertex { position: [x_offset + self.plane_bounds.left , y_offset + self.plane_bounds.top   ], tex_coord: [self.atlas_bounds.left , self.atlas_bounds.top   ] },
-            Vertex { position: [x_offset + self.plane_bounds.left , y_offset + self.plane_bounds.top   ], tex_coord: [self.atlas_bounds.left , self.atlas_bounds.top   ] },
-            Vertex { position: [x_offset + self.plane_bounds.right, y_offset + self.plane_bounds.bottom], tex_coord: [self.atlas_bounds.right, self.atlas_bounds.bottom] },
-            Vertex { position: [x_offset + self.plane_bounds.right, y_offset + self.plane_bounds.top   ], tex_coord: [self.atlas_bounds.right, self.atlas_bounds.top   ] },
+            Vertex::new((self.plane_bounds.left , self.plane_bounds.bottom), (self.atlas_bounds.left , self.atlas_bounds.bottom)),
+            Vertex::new((self.plane_bounds.right, self.plane_bounds.bottom), (self.atlas_bounds.right, self.atlas_bounds.bottom)),
+            Vertex::new((self.plane_bounds.left , self.plane_bounds.top   ), (self.atlas_bounds.left , self.atlas_bounds.top   )),
+            Vertex::new((self.plane_bounds.left , self.plane_bounds.top   ), (self.atlas_bounds.left , self.atlas_bounds.top   )),
+            Vertex::new((self.plane_bounds.right, self.plane_bounds.bottom), (self.atlas_bounds.right, self.atlas_bounds.bottom)),
+            Vertex::new((self.plane_bounds.right, self.plane_bounds.top   ), (self.atlas_bounds.right, self.atlas_bounds.top   )),
         ].into_iter()
     }
 
@@ -41,35 +55,141 @@ struct Glyph {
 }
 
 impl Glyph {
+    fn vertices(&self) -> impl Iterator<Item=Vertex> + '_ {
+        self.quad.iter().flat_map(Quad::vertices)
+    }
+}
 
-    fn vertices(&self, x_offset: f32, y_offset: f32) -> impl Iterator<Item=Vertex> + '_ {
-        self.quad.iter().flat_map(move |q|q.vertices(x_offset, y_offset))
+#[derive(Debug, Clone)]
+struct Line {
+    vertices: Vec<Vertex>,
+    width: f32
+}
+
+#[derive(Debug, Clone)]
+struct Text {
+    vertices: Vec<Vertex>,
+    size: Vec2
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[allow(dead_code)]
+pub enum TextAlignment {
+    Left,
+    Center,
+    Right
+}
+
+#[derive(Debug, Clone)]
+struct FontInfo {
+    metrics: FontMetric,
+    glyphs: HashMap<char, Glyph>,
+}
+
+impl FontInfo {
+
+    fn px_range(&self) -> f32 {
+        self.metrics.distance_range / self.metrics.font_size
+    }
+
+    fn line(&self, line: &str) -> Line {
+        let mut vertices = Vec::new();
+        let mut x= 0.0;
+
+        for glyph in line.chars().map(|c|self.glyphs.index(&c)) {
+            for v in glyph.vertices() {
+                vertices.push(v.move_by((x,0.0)));
+            }
+            x += glyph.advance;
+        }
+
+        Line {
+            vertices,
+            width: x
+        }
+    }
+
+    fn text(&self, text: &str, alignment: TextAlignment) -> Text {
+        let mut vertices = Vec::new();
+        let lines: Vec<_> = text
+            .lines()
+            .map(|line| self.line(line))
+            .collect();
+        let width = lines.iter().map(|line| line.width).fold(0.0, f32::max);
+        let mut height = -self.metrics.descender;
+        for line in lines.iter().rev() {
+            let start = match alignment {
+                TextAlignment::Left => 0.0,
+                TextAlignment::Center => (width - line.width) * 0.5,
+                TextAlignment::Right => width - line.width
+            };
+            for v in &line.vertices {
+                vertices.push(v.move_by((start, height)));
+            }
+            height += self.metrics.line_height;
+        }
+        Text { 
+            vertices, 
+            size: Vec2::new(width, height - self.metrics.line_height + self.metrics.ascender) }
     }
 
 }
 
-pub struct TextRenderer{
+
+pub struct TextBuffer {
+    font_info: Rc<FontInfo>,
     vertex_array: VertexArray,
     vertex_buffer: Buffer,
+    number_of_vertices: u32,
+    size: Vec2
+}
+
+impl TextBuffer {
+    fn new(ctx: &Context, font_info: Rc<FontInfo>) -> Result<TextBuffer> {
+        let vertex_array = VertexArray::new(ctx)?;
+        ctx.use_vertex_array(&vertex_array);
+
+        let vertex_buffer = Buffer::new(ctx, BufferTarget::Array)?;
+        vertex_array.set_bindings(&vertex_buffer, VertexStepMode::Vertex, &[
+            VertexArrayAttribute::Float(0, DataType::F32, 2, false),
+            VertexArrayAttribute::Float(1, DataType::F32, 2, false),
+        ]);
+
+        Ok(TextBuffer {
+            font_info,
+            vertex_array,
+            vertex_buffer,
+            number_of_vertices: 0,
+            size: Vec2::ZERO
+        })
+    }
+
+    pub fn set_text(&mut self, text: &str, alightment: TextAlignment) {
+        log::debug!("Changing text to \"{}\"", text);
+        let text = self.font_info.text(text, alightment);
+        self.number_of_vertices = text.vertices.len() as u32;
+        self.vertex_buffer.set_data(&text.vertices, BufferUsage::StaticDraw);
+        self.size = text.size;
+    }
+}
+
+pub struct TextRenderer {
+    ctx: Context,
     shader: ShaderProgram,
     texture: Texture,
-    line_height: f32,
-    pxrange: f32,
-    glyphs: HashMap<char, Glyph>,
-    number_of_vertices: u32
+    font_info: Rc<FontInfo>
 }
 
 impl TextRenderer {
 
-    pub fn new(ctx: &Context, font: &ArteryFont) -> Result<Self> {
+    pub fn new(ctx: &Context, font: &ArteryFont, width: u32, height: u32) -> Result<Self> {
 
         let image = font.images.first().unwrap();
         let variant = font.variants.first().unwrap();
         ensure!(variant.image_type == ImageType::Msdf);
         ensure!(variant.codepoint_type == CodepointType::Unicode);
-        ensure!(variant.kern_pairs.is_empty());
-        let line_height = variant.metrics.line_height;
-        let pxrange = variant.metrics.distance_range / variant.metrics.font_size;
+        //ensure!(variant.kern_pairs.is_empty());
+        let metrics = variant.metrics;
 
         let mut glyphs = HashMap::new();
 
@@ -102,15 +222,6 @@ impl TextRenderer {
             r: TextureWrap::ClampToEdge
         });
 
-        let vertex_array = VertexArray::new(ctx)?;
-        ctx.use_vertex_array(&vertex_array);
-
-        let vertex_buffer = Buffer::new(ctx, BufferTarget::Array)?;
-        vertex_array.set_bindings(&vertex_buffer, VertexStepMode::Vertex, &[
-            VertexArrayAttribute::Float(0, DataType::F32, 2, false),
-            VertexArrayAttribute::Float(1, DataType::F32, 2, false),
-        ]);
-
         let shader = ShaderProgram::new(ctx, &[
             &Shader::new(ctx, ShaderType::Vertex, include_str!("../shader/text.vert"))?,
             &Shader::new(ctx, ShaderType::Fragment, include_str!("../shader/text.frag"))?
@@ -118,55 +229,46 @@ impl TextRenderer {
         ctx.use_program(&shader);
         ctx.set_uniform(&shader.get_uniform("tex")?, 0);
 
-        Ok(Self {
-            vertex_array,
-            vertex_buffer,
+        let mut renderer = Self {
+            ctx: ctx.clone(),
             shader,
             texture,
-            line_height,
-            pxrange,
-            glyphs,
-            number_of_vertices: 0
-        })
+            font_info: Rc::new(FontInfo {
+                metrics,
+                glyphs
+            })
+        };
+        renderer.resize(ctx, width, height)?;
+
+        Ok(renderer)
     }
 
-    pub fn set_text(&mut self, text: &str) {
-        log::debug!("Changing text to \"{}\"", text);
-        let mut vertices = Vec::new();
-        let mut x;
-        let mut y = 0.2;
-
-        for line in text.lines() {
-            x = 0.2;
-            for glyph in line.chars().map(|c|self.glyphs[&c]) {
-                for v in glyph.vertices(x, y) {
-                    vertices.push(v);
-                }
-                x += glyph.advance;
-            }
-            y -= self.line_height * 0.55;
-        }
-
-        self.number_of_vertices = vertices.len() as u32;
-        self.vertex_buffer.set_data(&vertices, BufferUsage::StaticDraw);
+    pub fn create_buffer(&self) -> Result<TextBuffer> {
+        TextBuffer::new(&self.ctx, self.font_info.clone())
     }
 
-    pub fn render<A: AppContext>(&self, ctx: &A) -> Result<()> {
-        let (width, height) = ctx.screen_size();
-        let scale = 10.0;
-        if self.number_of_vertices > 0 {
+    pub fn render(&self, ctx: &Context, buffer: &TextBuffer) -> Result<()> {
+        ensure!(Rc::ptr_eq(&self.font_info, &buffer.font_info));
+
+        if buffer.number_of_vertices > 0 {
             ctx.set_blend_state(BlendState {
                 src: BlendFactor::SrcAlpha,
                 dst: BlendFactor::OneMinusSrcAlpha,
                 equ: BlendEquation::Add
             });
-            ctx.use_vertex_array(&self.vertex_array);
+            ctx.use_vertex_array(&buffer.vertex_array);
             ctx.use_program(&self.shader);
-            ctx.set_uniform(&self.shader.get_uniform("matrix")?, Mat4::orthographic_rh(0.0, (width as f32 / height as f32) * scale, 0.0, scale, 0.0, 1.0));
-            ctx.set_uniform(&self.shader.get_uniform("screenPxRange")?, (height as f32 / scale) * self.pxrange);
             ctx.bind_texture(0, &self.texture);
-            ctx.draw_arrays(PrimitiveType::Triangles, 0, self.number_of_vertices as i32);
+            ctx.draw_arrays(PrimitiveType::Triangles, 0, buffer.number_of_vertices as i32);
         }
+        Ok(())
+    }
+
+    pub fn resize(&mut self, ctx: &Context, width: u32, height: u32) -> anyhow::Result<()> {
+        let scale = 10.0;
+        ctx.use_program(&self.shader);
+        ctx.set_uniform(&self.shader.get_uniform("matrix")?, Mat4::orthographic_rh(0.0, (width as f32 / height as f32) * scale, 0.0, scale, 0.0, 1.0));
+        ctx.set_uniform(&self.shader.get_uniform("screenPxRange")?, (height as f32 / scale) *  self.font_info.px_range());
         Ok(())
     }
 

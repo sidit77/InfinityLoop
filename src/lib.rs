@@ -13,7 +13,7 @@ use crate::app::{AppContext, Bundle, Event, Game};
 use crate::camera::{AnimatedCamera, Camera};
 use crate::types::{Color, HexPos, Rgba};
 use crate::world::{World};
-use crate::renderer::{GameRenderer, GameState, RenderableWorld, TextRenderer, TileRenderResources};
+use crate::renderer::{GameRenderer, GameState, RenderableWorld, TextAlignment, TextBuffer, TextRenderer, TileRenderResources};
 
 pub mod export {
     pub use crate::opengl::Context;
@@ -39,7 +39,7 @@ impl Bundle for InfinityLoopBundle {
 
         let state = match world.is_completed() {
             true => GameState::Ending(Vec2::ZERO, f32::INFINITY),
-            false => GameState::InProgress
+            false => GameState::Tutorial
         };
 
         Ok(Self {
@@ -56,6 +56,7 @@ pub struct InfinityLoop {
     world: RenderableWorld,
     old_world: RenderableWorld,
     text_renderer: TextRenderer,
+    text_buffer: TextBuffer,
     state: GameState
 }
 
@@ -79,8 +80,9 @@ impl Game for InfinityLoop {
                                              World::new(bundle.world.seed() - 1), (width, height))?;
         let world = RenderableWorld::new(ctx, resources, bundle.world, (width, height))?;
 
-        let mut text_renderer = TextRenderer::new(ctx, &ArteryFont::read(include_bytes!("font/test.arfont").as_slice())?)?;
-        text_renderer.set_text(&format!("Level {}", world.seed()));
+        let text_renderer = TextRenderer::new(ctx, &ArteryFont::read(include_bytes!("font/arial.arfont").as_slice())?, width, height)?;
+        let mut text_buffer = text_renderer.create_buffer()?;
+        text_buffer.set_text(&format!("Click the tiles to rotate them and\nclose all open loops"), TextAlignment::Center);
         
         Ok(Self {
             renderer,
@@ -88,6 +90,7 @@ impl Game for InfinityLoop {
             world,
             old_world,
             text_renderer,
+            text_buffer,
             state: bundle.state
         })
     }
@@ -111,7 +114,7 @@ impl Game for InfinityLoop {
                 ctx.clear(Rgba::new(23,23,23,255));
 
                 self.renderer.render(ctx, self.state, &self.camera, &mut self.world, &mut self.old_world)?;
-                self.text_renderer.render(ctx)?;
+                self.text_renderer.render(ctx, &self.text_buffer)?;
             },
             Event::Resize(width, height) => {
                 assert!(width != 0 && height != 0);
@@ -119,9 +122,20 @@ impl Game for InfinityLoop {
                 self.camera.parent.aspect = width as f32 / height as f32;
                 self.world.resize(ctx, width, height)?;
                 self.old_world.resize(ctx, width, height)?;
+                self.text_renderer.resize(ctx, width, height)?;
                 camera_update = true;
             },
             Event::Click(pos) => match self.state{
+                GameState::Tutorial => {
+                    let pt = self.camera.to_world_coords(pos);
+                    if self.world.try_rotate(pt.into()) {
+                        self.text_buffer.set_text(&format!("Level {}", self.world.seed()), TextAlignment::Left);
+                        self.state.set(GameState::InProgress);
+                    }
+                    if self.world.is_completed() {
+                        self.state.set(GameState::WaitingForEnd(pt));
+                    }
+                }
                 GameState::InProgress => {
                     let pt = self.camera.to_world_coords(pos);
                     self.world.try_rotate(pt.into());
@@ -140,7 +154,7 @@ impl Game for InfinityLoop {
                     std::mem::swap(&mut self.world, &mut self.old_world);
                     self.world.reinitialize(new_world);
                     self.state.set(GameState::Transition(pt, 0.0));
-                    self.text_renderer.set_text(&format!("Level {}", self.world.seed()));
+                    self.text_buffer.set_text(&format!("Level {}", self.world.seed()), TextAlignment::Left);
                     camera_update = true;
                 },
                 GameState::Transition(_, _) => {
