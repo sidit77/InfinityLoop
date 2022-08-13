@@ -220,8 +220,10 @@ impl<G: Game, A: AppContext> Application<G, A> {
             if ! *should_redraw {
                 self.last_update = Instant::now();
             }
-            *should_redraw = game.event(ctx, event).unwrap();
-
+            if matches!(event, Event::Draw(_)) {
+                *should_redraw = false;
+            }
+            *should_redraw |= game.event(ctx, event).unwrap();
         }
     }
 
