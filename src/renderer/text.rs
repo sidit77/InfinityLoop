@@ -5,7 +5,7 @@ use crate::opengl::*;
 use anyhow::{Result, ensure};
 use artery_font::*;
 use bytemuck::{Pod, Zeroable};
-use glam::{Mat4, Vec2};
+use glam::{Mat4, Quat, Vec2, Vec3};
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
 #[repr(C)]
@@ -135,13 +135,39 @@ impl FontInfo {
 
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+#[allow(dead_code)]
+pub enum Anchor {
+    LeftTop, LeftCenter, LeftBottom,
+    CenterTop, Center, CenterBottom,
+    RightTop, RightCenter, RightBottom
+}
+
+impl From<Anchor> for Vec2 {
+    fn from(anchor: Anchor) -> Self {
+        match anchor {
+            Anchor::LeftTop =>      Vec2::new(0.0, 1.0),
+            Anchor::LeftCenter =>   Vec2::new(0.0, 0.5),
+            Anchor::LeftBottom =>   Vec2::new(0.0, 0.0),
+            Anchor::CenterTop =>    Vec2::new(0.5, 1.0),
+            Anchor::Center =>       Vec2::new(0.5, 0.5),
+            Anchor::CenterBottom => Vec2::new(0.5, 0.0),
+            Anchor::RightTop =>     Vec2::new(1.0, 1.0),
+            Anchor::RightCenter =>  Vec2::new(1.0, 0.5),
+            Anchor::RightBottom =>  Vec2::new(1.0, 0.0),
+        }
+    }
+}
 
 pub struct TextBuffer {
     font_info: Rc<FontInfo>,
     vertex_array: VertexArray,
     vertex_buffer: Buffer,
     number_of_vertices: u32,
-    size: Vec2
+    size: Vec2,
+    pub text_size: f32,
+    pub anchor: Anchor,
+    pub offset: Vec2
 }
 
 impl TextBuffer {
@@ -160,29 +186,44 @@ impl TextBuffer {
             vertex_array,
             vertex_buffer,
             number_of_vertices: 0,
-            size: Vec2::ZERO
+            size: Vec2::ZERO,
+            text_size: 40.0,
+            anchor: Anchor::LeftBottom,
+            offset: Vec2::ZERO
         })
     }
 
     pub fn set_text(&mut self, text: &str, alightment: TextAlignment) {
         log::debug!("Changing text to \"{}\"", text);
         let text = self.font_info.text(text, alightment);
+        log::debug!("New Size: {} (scaled: {})", text.size, text.size * self.text_size);
         self.number_of_vertices = text.vertices.len() as u32;
         self.vertex_buffer.set_data(&text.vertices, BufferUsage::StaticDraw);
         self.size = text.size;
     }
+
+    pub fn size(&self) -> Vec2 {
+        self.text_size * self.size
+    }
+
+    pub fn position(&self, screen_size: (u32, u32)) -> Vec2 {
+        let screen_size =  Vec2::new(screen_size.0 as f32, screen_size.1 as f32);
+        self.offset + (screen_size - self.size()) * Vec2::from(self.anchor)
+    }
+
 }
 
 pub struct TextRenderer {
     ctx: Context,
     shader: ShaderProgram,
     texture: Texture,
-    font_info: Rc<FontInfo>
+    font_info: Rc<FontInfo>,
+    screen_size: (u32, u32)
 }
 
 impl TextRenderer {
 
-    pub fn new(ctx: &Context, font: &ArteryFont, width: u32, height: u32) -> Result<Self> {
+    pub fn new(ctx: &Context, font: &ArteryFont, screen_size: (u32, u32)) -> Result<Self> {
 
         let image = font.images.first().unwrap();
         let variant = font.variants.first().unwrap();
@@ -229,18 +270,16 @@ impl TextRenderer {
         ctx.use_program(&shader);
         ctx.set_uniform(&shader.get_uniform("tex")?, 0);
 
-        let mut renderer = Self {
+        Ok(Self {
             ctx: ctx.clone(),
             shader,
             texture,
             font_info: Rc::new(FontInfo {
                 metrics,
                 glyphs
-            })
-        };
-        renderer.resize(ctx, width, height)?;
-
-        Ok(renderer)
+            }),
+            screen_size
+        })
     }
 
     pub fn create_buffer(&self) -> Result<TextBuffer> {
@@ -249,6 +288,7 @@ impl TextRenderer {
 
     pub fn render(&self, ctx: &Context, buffer: &TextBuffer) -> Result<()> {
         ensure!(Rc::ptr_eq(&self.font_info, &buffer.font_info));
+        let (width, height) = self.screen_size;
 
         if buffer.number_of_vertices > 0 {
             ctx.set_blend_state(BlendState {
@@ -258,17 +298,24 @@ impl TextRenderer {
             });
             ctx.use_vertex_array(&buffer.vertex_array);
             ctx.use_program(&self.shader);
+            ctx.set_uniform(&self.shader.get_uniform("matrix")?,
+
+                            Mat4::orthographic_rh(0.0, width as f32, 0.0, height as f32, 0.0, 1.0)
+                            * Mat4::from_scale_rotation_translation(
+                                Vec3::splat(buffer.text_size),
+                                Quat::IDENTITY,
+                                buffer.position(self.screen_size).extend(0.0))
+            );
+            ctx.set_uniform(&self.shader.get_uniform("screenPxRange")?,
+                            buffer.text_size * self.font_info.px_range());
             ctx.bind_texture(0, &self.texture);
             ctx.draw_arrays(PrimitiveType::Triangles, 0, buffer.number_of_vertices as i32);
         }
         Ok(())
     }
 
-    pub fn resize(&mut self, ctx: &Context, width: u32, height: u32) -> anyhow::Result<()> {
-        let scale = 10.0;
-        ctx.use_program(&self.shader);
-        ctx.set_uniform(&self.shader.get_uniform("matrix")?, Mat4::orthographic_rh(0.0, (width as f32 / height as f32) * scale, 0.0, scale, 0.0, 1.0));
-        ctx.set_uniform(&self.shader.get_uniform("screenPxRange")?, (height as f32 / scale) *  self.font_info.px_range());
+    pub fn resize(&mut self, _ctx: &Context, width: u32, height: u32) -> anyhow::Result<()> {
+        self.screen_size = (width, height);
         Ok(())
     }
 

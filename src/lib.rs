@@ -13,7 +13,7 @@ use crate::app::{AppContext, Bundle, Event, Game};
 use crate::camera::{AnimatedCamera, Camera};
 use crate::types::{Color, HexPos, Rgba};
 use crate::world::{World};
-use crate::renderer::{GameRenderer, GameState, RenderableWorld, TextAlignment, TextBuffer, TextRenderer, TileRenderResources};
+use crate::renderer::{Anchor, GameRenderer, GameState, RenderableWorld, TextAlignment, TextBuffer, TextRenderer, TileRenderResources};
 
 pub mod export {
     pub use crate::opengl::Context;
@@ -80,9 +80,12 @@ impl Game for InfinityLoop {
                                              World::new(bundle.world.seed() - 1), (width, height))?;
         let world = RenderableWorld::new(ctx, resources, bundle.world, (width, height))?;
 
-        let text_renderer = TextRenderer::new(ctx, &ArteryFont::read(include_bytes!("font/arial.arfont").as_slice())?, width, height)?;
+        let text_renderer = TextRenderer::new(ctx, &ArteryFont::read(include_bytes!("font/arial.arfont").as_slice())?, (width, height))?;
         let mut text_buffer = text_renderer.create_buffer()?;
         text_buffer.set_text(&format!("Click the tiles to rotate them and\nclose all open loops"), TextAlignment::Center);
+        text_buffer.anchor = Anchor::CenterTop;
+        text_buffer.text_size = 60.0;
+        text_buffer.offset = Vec2::new(0.0, -10.0);
         
         Ok(Self {
             renderer,
