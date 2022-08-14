@@ -6,6 +6,7 @@ use crate::opengl::*;
 #[derive(Debug, Copy, Clone, PartialEq)]
 pub enum GameState {
     Tutorial,
+    Shuffeling,
     InProgress,
     WaitingForEnd(Vec2),
     Ending(Vec2, f32),
@@ -22,6 +23,9 @@ impl GameState {
 
     pub fn update(&mut self, delta: Duration, world_updating: bool) {
         match *self {
+            GameState::Shuffeling => if !world_updating {
+                self.set(GameState::InProgress);
+            }
             GameState::Ending(_, ref mut time) => {
                 *time += delta.as_secs_f32();
                 if *time > 1.5 {
@@ -43,9 +47,21 @@ impl GameState {
 
     pub fn is_animated(&self) -> bool {
         matches!(self,
+            GameState::Shuffeling |
             GameState::Ending(_, _) |
             GameState::Transition(_, _) |
             GameState::WaitingForEnd(_))
+    }
+
+    pub fn update_speed(&self) -> u32 {
+        match self {
+            GameState::Shuffeling => 5,
+            _ => 1
+        }
+    }
+
+    pub fn is_interactive(&self) -> bool {
+        !matches!(self, GameState::Shuffeling | GameState::Tutorial )
     }
 
 }
@@ -88,7 +104,7 @@ impl GameRenderer {
         world.render(ctx, camera);
         ctx.bind_texture(0, world.get_texture());
         match state {
-            GameState::Tutorial | GameState::InProgress | GameState::WaitingForEnd(_) => {
+            GameState::Tutorial | GameState::Shuffeling | GameState::InProgress | GameState::WaitingForEnd(_) => {
                 ctx.use_program(&self.standard_shader);
                 ctx.set_uniform(&self.standard_shader.get_uniform("completed")?, false);
             }

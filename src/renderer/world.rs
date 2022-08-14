@@ -123,6 +123,16 @@ impl RenderableWorld {
         !self.active_instances.is_empty() || self.last_camera.is_none()
     }
 
+    pub fn scramble(&mut self) {
+        self.world.scramble(true);
+        for pos in self.world.tiles().keys() {
+            let tc = self.world.tiles()[pos];
+            self.instances[pos].update_target_rotation(tc.angle());
+
+            self.active_instances.insert(pos);
+        }
+    }
+
     pub fn try_rotate(&mut self, pos: HexPos) -> bool {
         let result = self.world.try_rotate(pos);
         if result {

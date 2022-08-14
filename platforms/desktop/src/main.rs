@@ -121,6 +121,12 @@ fn main() {
                             Some(_) => None
                         })
                     }),
+                    Some(VirtualKeyCode::F5) => {
+                        log::info!("Reseting Game...");
+                        ctx = app.suspend();
+                        app = Application::<InfinityLoop, GlutinContext>::new().unwrap();
+                        app.resume(||Ok(ctx.take().unwrap()));
+                    },
                     Some(VirtualKeyCode::Return) => {
                         app.on_press(pos.x as f32, pos.y as f32, 1 + touch_stack.len() as u64);
                         touch_stack.push_back(pos);

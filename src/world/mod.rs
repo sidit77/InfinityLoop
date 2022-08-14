@@ -57,11 +57,15 @@ impl World {
         &self.elements
     }
 
-    pub fn scramble(&mut self) {
+    pub fn scramble(&mut self, force_rotation: bool) {
         let rng = Rng::with_seed(self.seed());
         while {
             for tile in self.elements.values_mut() {
-                *tile = tile.with_rotation(rng.u8(..6));
+                *tile = if force_rotation {
+                    tile.rotate_by(rng.u8(1..6))
+                } else {
+                    tile.with_rotation(rng.u8(..6))
+                };
             }
             self.incomplete.clear();
             for pos in self.elements.keys() {

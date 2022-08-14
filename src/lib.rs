@@ -35,12 +35,13 @@ impl Bundle for InfinityLoopBundle {
         };
 
         let mut world = World::new(1);
-        world.scramble();
+        //world.scramble();
 
-        let state = match world.is_completed() {
-            true => GameState::Ending(Vec2::ZERO, f32::INFINITY),
-            false => GameState::Tutorial
-        };
+        //let state = match world.is_completed() {
+        //    true => GameState::Ending(Vec2::ZERO, f32::INFINITY),
+        //    false => GameState::Tutorial
+        //};
+        let state = GameState::Tutorial;
 
         Ok(Self {
             world,
@@ -82,7 +83,11 @@ impl Game for InfinityLoop {
 
         let text_renderer = TextRenderer::new(ctx, &ArteryFont::read(include_bytes!("font/arial.arfont").as_slice())?, (width, height))?;
         let mut text_buffer = text_renderer.create_buffer()?;
-        text_buffer.set_text(&format!("Click the tiles to rotate them and\nclose all open loops"), TextAlignment::Center);
+        match bundle.state {
+            GameState::Tutorial | GameState::Shuffeling
+              => text_buffer.set_text(&format!("Click the Screen to Start"), TextAlignment::Center),
+            _ => text_buffer.set_text(&format!("Level {}", world.seed()), TextAlignment::Center),
+        };
         text_buffer.anchor = Anchor::CenterTop;
         text_buffer.text_size = 60.0;
         text_buffer.offset = Vec2::new(0.0, -10.0);
@@ -111,8 +116,19 @@ impl Game for InfinityLoop {
         match event {
             Event::Draw(delta) => {
                 self.camera.update(delta);
+                let old_state = self.state;
                 self.state.update(delta, self.world.update_required());
-                self.world.update(delta);
+                self.world.update(delta / self.state.update_speed());
+                if matches!(self.state, GameState::Shuffeling) {
+                    self.text_buffer.offset = Vec2::lerp(
+                        self.text_buffer.offset,
+                        self.text_buffer.offset + self.text_buffer.size() * Vec2::new(0.0, 1.0),
+                        1.0 - f32::exp(-3.0 * delta.as_secs_f32()));
+                }
+                if matches!(old_state, GameState::Shuffeling) && matches!(self.state, GameState::InProgress){
+                    self.text_buffer.set_text(&format!("Level {}", self.world.seed()), TextAlignment::Left);
+                    self.text_buffer.offset = Vec2::new(0.0, -10.0);
+                }
 
                 ctx.clear(Rgba::new(23,23,23,255));
 
@@ -130,14 +146,16 @@ impl Game for InfinityLoop {
             },
             Event::Click(pos) => match self.state{
                 GameState::Tutorial => {
-                    let pt = self.camera.to_world_coords(pos);
-                    if self.world.try_rotate(pt.into()) {
-                        self.text_buffer.set_text(&format!("Level {}", self.world.seed()), TextAlignment::Left);
-                        self.state.set(GameState::InProgress);
-                    }
-                    if self.world.is_completed() {
-                        self.state.set(GameState::WaitingForEnd(pt));
-                    }
+                    //let pt = self.camera.to_world_coords(pos);
+                    //if self.world.try_rotate(pt.into()) {
+                    //    self.text_buffer.set_text(&format!("Level {}", self.world.seed()), TextAlignment::Left);
+                    //    self.state.set(GameState::InProgress);
+                    //}
+                    //if self.world.is_completed() {
+                    //    self.state.set(GameState::WaitingForEnd(pt));
+                    //}
+                    self.world.scramble();
+                    self.state.set(GameState::Shuffeling);
                 }
                 GameState::InProgress => {
                     let pt = self.camera.to_world_coords(pos);
@@ -153,7 +171,7 @@ impl Game for InfinityLoop {
                 GameState::Ended => {
                     let pt = self.camera.to_world_coords(pos);
                     let mut new_world = World::new(self.world.seed() + 1);
-                    new_world.scramble();
+                    new_world.scramble(false);
                     std::mem::swap(&mut self.world, &mut self.old_world);
                     self.world.reinitialize(new_world);
                     self.state.set(GameState::Transition(pt, 0.0));
@@ -166,16 +184,20 @@ impl Game for InfinityLoop {
                 }
                 _ => {}
             },
-            Event::Zoom(center, amount, animate) => {
+            Event::Zoom(center, amount, animate) => if self.state.is_interactive() {
                 self.camera.zoom(center, amount, animate);
                 camera_update = true;
             }
-            Event::Drag(delta) => {
+            Event::Drag(delta) => if self.state.is_interactive() {
                 self.camera.move_by(self.camera.to_world_coords(-delta) - self.camera.to_world_coords(Vec2::ZERO));
                 camera_update = true;
             }
-            Event::TouchStart => self.camera.capture(),
-            Event::TouchEnd => self.camera.release()
+            Event::TouchStart => if self.state.is_interactive() {
+                self.camera.capture()
+            },
+            Event::TouchEnd => if self.state.is_interactive() {
+                self.camera.release()
+            }
         }
         Ok(camera_update || self.camera.update_required() || self.world.update_required() || self.state.is_animated())
     }
