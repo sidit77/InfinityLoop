@@ -2,9 +2,11 @@ use std::fmt::Debug;
 use std::mem::{replace, take};
 use std::ops::Deref;
 use std::time::{Duration};
+use anyhow::anyhow;
 use glam::Vec2;
 use instant::Instant;
-use serde::Serialize;
+use serde::{Serialize};
+use serde::de::DeserializeOwned;
 use crate::{log_assert, log_unreachable};
 use crate::opengl::Context;
 
@@ -52,7 +54,7 @@ pub trait AppContext: Deref<Target = Context> {
         self.screen_size().1
     }
 
-
+    fn request_save(&self, force: bool);
 
 }
 
@@ -66,9 +68,23 @@ pub struct Application<G: Game, A: AppContext> {
 }
 
 impl<G: Game, A: AppContext> Application<G, A> {
-    pub fn new() -> Result<Self> {
-        let bundle = Bundle::new()?;
-        log::info!("{}", serde_json::to_string(&bundle)?);
+    pub fn new(save: Option<&str>) -> Result<Self> {
+        let bundle = match save {
+            None => {
+                log::info!("Starting without a previous save state");
+                Default::default()
+            },
+            Some(save) => match serde_json::from_str(save) {
+                Ok(bundle) => {
+                    log::info!("Started from a previous save state");
+                    bundle
+                },
+                Err(err) => {
+                    log::warn!("{}", err);
+                    Default::default()
+                }
+            }
+        };
         Ok(Self {
             state: ApplicationState::Suspended(bundle),
             screen_size: (100, 100),
@@ -121,6 +137,13 @@ impl<G: Game, A: AppContext> Application<G, A> {
         };
         self.state = state;
         ctx
+    }
+
+    pub fn serialize(&self) -> Result<String> {
+        match &self.state {
+            ApplicationState::Suspended(bundle) => Ok(serde_json::to_string(bundle)?),
+            _ => Err(anyhow!("Invalid State"))
+        }
     }
 
     pub fn set_screen_size(&mut self, screen_size: (u32, u32)) {
@@ -238,12 +261,10 @@ impl<G: Game, A: AppContext> Application<G, A> {
 
 }
 
-pub trait Bundle: Clone + Sized + Serialize {
-    fn new() -> Result<Self>;
-}
+
 
 pub trait Game: Sized {
-    type Bundle: Bundle;
+    type Bundle: Default + Clone + Sized + Serialize + DeserializeOwned;
 
     fn resume<A: AppContext>(ctx: &A, bundle: Self::Bundle) -> Result<Self>;
     fn suspend<A: AppContext>(self, ctx: &A) -> Self::Bundle;

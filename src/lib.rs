@@ -11,7 +11,7 @@ use artery_font::ArteryFont;
 use glam::Vec2;
 use serde::{Serialize, Deserialize};
 
-use crate::app::{AppContext, Bundle, Event, Game};
+use crate::app::{AppContext, Event, Game};
 use crate::camera::{AnimatedCamera, Camera};
 use crate::types::{Color, HexPos, Rgba};
 use crate::world::{World};
@@ -29,8 +29,8 @@ pub struct InfinityLoopBundle {
     state: GameState
 }
 
-impl Bundle for InfinityLoopBundle {
-    fn new() -> anyhow::Result<Self> {
+impl Default for InfinityLoopBundle {
+    fn default() -> Self {
         let camera = Camera {
             scale: 6.0,
             ..Default::default()
@@ -45,11 +45,11 @@ impl Bundle for InfinityLoopBundle {
         //};
         let state = GameState::Tutorial;
 
-        Ok(Self {
+        Self {
             world,
             camera,
             state
-        })
+        }
     }
 }
 

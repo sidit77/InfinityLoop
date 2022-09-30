@@ -50,6 +50,10 @@ impl AppContext for GlutinContext {
         let size = self.0.window().inner_size();
         (size.width, size.height)
     }
+
+    fn request_save(&self, _force: bool) {
+
+    }
 }
 
 fn main() {
@@ -59,7 +63,7 @@ fn main() {
         .format_target(false)
         .init();
 
-    let mut app = Application::<InfinityLoop, GlutinContext>::new().unwrap();
+    let mut app = Application::<InfinityLoop, GlutinContext>::new(None).unwrap();
 
     let event_loop = EventLoop::new();
 
@@ -124,7 +128,7 @@ fn main() {
                     Some(VirtualKeyCode::F5) => {
                         log::info!("Reseting Game...");
                         ctx = app.suspend();
-                        app = Application::<InfinityLoop, GlutinContext>::new().unwrap();
+                        app = Application::<InfinityLoop, GlutinContext>::new(None).unwrap();
                         app.resume(||Ok(ctx.take().unwrap()));
                     },
                     Some(VirtualKeyCode::Return) => {
@@ -153,6 +157,7 @@ fn main() {
             },
             Event::LoopDestroyed => {
                 app.suspend();
+                log::info!("Saved: {}", app.serialize().unwrap());
             },
             _ => {}
         }
