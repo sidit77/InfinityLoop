@@ -51,9 +51,6 @@ impl AppContext for GlutinContext {
         (size.width, size.height)
     }
 
-    fn request_save(&self, _force: bool) {
-
-    }
 }
 
 fn main() {
@@ -63,7 +60,9 @@ fn main() {
         .format_target(false)
         .init();
 
-    let mut app = Application::<InfinityLoop, GlutinContext>::new(None).unwrap();
+    let save_file = "save.json";
+
+    let mut app = Application::<InfinityLoop, GlutinContext>::new(std::fs::read_to_string(save_file).ok()).unwrap();
 
     let event_loop = EventLoop::new();
 
@@ -154,10 +153,13 @@ fn main() {
                 if app.should_redraw() {
                     app.with_ctx(|ctx| ctx.0.window().request_redraw());
                 }
+                if app.should_save() {
+                    app.save(|s| Ok(std::fs::write(save_file, s)?)).unwrap();
+                }
             },
             Event::LoopDestroyed => {
                 app.suspend();
-                log::info!("Saved: {}", app.serialize().unwrap());
+                app.save(|s| Ok(std::fs::write(save_file, s)?)).unwrap();
             },
             _ => {}
         }

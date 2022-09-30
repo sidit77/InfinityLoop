@@ -161,6 +161,13 @@ impl From<RenderableWorld> for World {
     }
 }
 
+impl From<&RenderableWorld> for World {
+    fn from(renderer: &RenderableWorld) -> Self {
+        renderer.world.clone()
+    }
+}
+
+
 #[derive(Debug, Copy, Clone, Default, Pod, Zeroable)]
 #[repr(C)]
 struct Instance {

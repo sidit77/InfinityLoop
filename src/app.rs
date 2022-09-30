@@ -2,13 +2,15 @@ use std::fmt::Debug;
 use std::mem::{replace, take};
 use std::ops::Deref;
 use std::time::{Duration};
-use anyhow::anyhow;
+use anyhow::{bail};
 use glam::Vec2;
 use instant::Instant;
 use serde::{Serialize};
 use serde::de::DeserializeOwned;
 use crate::{log_assert, log_unreachable};
 use crate::opengl::Context;
+
+const SAVE_DELAY: Duration = Duration::from_secs(30);
 
 pub type GlowContext = glow::Context;
 pub type Result<T> = anyhow::Result<T>;
@@ -54,27 +56,44 @@ pub trait AppContext: Deref<Target = Context> {
         self.screen_size().1
     }
 
-    fn request_save(&self, force: bool);
-
 }
 
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum SaveRequest {
+    Dont,
+    Later,
+    Now
+}
+
+impl Default for SaveRequest {
+    fn default() -> Self {
+        SaveRequest::Dont
+    }
+}
+
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
+pub struct EventResponse {
+    pub request_save: SaveRequest,
+    pub request_redraw: bool
+}
 
 pub struct Application<G: Game, A: AppContext> {
     state: ApplicationState<G, A>,
     screen_size: (u32, u32),
     last_update: Instant,
+    next_save: Option<Instant>,
     input_state: InputState,
     touches: TouchMap
 }
 
 impl<G: Game, A: AppContext> Application<G, A> {
-    pub fn new(save: Option<&str>) -> Result<Self> {
+    pub fn new(save: Option<String>) -> Result<Self> {
         let bundle = match save {
             None => {
                 log::info!("Starting without a previous save state");
                 Default::default()
             },
-            Some(save) => match serde_json::from_str(save) {
+            Some(save) => match serde_json::from_str(&save) {
                 Ok(bundle) => {
                     log::info!("Started from a previous save state");
                     bundle
@@ -89,6 +108,7 @@ impl<G: Game, A: AppContext> Application<G, A> {
             state: ApplicationState::Suspended(bundle),
             screen_size: (100, 100),
             last_update: Instant::now(),
+            next_save: None,
             input_state: InputState::Up,
             touches: TouchMap::new()
         })
@@ -137,13 +157,6 @@ impl<G: Game, A: AppContext> Application<G, A> {
         };
         self.state = state;
         ctx
-    }
-
-    pub fn serialize(&self) -> Result<String> {
-        match &self.state {
-            ApplicationState::Suspended(bundle) => Ok(serde_json::to_string(bundle)?),
-            _ => Err(anyhow!("Invalid State"))
-        }
     }
 
     pub fn set_screen_size(&mut self, screen_size: (u32, u32)) {
@@ -223,6 +236,25 @@ impl<G: Game, A: AppContext> Application<G, A> {
         Vec2::new(x / width as f32, 1.0 - y / height as f32)
     }
 
+    pub fn save<F>(&mut self, func: F) -> Result<()> where F: FnOnce(String) -> Result<()> {
+        log::info!("Saving app state");
+        let save = match &self.state {
+            ApplicationState::Active {game, ..} => serde_json::to_string(&game.save())?,
+            ApplicationState::Suspended(bundle) => serde_json::to_string(bundle)?,
+            _ => bail!("Invalid State")
+        };
+        func(save)?;
+        self.next_save = None;
+        Ok(())
+    }
+
+    pub fn should_save(&self) -> bool {
+        match self.next_save {
+            None => false,
+            Some(next_save) => next_save <= Instant::now()
+        }
+    }
+
     pub fn redraw(&mut self) {
         let now = Instant::now();
         let delta = now - replace(&mut self.last_update, now);
@@ -251,7 +283,13 @@ impl<G: Game, A: AppContext> Application<G, A> {
             if matches!(event, Event::Draw(_)) {
                 *should_redraw = false;
             }
-            *should_redraw |= game.event(ctx, event).unwrap();
+            let resp = game.event(ctx, event).unwrap();
+            *should_redraw |= resp.request_redraw;
+            match resp.request_save {
+                SaveRequest::Later if self.next_save.is_none() => self.next_save = Some(Instant::now() + SAVE_DELAY),
+                SaveRequest::Now => self.next_save = Some(Instant::now()),
+                _ => {}
+            }
         }
     }
 
@@ -266,10 +304,14 @@ impl<G: Game, A: AppContext> Application<G, A> {
 pub trait Game: Sized {
     type Bundle: Default + Clone + Sized + Serialize + DeserializeOwned;
 
-    fn resume<A: AppContext>(ctx: &A, bundle: Self::Bundle) -> Result<Self>;
-    fn suspend<A: AppContext>(self, ctx: &A) -> Self::Bundle;
+    fn save(&self) -> Self::Bundle;
 
-    fn event<A: AppContext>(&mut self, ctx: &A, event: Event) -> Result<bool>;
+    fn resume<A: AppContext>(ctx: &A, bundle: Self::Bundle) -> Result<Self>;
+    fn suspend<A: AppContext>(self, _ctx: &A) -> Self::Bundle {
+        self.save()
+    }
+
+    fn event<A: AppContext>(&mut self, ctx: &A, event: Event) -> Result<EventResponse>;
 }
 
 #[derive(Copy, Clone, Debug)]
