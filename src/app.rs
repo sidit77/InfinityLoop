@@ -4,6 +4,7 @@ use std::ops::Deref;
 use std::time::{Duration};
 use glam::Vec2;
 use instant::Instant;
+use serde::Serialize;
 use crate::{log_assert, log_unreachable};
 use crate::opengl::Context;
 
@@ -50,6 +51,9 @@ pub trait AppContext: Deref<Target = Context> {
     fn screen_height(&self) -> u32 {
         self.screen_size().1
     }
+
+
+
 }
 
 
@@ -64,6 +68,7 @@ pub struct Application<G: Game, A: AppContext> {
 impl<G: Game, A: AppContext> Application<G, A> {
     pub fn new() -> Result<Self> {
         let bundle = Bundle::new()?;
+        log::info!("{}", serde_json::to_string(&bundle)?);
         Ok(Self {
             state: ApplicationState::Suspended(bundle),
             screen_size: (100, 100),
@@ -233,7 +238,7 @@ impl<G: Game, A: AppContext> Application<G, A> {
 
 }
 
-pub trait Bundle: Clone + Sized {
+pub trait Bundle: Clone + Sized + Serialize {
     fn new() -> Result<Self>;
 }
 

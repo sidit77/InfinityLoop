@@ -9,6 +9,8 @@ mod renderer;
 use std::rc::Rc;
 use artery_font::ArteryFont;
 use glam::Vec2;
+use serde::{Serialize, Deserialize};
+
 use crate::app::{AppContext, Bundle, Event, Game};
 use crate::camera::{AnimatedCamera, Camera};
 use crate::types::{Color, HexPos, Rgba};
@@ -20,7 +22,7 @@ pub mod export {
     pub use crate::app::{GlowContext, Application, AppContext, Result};
 }
 
-#[derive(Clone)]
+#[derive(Clone, Serialize, Deserialize)]
 pub struct InfinityLoopBundle {
     world: World,
     camera: Camera,
@@ -202,4 +204,3 @@ impl Game for InfinityLoop {
         Ok(camera_update || self.camera.update_required() || self.world.update_required() || self.state.is_animated())
     }
 }
-

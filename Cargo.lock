@@ -550,6 +550,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "518faa5064866338b013ff9b2350dc318e14cc4fcd6cb8206d7e7c9886c98815"
 dependencies = [
  "bytemuck",
+ "serde",
 ]
 
 [[package]]
@@ -746,9 +747,10 @@ dependencies = [
  "instant",
  "lazy_static",
  "log",
- "miniserde",
  "priority-queue",
  "sdf2d",
+ "serde",
+ "serde_json",
  "smallbitset",
 ]
 
@@ -915,32 +917,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "mini-internal"
-version = "0.1.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "131cac4bb5cf1ca63c29ac9e586cd2114d8a5a7788cb6ffa9842c8ad39bd0c18"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn",
-]
-
-[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68354c5c6bd36d73ff3feceb05efa59b6acb7626617f4962be322a825e61f79a"
-
-[[package]]
-name = "miniserde"
-version = "0.1.25"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a3bc8ea7d225ca1974e4f9195c7c4d1722430adf7c255841b7c32e8057770b80"
-dependencies = [
- "itoa",
- "mini-internal",
- "ryu",
-]
 
 [[package]]
 name = "miniz_oxide"
@@ -1345,6 +1325,9 @@ name = "serde"
 version = "1.0.143"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "53e8e5d5b70924f74ff5c6d64d9a5acd91422117c60f48c4e07855238a254553"
+dependencies = [
+ "serde_derive",
+]
 
 [[package]]
 name = "serde_derive"
@@ -1355,6 +1338,17 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "serde_json"
+version = "1.0.85"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e55a28e3aaef9d5ce0506d0a14dbba8054ddc7e499ef522dd8b26859ec9d4a44"
+dependencies = [
+ "itoa",
+ "ryu",
+ "serde",
 ]
 
 [[package]]

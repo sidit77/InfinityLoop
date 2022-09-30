@@ -4,6 +4,8 @@ mod generator;
 
 use std::collections::HashSet;
 use fastrand::Rng;
+use serde::{Serialize, Deserialize};
+
 use generator::PossibilityMap;
 use crate::HexPos;
 use crate::util::Update;
@@ -11,7 +13,9 @@ use crate::util::Update;
 pub use tiles::*;
 pub use map::HexMap;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(into = "WorldSave")]
+#[serde(from = "WorldSave")]
 pub struct World {
     seed: u64,
     elements: HexMap<TileConfig>,
@@ -117,4 +121,42 @@ impl World {
         self.elements.keys().map(move |k|(k, self.elements[k]))
     }
 
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct WorldSave {
+    seed: u64,
+    rotations: Vec<u8>
+}
+
+impl From<World> for WorldSave {
+    fn from(world: World) -> Self {
+        Self {
+            seed: world.seed,
+            rotations: world.elements.values().map(|v| match *v {
+                TileConfig::Empty => 0,
+                TileConfig::Tile(_, r) => r
+            }).collect()
+        }
+    }
+}
+
+impl From<WorldSave> for World {
+    fn from(save: WorldSave) -> Self {
+        let mut world = World::new(save.seed);
+        if save.rotations.len() == world.elements.len() {
+            for (tc, r) in world.elements.values_mut().zip(save.rotations.iter()) {
+                *tc = tc.with_rotation(*r);
+            }
+            world.incomplete.clear();
+            for pos in world.elements.keys() {
+                if !world.is_tile_complete(pos) {
+                    world.incomplete.insert(pos);
+                }
+            }
+        } else {
+            log::warn!("Number of rotations in save doesn't match the number of tiles in this level");
+        }
+        world
+    }
 }

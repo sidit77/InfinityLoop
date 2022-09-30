@@ -1,9 +1,10 @@
 use std::time::Duration;
 use glam::Vec2;
+use serde::{Serialize, Deserialize};
 use crate::{AppContext, Camera, RenderableWorld};
 use crate::opengl::*;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub enum GameState {
     Tutorial,
     Shuffeling,

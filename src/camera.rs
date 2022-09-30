@@ -2,9 +2,10 @@ use std::ops::{Deref, Sub};
 use std::time::{Duration};
 use glam::*;
 use instant::Instant;
+use serde::{Serialize, Deserialize};
 use crate::types::Angle;
 
-#[derive(Debug, Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Camera {
     pub position: Vec2,
     pub aspect: f32,
