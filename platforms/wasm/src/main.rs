@@ -79,12 +79,15 @@ fn main() -> std::result::Result<(), JsValue> {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
     console_log::init_with_level(Level::Debug).expect("error initializing logger");
 
+    let save_key = "savestate";
+
     let window = web_sys::window().unwrap();
+    let storage = window.local_storage().unwrap().unwrap();
     let canvas = window.document().unwrap()
         .get_element_by_id("canvas").unwrap()
         .dyn_into::<HtmlCanvasElement>().unwrap();
 
-    let app = Rc::new(RefCell::new(Application::<InfinityLoop, WasmContext>::new().unwrap()));
+    let app = Rc::new(RefCell::new(Application::<InfinityLoop, WasmContext>::new(storage.get_item(save_key).unwrap()).unwrap()));
 
     app.as_ref().borrow_mut().resume(|| WasmContext::new(&canvas));
 
@@ -92,6 +95,7 @@ fn main() -> std::result::Result<(), JsValue> {
     let f = Rc::new(RefCell::new(None));
 
     register_resize(app.clone(), f.clone())?;
+    register_beforeunload(app.clone(), save_key)?;
     register_mousemove(&canvas, app.clone(), input.clone(), f.clone())?;
     register_mousedown(&canvas, app.clone(), input.clone(),f.clone())?;
     register_mouseup(&canvas, app.clone(), input.clone(),f.clone())?;
@@ -102,10 +106,15 @@ fn main() -> std::result::Result<(), JsValue> {
 
     let g = f.clone();
     *g.as_ref().borrow_mut() = Some(Closure::new(move || {
+        let mut app = app.as_ref().borrow_mut();
 
-        app.as_ref().borrow_mut().redraw();
+        if app.should_save() {
+            app.save(|s| Ok(storage.set_item(save_key, &s).unwrap())).unwrap();
+        }
 
-        if app.as_ref().borrow().should_redraw() {
+        app.redraw();
+
+        if app.should_redraw() {
             request_animation_frame(f.borrow().as_ref().unwrap());
         }
 
@@ -132,6 +141,18 @@ fn register_resize(app: RcApp, anim: RcClosure) -> std::result::Result<(), JsVal
         }
     });
     web_sys::window().unwrap().add_event_listener_with_callback("resize", closure.as_ref().unchecked_ref())?;
+    closure.forget();
+    Ok(())
+}
+
+fn register_beforeunload(app: RcApp, save_key: &str) -> std::result::Result<(), JsValue> {
+    let save_key = save_key.to_string();
+    let closure = Closure::<dyn Fn(_)>::new(move |_: Event| {
+        let mut app = app.as_ref().borrow_mut();
+        let storage = web_sys::window().unwrap().local_storage().unwrap().unwrap();
+        app.save(|s| Ok(storage.set_item(&save_key, &s).unwrap())).unwrap();
+    });
+    web_sys::window().unwrap().add_event_listener_with_callback("beforeunload", closure.as_ref().unchecked_ref())?;
     closure.forget();
     Ok(())
 }
