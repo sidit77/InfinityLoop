@@ -29,7 +29,7 @@ pub struct InfinityLoopBundle {
     state: GameState
 }
 
-impl<'a> Default for InfinityLoopBundle {
+impl Default for InfinityLoopBundle {
     fn default() -> Self {
         let camera = Camera {
             scale: 6.0,
@@ -87,7 +87,7 @@ impl Game for InfinityLoop {
         let mut text_buffer = text_renderer.create_buffer()?;
         match bundle.state {
             GameState::Tutorial | GameState::Shuffeling
-              => text_buffer.set_text(&format!("Click the Screen to Start"), TextAlignment::Center),
+              => text_buffer.set_text("Click the Screen to Start", TextAlignment::Center),
             _ => text_buffer.set_text(&format!("Level {}", world.seed()), TextAlignment::Center),
         };
         text_buffer.anchor = Anchor::CenterTop;
