@@ -108,7 +108,7 @@ impl Game for InfinityLoop {
     fn save(&self) -> Self::Bundle {
         Self::Bundle {
             world: (&self.world).into(),
-            camera: self.camera.into(),
+            camera: self.camera.parent,
             state: self.state
         }
     }

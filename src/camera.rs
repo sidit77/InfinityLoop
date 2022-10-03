@@ -1,3 +1,4 @@
+use std::collections::VecDeque;
 use std::ops::{Deref, Sub};
 use std::time::{Duration};
 use glam::*;
@@ -41,37 +42,54 @@ impl Camera {
 }
 
 #[derive(Debug, Copy, Clone, PartialEq)]
+struct Vec2Animation {
+    start_value: Vec2,
+    start_time: Instant,
+    duration: Duration,
+    offset: Vec2
+}
+
+impl Vec2Animation {
+
+    fn complete(&self) -> bool {
+        self.start_time.elapsed() >= self.duration
+    }
+
+    fn current_value(&self) -> Vec2 {
+        let elapsed = self.start_time.elapsed();
+        let progress = f32::min(1.0, elapsed.as_secs_f32() / self.duration.as_secs_f32());
+        self.start_value + self.offset * ease_out(progress)
+    }
+
+}
+
+#[derive(Debug, Clone, PartialEq)]
 pub struct AnimatedCamera {
     pub parent: Camera,
     new_scale: f32,
     zoom_center: Vec2,
 
-    velocity: Vec2,
-    last_position_update: Instant,
-    captured: bool,
+    pos_amim: Option<Vec2Animation>,
 
+    past_positions: VecDeque<(Vec2, Instant)>
 }
 
-const TIME_STEP: Duration = Duration::from_millis(20);
-
-fn update_vecity(velocity: Vec2) -> Vec2 {
-    let percent_loss = velocity.length() * 0.1;
-    let linear_loss = f32::min(velocity.length(), 0.1);
-    velocity - velocity.normalize_or_zero() * f32::max(percent_loss, linear_loss)
+fn ease_out(t: f32) -> f32 {
+    let ease_power = 1.0 / f32::max(EASE, 0.2);
+    1.0 - f32::powf(1.0 - t, ease_power)
 }
 
 fn lerp(a: f32, b: f32, v: f32) -> f32 {
     a + (b - a) * v.clamp(0.0, 1.0)
 }
 
+const EASE: f32 = 0.4;
+const DECELERATION: f32 = 20.0;
+
 impl AnimatedCamera {
 
     pub fn update_required(&self) -> bool {
-         self.moving() || self.zooming()
-    }
-
-    fn moving(&self) -> bool {
-        !self.captured && self.velocity.length_squared() > 0.0
+        self.pos_amim.is_some() || self.zooming()
     }
 
     fn zooming(&self) -> bool {
@@ -79,19 +97,12 @@ impl AnimatedCamera {
     }
 
     pub fn update(&mut self, delta: Duration) {
-        if self.moving() {
 
-            let now = Instant::now();
-            while (now - self.last_position_update) >= TIME_STEP {
-                self.last_position_update += TIME_STEP;
-                self.velocity = update_vecity(self.velocity);
+        if let Some(anim) = self.pos_amim {
+            self.parent.position = anim.current_value();
+            if anim.complete() {
+                self.pos_amim = None;
             }
-            let next = (now - self.last_position_update).as_secs_f32() / TIME_STEP.as_secs_f32();
-            self.parent.position = Vec2::lerp(
-                self.parent.position + self.velocity * delta.as_secs_f32(),
-                self.parent.position + update_vecity(self.velocity) * delta.as_secs_f32(),
-                next);
-
         }
 
         if self.zooming() {
@@ -108,8 +119,9 @@ impl AnimatedCamera {
         self.parent.position += offset;
 
         let time = Instant::now();
-        self.velocity = Vec2::lerp(self.velocity, offset / (time - self.last_position_update).as_secs_f32(), 0.5);
-        self.last_position_update = time;
+        self.past_positions.push_back((self.parent.position, time));
+        self.cull_positions(time);
+
     }
 
     fn set_scale(&mut self, center: Vec2, level: f32) {
@@ -117,6 +129,9 @@ impl AnimatedCamera {
         self.parent.scale = level;
         let new = self.to_world_coords(center);
         self.parent.position += old - new;
+        if let Some(anim) = &mut self.pos_amim {
+            anim.start_value += old - new;
+        }
     }
 
     pub fn zoom(&mut self, center: Vec2, amount: f32, animate: bool) {
@@ -128,16 +143,48 @@ impl AnimatedCamera {
     }
 
     pub fn capture(&mut self) {
-        self.last_position_update = Instant::now();
-        self.velocity = Vec2::ZERO;
-        self.captured = true;
+        self.past_positions.clear();
+        self.pos_amim = None;
     }
 
     pub fn release(&mut self) {
-        self.captured = false;
-        //if self.last_position_update.elapsed().as_secs_f32() > 0.25 {
-        //    self.velocity = Vec2::ZERO;
-        //}
+        let time = Instant::now();
+        self.cull_positions(time);
+
+        if let (Some((p_start, t_start)), Some((p_end, t_end))) = (self.past_positions.front(), self.past_positions.back()) {
+            let direction = *p_end - *p_start;
+            let duration = *t_end - *t_start;
+
+            if direction == Vec2::ZERO || duration.is_zero() {
+                return;
+            }
+
+            let velocity = direction * (EASE / duration.as_secs_f32());
+            let speed = velocity.length();
+
+            let max_speed = f32::INFINITY;
+            let limited_speed = f32::min(speed, max_speed);
+            let limited_velocity = velocity * (limited_speed / speed);
+
+            let deceleration_duration = limited_speed / (DECELERATION * EASE);
+            let offset = limited_velocity * (deceleration_duration * 0.5);
+
+            self.pos_amim = Some(Vec2Animation {
+                start_value: self.parent.position,
+                start_time: time,
+                duration: Duration::from_secs_f32(deceleration_duration),
+                offset
+            });
+        }
+
+    }
+
+    fn cull_positions(&mut self, now: Instant) {
+        let outdated = self.past_positions
+            .iter()
+            .take_while(|(_, t)| now.duration_since(*t) > Duration::from_millis(50))
+            .count();
+        self.past_positions.drain(..outdated);
     }
 
 }
@@ -154,11 +201,10 @@ impl From<Camera> for AnimatedCamera {
     fn from(camera: Camera) -> Self {
         Self {
             parent: camera,
-            velocity: Vec2::ZERO,
-            last_position_update: Instant::now(),
-            captured: false,
             new_scale: camera.scale,
-            zoom_center: Vec2::ZERO
+            zoom_center: Vec2::ZERO,
+            pos_amim: None,
+            past_positions: VecDeque::new(),
         }
     }
 }
