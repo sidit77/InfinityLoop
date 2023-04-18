@@ -1,8 +1,8 @@
-use std::collections::HashSet;
 use std::rc::Rc;
 use std::time::Duration;
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat3, Vec2};
+use hashbrown::HashSet;
 use crate::{Camera, Color, HexPos};
 use crate::opengl::*;
 use crate::renderer::TileRenderResources;

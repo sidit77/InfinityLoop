@@ -31,7 +31,7 @@ impl GlutinWindowContext {
             .with_resizable(true)
             .with_drag_and_drop(false)
             .with_inner_size(LogicalSize::new(1280, 720))
-            .with_title("Headset Controller");
+            .with_title("Infinity Loop");
 
         let config_template_builder = ConfigTemplateBuilder::new()
             .prefer_hardware_accelerated(None)

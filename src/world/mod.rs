@@ -2,10 +2,9 @@ mod map;
 mod tiles;
 mod generator;
 
-use std::collections::HashSet;
 use fastrand::Rng;
+use hashbrown::HashSet;
 use serde::{Serialize, Deserialize};
-
 use generator::PossibilityMap;
 use crate::HexPos;
 use crate::util::Update;

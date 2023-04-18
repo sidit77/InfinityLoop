@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::ops::Index;
 use std::rc::Rc;
 use crate::opengl::*;
@@ -6,6 +5,7 @@ use anyhow::{Result, ensure};
 use artery_font::*;
 use bytemuck::{Pod, Zeroable};
 use glam::{Mat4, Quat, Vec2, Vec3};
+use hashbrown::HashMap;
 
 #[derive(Debug, Copy, Clone, Pod, Zeroable)]
 #[repr(C)]
