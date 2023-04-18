@@ -10,14 +10,15 @@ crate-type = ["cdylib"]
 
 [dependencies]
 infinity_loop = { path = "../.." }
-glutin = { git = "https://github.com/sidit77/glutin.git" }
-#winit = "0.26.1"
+glutin = "0.30"
+winit = { version = "0.28", features = ["android-native-activity"] }
+raw-window-handle = "0.5"
 #glam = "0.20"
-ndk-glue = "0.6"
+android-activity = {version = "0.4", features = [ "native-activity" ]}
 ndk-context = "0.1"
-jni = "0.19"
-log = "0.4.1"
-android_logger = "0.11"
+jni = "0.21"
+log = "0.4"
+android_logger = "0.13"
 
 [package.metadata.android]
 build_targets = [ "armv7-linux-androideabi", "aarch64-linux-android"]

@@ -13,7 +13,6 @@ use winit::event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget};
 use winit::window::{Fullscreen, Window, WindowBuilder};
 use log::{LevelFilter};
 use raw_window_handle::HasRawWindowHandle;
-use winit::platform::windows::WindowBuilderExtWindows;
 use infinity_loop::{InfinityLoop};
 use infinity_loop::export::{AppContext, Application, Context, GlowContext, Result};
 
@@ -29,7 +28,6 @@ impl GlutinWindowContext {
     unsafe fn new(event_loop: &EventLoopWindowTarget<()>) -> Self {
         let winit_window_builder = WindowBuilder::new()
             .with_resizable(true)
-            .with_drag_and_drop(false)
             .with_inner_size(LogicalSize::new(1280, 720))
             .with_title("Infinity Loop");
 
