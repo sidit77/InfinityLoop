@@ -14,7 +14,7 @@ use serde::{Serialize, Deserialize};
 use crate::app::{AppContext, Event, EventResponse, Game, SaveRequest};
 use crate::camera::{AnimatedCamera, Camera};
 use crate::types::{Color, HexPos, Rgba};
-use crate::world::{World};
+use crate::world::World;
 use crate::renderer::{Anchor, GameRenderer, GameState, RenderableWorld, TextAlignment, TextBuffer, TextRenderer, TileRenderResources};
 
 pub mod export {

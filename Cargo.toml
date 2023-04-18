@@ -21,7 +21,7 @@ default-members = ["platforms/desktop"]
 [dependencies]
 anyhow = "1.0"
 log = "0.4"
-glow = "0.11"
+glow = "0.12"
 instant = { version = "0.1", features = ["wasm-bindgen"] }
 bytemuck = { version = "1.7", features = ["derive"] }
 glam = { version = "0.21", features = ["bytemuck", "serde"]}
