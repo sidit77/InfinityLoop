@@ -17,6 +17,10 @@ use winit::event_loop::{EventLoopBuilder, ControlFlow, EventLoopWindowTarget};
 use winit::platform::android::EventLoopBuilderExtAndroid;
 use winit::window::{Window, WindowBuilder};
 
+use crate::android::enable_immersive;
+
+mod android;
+
 struct GlutinContext {
     window: Window,
     _display: Display,
@@ -142,6 +146,23 @@ fn android_main(app: AndroidApp) {
     android_logger::init_once(android_logger::Config::default()
         .with_max_level(LevelFilter::Trace)
         .with_tag("infinity_loop"));
+
+    log::info!("sdk version: {}", app.config().sdk_version());
+    enable_immersive().unwrap();
+    //if app.config().sdk_version() >= 31 {
+    //    let window = app
+    //        .native_window()
+    //        .unwrap()
+    //        .ptr()
+    //        .as_ptr() as _;
+    //    let result = unsafe {
+    //        let compatibity = ANativeWindow_FrameRateCompatibility::ANATIVEWINDOW_FRAME_RATE_COMPATIBILITY_DEFAULT.0;
+    //        let strategy = ANativeWindow_ChangeFrameRateStrategy::ANATIVEWINDOW_CHANGE_FRAME_RATE_ALWAYS.0;
+    //        ANativeWindow_setFrameRateWithChangeStrategy(window, 120.0, compatibity as i8, strategy as i8)
+    //    };
+    //    log::info!("Framerate change: {}", result);
+    //}
+    
 
     let event_loop = EventLoopBuilder::new()
         .with_android_app(app)
