@@ -1,7 +1,7 @@
 use std::num::NonZeroU32;
 use std::ops::Deref;
 
-use android_activity::AndroidApp;
+use winit::platform::android::activity::AndroidApp;
 use glutin::config::{Config, ConfigSurfaceTypes, ConfigTemplateBuilder, GlConfig};
 use glutin::context::{ContextApi, ContextAttributesBuilder, NotCurrentGlContextSurfaceAccessor, PossiblyCurrentContext};
 use glutin::display::Display;

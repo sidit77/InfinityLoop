@@ -548,7 +548,6 @@ dependencies = [
 name = "infinity_loop_android"
 version = "0.1.0"
 dependencies = [
- "android-activity",
  "android_logger",
  "glutin",
  "infinity_loop",
