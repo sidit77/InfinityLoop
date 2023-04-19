@@ -1,7 +1,7 @@
 use std::num::NonZeroU32;
 use std::ops::Deref;
 
-use android_activity::AndroidApp;
+use winit::platform::android::activity::AndroidApp;
 use glutin::config::{Config, ConfigSurfaceTypes, ConfigTemplateBuilder, GlConfig};
 use glutin::context::{ContextApi, ContextAttributesBuilder, NotCurrentGlContextSurfaceAccessor, PossiblyCurrentContext};
 use glutin::display::Display;
@@ -17,9 +17,9 @@ use winit::event_loop::{EventLoopBuilder, ControlFlow, EventLoopWindowTarget};
 use winit::platform::android::EventLoopBuilderExtAndroid;
 use winit::window::{Window, WindowBuilder};
 
-use crate::android::enable_immersive;
-
-mod android;
+//use crate::android::enable_immersive;
+//
+//mod android;
 
 struct GlutinContext {
     window: Window,
@@ -148,7 +148,17 @@ fn android_main(app: AndroidApp) {
         .with_tag("infinity_loop"));
 
     log::info!("sdk version: {}", app.config().sdk_version());
-    enable_immersive().unwrap();
+    //let window = app
+    //    .native_window()
+    //    .unwrap()
+    //    .ptr()
+    //    .as_ptr();
+//
+    //unsafe {
+    //    log::error!("widthddddd: {:?}", ANativeWindow_getBuffersDataSpace(window));
+    //}
+//
+    //enable_immersive().unwrap();
     //if app.config().sdk_version() >= 31 {
     //    let window = app
     //        .native_window()
@@ -194,10 +204,12 @@ fn android_main(app: AndroidApp) {
                     }
                 },
                 WindowEvent::MouseInput { state: ElementState::Pressed, button: MouseButton::Left, ..}  => {
+                    log::info!("mouse pressed");
                     app.on_press(pos.x as f32, pos.y as f32, 0);
                     down = true;
                 },
                 WindowEvent::MouseInput { state: ElementState::Released, button: MouseButton::Left, ..} => {
+                    log::info!("mouse released");
                     app.on_release(pos.x as f32, pos.y as f32, 0);
                     down = false;
                 },
@@ -208,11 +220,14 @@ fn android_main(app: AndroidApp) {
                     };
                     app.on_mouse_wheel(pos.x as f32, pos.y as f32, dy)
                 },
-                WindowEvent::Touch(Touch{ phase, location, id, .. }) => match phase {
-                    TouchPhase::Started => app.on_press(location.x as f32, location.y as f32, id),
-                    TouchPhase::Moved => app.on_move(location.x as f32, location.y as f32, id),
-                    TouchPhase::Ended => app.on_release(location.x as f32, location.y as f32, id),
-                    TouchPhase::Cancelled => app.on_release(location.x as f32, location.y as f32, id)
+                WindowEvent::Touch(Touch{ phase, location, id, .. }) => {
+                    log::info!("{:?} {}", phase, id);
+                    match phase {
+                        TouchPhase::Started => app.on_press(location.x as f32, location.y as f32, id),
+                        TouchPhase::Moved => app.on_move(location.x as f32, location.y as f32, id),
+                        TouchPhase::Ended => app.on_release(location.x as f32, location.y as f32, id),
+                        TouchPhase::Cancelled => app.on_release(location.x as f32, location.y as f32, id)
+                    }
                 },
                 _ => {}
             },
