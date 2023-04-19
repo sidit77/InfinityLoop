@@ -1,5 +1,5 @@
 use jni::{objects::JObject, sys::jobject};
-use jni::objects::{JObjectArray, JValue, JValueOwned};
+use jni::objects::{JObjectArray, JValue};
 
 pub fn enable_immersive() -> anyhow::Result<()> {
     let ctx = ndk_context::android_context();

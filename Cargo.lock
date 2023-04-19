@@ -498,7 +498,7 @@ dependencies = [
  "cfg_aliases",
  "glutin",
  "raw-window-handle",
- "winit",
+ "winit 0.28.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -589,7 +589,7 @@ dependencies = [
  "log",
  "ndk-context",
  "raw-window-handle",
- "winit",
+ "winit 0.28.3 (git+https://github.com/Hoodad/winit.git?branch=android-make-volume-buttons-unhandled)",
 ]
 
 [[package]]
@@ -602,7 +602,7 @@ dependencies = [
  "infinity_loop",
  "log",
  "raw-window-handle",
- "winit",
+ "winit 0.28.3 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -1530,6 +1530,40 @@ name = "winit"
 version = "0.28.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4f504e8c117b9015f618774f8d58cd4781f5a479bc41079c064f974cbb253874"
+dependencies = [
+ "android-activity",
+ "bitflags",
+ "cfg_aliases",
+ "core-foundation",
+ "core-graphics",
+ "dispatch",
+ "instant",
+ "libc",
+ "log",
+ "mio",
+ "ndk",
+ "objc2",
+ "once_cell",
+ "orbclient",
+ "percent-encoding",
+ "raw-window-handle",
+ "redox_syscall 0.3.5",
+ "sctk-adwaita",
+ "smithay-client-toolkit",
+ "wasm-bindgen",
+ "wayland-client",
+ "wayland-commons",
+ "wayland-protocols",
+ "wayland-scanner",
+ "web-sys",
+ "windows-sys",
+ "x11-dl",
+]
+
+[[package]]
+name = "winit"
+version = "0.28.3"
+source = "git+https://github.com/Hoodad/winit.git?branch=android-make-volume-buttons-unhandled#7ff041b5eed7b88d35ae2c6fc84ed1f610ad34f6"
 dependencies = [
  "android-activity",
  "bitflags",

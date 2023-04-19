@@ -12,7 +12,7 @@ use infinity_loop::export::{Context, AppContext, Application, Result, GlowContex
 use log::LevelFilter;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
-use winit::event::{WindowEvent, Event, ElementState, MouseButton, MouseScrollDelta, TouchPhase, Touch};
+use winit::event::{WindowEvent, Event, ElementState, MouseButton, MouseScrollDelta, TouchPhase, Touch, KeyboardInput};
 use winit::event_loop::{EventLoopBuilder, ControlFlow, EventLoopWindowTarget, EventLoop};
 use winit::platform::android::EventLoopBuilderExtAndroid;
 use winit::window::{Window, WindowBuilder};
@@ -214,6 +214,10 @@ fn android_main(app: AndroidApp) {
                     TouchPhase::Ended => app.on_release(location.x as f32, location.y as f32, id),
                     TouchPhase::Cancelled => app.on_release(location.x as f32, location.y as f32, id)
                 },
+                //hacky back button
+                WindowEvent::KeyboardInput { input: KeyboardInput { state: ElementState::Released, scancode: 0, virtual_keycode: None, .. }, ..} => {
+                    *control_flow = ControlFlow::Exit;
+                }
                 _ => {}
             },
             Event::RedrawRequested(_) => {

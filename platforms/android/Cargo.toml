@@ -11,7 +11,7 @@ crate-type = ["cdylib"]
 [dependencies]
 infinity_loop = { path = "../.." }
 glutin = "0.30"
-winit = { version = "0.28", features = ["android-native-activity"] }
+winit = { git = "https://github.com/Hoodad/winit.git", branch = "android-make-volume-buttons-unhandled", features = ["android-native-activity"] }
 raw-window-handle = "0.5"
 #glam = "0.20"
 ndk-context = "0.1"
