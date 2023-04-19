@@ -1,6 +1,7 @@
 use jni::{objects::JObject, sys::jobject};
+use jni::objects::{JObjectArray, JValue, JValueOwned};
 
-pub fn enable_immersive() -> infinity_loop::export::Result<()> {
+pub fn enable_immersive() -> anyhow::Result<()> {
     let ctx = ndk_context::android_context();
     let vm = unsafe { jni::JavaVM::from_raw(ctx.vm().cast()) }?;
     let mut env = vm.attach_current_thread()?;
@@ -32,7 +33,28 @@ pub fn enable_immersive() -> infinity_loop::export::Result<()> {
         .call_method(&window, "getAttributes", "()Landroid/view/WindowManager$LayoutParams;", &[])?
         .l()?;
 
-    env.set_field(window_attributes, "layoutInDisplayCutoutMode", "I", cutout_mode.borrow())?;
+    env.set_field(&window_attributes, "layoutInDisplayCutoutMode", "I", cutout_mode.borrow())?;
+
+    let display = env
+        .call_method(&ctx, "getDisplay", "()Landroid/view/Display;", &[])?.l()?;
+
+    assert!(!display.is_null());
+
+    let modes: JObjectArray = env
+        .call_method(&display, "getSupportedModes", "()[Landroid/view/Display$Mode;", &[])?.l()?.into();
+    let length = env.get_array_length(&modes)?;
+    log::info!("length: {}", length);
+    let mut mode_ids = Vec::new();
+    for i in 0..length {
+        let mode = env.get_object_array_element(&modes, i)?;
+        let refresh_rate = env.call_method(&mode, "getRefreshRate", "()F", &[])?.f()?;
+        let id = env.call_method(&mode, "getModeId", "()I", &[])?.i()?;
+        log::info!("mode {}: {}hz", id, refresh_rate);
+        mode_ids.push((id, refresh_rate));
+    }
+    if let Some((id, _)) = mode_ids.iter().max_by_key(|(_, r)| r.round() as i32) {
+        env.set_field(&window_attributes, "preferredDisplayModeId", "I", JValue::from(*id))?;
+    }
 
     env.exception_clear()?;
 

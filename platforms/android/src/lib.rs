@@ -13,7 +13,7 @@ use log::LevelFilter;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use winit::dpi::{PhysicalPosition, PhysicalSize};
 use winit::event::{WindowEvent, Event, ElementState, MouseButton, MouseScrollDelta, TouchPhase, Touch};
-use winit::event_loop::{EventLoopBuilder, ControlFlow, EventLoopWindowTarget};
+use winit::event_loop::{EventLoopBuilder, ControlFlow, EventLoopWindowTarget, EventLoop};
 use winit::platform::android::EventLoopBuilderExtAndroid;
 use winit::window::{Window, WindowBuilder};
 
@@ -142,7 +142,7 @@ impl GlutinContext {
 
 #[no_mangle]
 fn android_main(app: AndroidApp) {
-   
+   std::env::set_var("RUST_BACKTRACE", "1");
     android_logger::init_once(android_logger::Config::default()
         .with_max_level(LevelFilter::Trace)
         .with_tag("infinity_loop"));
@@ -164,7 +164,7 @@ fn android_main(app: AndroidApp) {
     //}
     
 
-    let event_loop = EventLoopBuilder::new()
+    let event_loop: EventLoop<()> = EventLoopBuilder::new()
         .with_android_app(app)
         .build();
 
