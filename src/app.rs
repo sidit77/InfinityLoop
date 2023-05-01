@@ -271,7 +271,6 @@ impl<G: Game, A: AppContext> Application<G, A> {
     pub fn process_timeouts(&mut self) {
         if let InputState::Click(pos, start) = self.input_state {
             if start.elapsed() >= LONG_CLICK {
-                log::info!("TIMEOUT");
                 self.call_event(Event::Click(pos, true));
                 self.input_state = InputState::Drag(self.touches.center().unwrap());
             }

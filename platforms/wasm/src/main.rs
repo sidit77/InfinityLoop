@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::ops::{Deref};
 use std::panic;
 use std::rc::Rc;
+use instant::Instant;
 use log::Level;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -94,29 +95,30 @@ fn main() -> std::result::Result<(), JsValue> {
     let input = Rc::new(RefCell::new(InputState::default()));
     let f = Rc::new(RefCell::new(None));
 
-    register_resize(app.clone(), f.clone())?;
+    let after_events = handle_events(app.clone(), f.clone());
+
+    register_resize(app.clone(), after_events.clone())?;
     register_beforeunload(app.clone(), save_key)?;
-    register_mousemove(&canvas, app.clone(), input.clone(), f.clone())?;
-    register_mousedown(&canvas, app.clone(), input.clone(),f.clone())?;
-    register_mouseup(&canvas, app.clone(), input.clone(),f.clone())?;
-    register_wheel(&canvas, app.clone(), input.clone(),f.clone())?;
-    register_touchstart(&canvas, app.clone(), f.clone())?;
-    register_touchmove(&canvas, app.clone(), f.clone())?;
-    register_touchend(&canvas, app.clone(), f.clone())?;
+    register_mousemove(&canvas, app.clone(), input.clone(), after_events.clone())?;
+    register_mousedown(&canvas, app.clone(), input.clone(),after_events.clone())?;
+    register_mouseup(&canvas, app.clone(), input.clone(),after_events.clone())?;
+    register_wheel(&canvas, app.clone(), input.clone(),after_events.clone())?;
+    register_touchstart(&canvas, app.clone(), after_events.clone())?;
+    register_touchmove(&canvas, app.clone(), after_events.clone())?;
+    register_touchend(&canvas, app.clone(), after_events.clone())?;
 
     let g = f.clone();
     *g.as_ref().borrow_mut() = Some(Closure::new(move || {
-        let mut app = app.as_ref().borrow_mut();
+        {
+            let mut app = app.as_ref().borrow_mut();
 
-        if app.should_save() {
-            app.save(|s| Ok(storage.set_item(save_key, &s).unwrap())).unwrap();
+            if app.should_save() {
+                app.save(|s| Ok(storage.set_item(save_key, &s).unwrap())).unwrap();
+            }
+
+            app.redraw();
         }
-
-        app.redraw();
-
-        if app.should_redraw() {
-            request_animation_frame(f.borrow().as_ref().unwrap());
-        }
+        after_events.as_ref().borrow_mut()();
 
     }));
 
@@ -129,16 +131,47 @@ fn main() -> std::result::Result<(), JsValue> {
 type RcApp = Rc<RefCell<Application<InfinityLoop, WasmContext>>>;
 type RcInput = Rc<RefCell<InputState>>;
 type RcClosure = Rc<RefCell<Option<Closure<dyn FnMut()>>>>;
+type RcFn = Rc<RefCell<dyn FnMut()>>;
 
-fn register_resize(app: RcApp, anim: RcClosure) -> std::result::Result<(), JsValue> {
-    let closure = Closure::<dyn Fn(_)>::new(move |_: Event| {
+fn handle_events(app: RcApp, anim: RcClosure) -> RcFn {
+    let window = web_sys::window().unwrap();
+    let callback: Closure<dyn FnMut()> = Closure::new({
+        let anim = anim.clone();
+        move || {
+            request_animation_frame(anim.borrow().as_ref().unwrap());
+        }
+    });
+    let mut last_timeout = None;
+    let mut last_timeout_code = 0;
+    Rc::new(RefCell::new(move || {
         let mut app = app.as_ref().borrow_mut();
-        app.with_ctx(WasmContext::resize);
-        let size = app.with_ctx(WasmContext::screen_size);
-        app.set_screen_size(size);
+        app.process_timeouts();
         if app.should_redraw() {
             request_animation_frame(anim.borrow().as_ref().unwrap());
         }
+        let next_timeout = app.next_timeout();
+        if next_timeout != last_timeout {
+            if last_timeout.is_some() {
+                window.clear_timeout_with_handle(last_timeout_code);
+            }
+            if let Some(timeout) = next_timeout {
+                let millis = timeout.saturating_duration_since(Instant::now()).as_millis() as i32;
+                last_timeout_code = window.set_timeout_with_callback_and_timeout_and_arguments_0(callback.as_ref().unchecked_ref(), millis).unwrap();
+            }
+            last_timeout = next_timeout;
+        }
+    }))
+}
+
+fn register_resize(app: RcApp, after_events: RcFn) -> std::result::Result<(), JsValue> {
+    let closure = Closure::<dyn Fn(_)>::new(move |_: Event| {
+        {
+            let mut app = app.as_ref().borrow_mut();
+            app.with_ctx(WasmContext::resize);
+            let size = app.with_ctx(WasmContext::screen_size);
+            app.set_screen_size(size);
+        }
+        after_events.as_ref().borrow_mut()();
     });
     web_sys::window().unwrap().add_event_listener_with_callback("resize", closure.as_ref().unchecked_ref())?;
     closure.forget();
@@ -157,52 +190,52 @@ fn register_beforeunload(app: RcApp, save_key: &str) -> std::result::Result<(), 
     Ok(())
 }
 
-fn register_mousemove(canvas: &HtmlCanvasElement, app: RcApp, input: RcInput, anim: RcClosure) -> std::result::Result<(), JsValue> {
+fn register_mousemove(canvas: &HtmlCanvasElement, app: RcApp, input: RcInput, after_events: RcFn) -> std::result::Result<(), JsValue> {
     let closure = Closure::<dyn Fn(_)>::new(move |event: MouseEvent| {
-        let mut input = input.as_ref().borrow_mut();
-        let mut app = app.as_ref().borrow_mut();
-        let (x,y) = app.with_ctx(|ctx|ctx.client_to_screen(event.client_x(), event.client_y()));
-        input.mouse_x = x;
-        input.mouse_y = y;
-        if input.mouse_down {
-            app.on_move(x, y, 0);
+        {
+            let mut input = input.as_ref().borrow_mut();
+            let mut app = app.as_ref().borrow_mut();
+            let (x,y) = app.with_ctx(|ctx|ctx.client_to_screen(event.client_x(), event.client_y()));
+            input.mouse_x = x;
+            input.mouse_y = y;
+            if input.mouse_down {
+                app.on_move(x, y, 0);
+            }
+            event.prevent_default();
         }
-        event.prevent_default();
-        if app.should_redraw() {
-            request_animation_frame(anim.borrow().as_ref().unwrap());
-        }
+        after_events.as_ref().borrow_mut()();
     });
     canvas.add_event_listener_with_callback("mousemove", closure.as_ref().unchecked_ref())?;
     closure.forget();
     Ok(())
 }
 
-fn register_mousedown(canvas: &HtmlCanvasElement, app: RcApp, input: RcInput, anim: RcClosure) -> std::result::Result<(), JsValue> {
+fn register_mousedown(canvas: &HtmlCanvasElement, app: RcApp, input: RcInput, after_events: RcFn) -> std::result::Result<(), JsValue> {
     let closure = Closure::<dyn Fn(_)>::new(move |event: MouseEvent| {
-        let mut input = input.as_ref().borrow_mut();
-        let mut app = app.as_ref().borrow_mut();
-        input.mouse_down = true;
-        app.on_press(input.mouse_x, input.mouse_y, 0);
-        event.prevent_default();
-        if app.should_redraw() {
-            request_animation_frame(anim.borrow().as_ref().unwrap());
+        {
+            let mut input = input.as_ref().borrow_mut();
+            let mut app = app.as_ref().borrow_mut();
+            input.mouse_down = true;
+            app.on_press(input.mouse_x, input.mouse_y, 0);
+            event.prevent_default();
         }
+        after_events.as_ref().borrow_mut()();
     });
     canvas.add_event_listener_with_callback("mousedown", closure.as_ref().unchecked_ref())?;
     closure.forget();
     Ok(())
 }
 
-fn register_mouseup(canvas: &HtmlCanvasElement, app: RcApp, input: RcInput, anim: RcClosure) -> std::result::Result<(), JsValue> {
+fn register_mouseup(canvas: &HtmlCanvasElement, app: RcApp, input: RcInput, after_events: RcFn) -> std::result::Result<(), JsValue> {
     let closure = Closure::<dyn Fn(_)>::new(move |event: MouseEvent| {
-        let mut input = input.as_ref().borrow_mut();
-        let mut app = app.as_ref().borrow_mut();
-        input.mouse_down = false;
-        app.on_release(input.mouse_x, input.mouse_y, 0);
-        event.prevent_default();
-        if app.should_redraw() {
-            request_animation_frame(anim.borrow().as_ref().unwrap());
+        {
+            let mut input = input.as_ref().borrow_mut();
+            let mut app = app.as_ref().borrow_mut();
+            input.mouse_down = false;
+            app.on_release(input.mouse_x, input.mouse_y, 0);
+            event.prevent_default();
         }
+        after_events.as_ref().borrow_mut()();
     });
     canvas.add_event_listener_with_callback("mouseup", closure.as_ref().unchecked_ref())?;
     closure.forget();
@@ -210,79 +243,80 @@ fn register_mouseup(canvas: &HtmlCanvasElement, app: RcApp, input: RcInput, anim
 }
 
 
-fn register_wheel(canvas: &HtmlCanvasElement, app: RcApp, input: RcInput, anim: RcClosure) -> std::result::Result<(), JsValue> {
+fn register_wheel(canvas: &HtmlCanvasElement, app: RcApp, input: RcInput, after_events: RcFn) -> std::result::Result<(), JsValue> {
     let closure = Closure::<dyn Fn(_)>::new(move |event: WheelEvent| {
-        let input = input.as_ref().borrow();
-        let dy = match event.delta_mode() {
-            WheelEvent::DOM_DELTA_PIXEL => -event.delta_y() as f32 / 100.0,
-            WheelEvent::DOM_DELTA_LINE => -event.delta_y() as f32 / 2.0,
-            _ => 0.0
-        };
-        app.as_ref().borrow_mut().on_mouse_wheel(input.mouse_x, input.mouse_y, dy);
-        event.prevent_default();
-        if app.as_ref().borrow().should_redraw() {
-            request_animation_frame(anim.borrow().as_ref().unwrap());
+        {
+            let input = input.as_ref().borrow();
+            let mut app = app.as_ref().borrow_mut();
+            let dy = match event.delta_mode() {
+                WheelEvent::DOM_DELTA_PIXEL => -event.delta_y() as f32 / 100.0,
+                WheelEvent::DOM_DELTA_LINE => -event.delta_y() as f32 / 2.0,
+                _ => 0.0
+            };
+            app.on_mouse_wheel(input.mouse_x, input.mouse_y, dy);
+            event.prevent_default();
         }
+        after_events.as_ref().borrow_mut()();
     });
     canvas.add_event_listener_with_callback("wheel", closure.as_ref().unchecked_ref())?;
     closure.forget();
     Ok(())
 }
 
-fn register_touchstart(canvas: &HtmlCanvasElement, app: RcApp, anim: RcClosure) -> std::result::Result<(), JsValue> {
+fn register_touchstart(canvas: &HtmlCanvasElement, app: RcApp, after_events: RcFn) -> std::result::Result<(), JsValue> {
     let closure = Closure::<dyn Fn(_)>::new(move |event: TouchEvent| {
-        let mut app = app.as_ref().borrow_mut();
-        let changed = event.changed_touches();
-        for i in 0..changed.length() {
-            if let Some(touch) = changed.item(i) {
-                let (x,y) = app.with_ctx(|ctx|ctx.client_to_screen(touch.client_x(), touch.client_y()));
-                app.on_press(x, y, touch.identifier() as u64);
+        {
+            let mut app = app.as_ref().borrow_mut();
+            let changed = event.changed_touches();
+            for i in 0..changed.length() {
+                if let Some(touch) = changed.item(i) {
+                    let (x,y) = app.with_ctx(|ctx|ctx.client_to_screen(touch.client_x(), touch.client_y()));
+                    app.on_press(x, y, touch.identifier() as u64);
+                }
             }
+            event.prevent_default();
         }
-        event.prevent_default();
-        if app.should_redraw() {
-            request_animation_frame(anim.borrow().as_ref().unwrap());
-        }
+        after_events.as_ref().borrow_mut()();
     });
     canvas.add_event_listener_with_callback("touchstart", closure.as_ref().unchecked_ref())?;
     closure.forget();
     Ok(())
 }
 
-fn register_touchmove(canvas: &HtmlCanvasElement, app: RcApp, anim: RcClosure) -> std::result::Result<(), JsValue> {
+fn register_touchmove(canvas: &HtmlCanvasElement, app: RcApp, after_events: RcFn) -> std::result::Result<(), JsValue> {
     let closure = Closure::<dyn Fn(_)>::new(move |event: TouchEvent| {
-        let mut app = app.as_ref().borrow_mut();
-        let changed = event.changed_touches();
-        for i in 0..changed.length() {
-            if let Some(touch) = changed.item(i) {
-                let (x,y) = app.with_ctx(|ctx|ctx.client_to_screen(touch.client_x(), touch.client_y()));
-                app.on_move(x, y, touch.identifier() as u64);
+        {
+            let mut app = app.as_ref().borrow_mut();
+            let changed = event.changed_touches();
+            for i in 0..changed.length() {
+                if let Some(touch) = changed.item(i) {
+                    let (x,y) = app.with_ctx(|ctx|ctx.client_to_screen(touch.client_x(), touch.client_y()));
+                    app.on_move(x, y, touch.identifier() as u64);
+                }
             }
+            event.prevent_default();
         }
-        event.prevent_default();
-        if app.should_redraw() {
-            request_animation_frame(anim.borrow().as_ref().unwrap());
-        }
+        after_events.as_ref().borrow_mut()();
     });
     canvas.add_event_listener_with_callback("touchmove", closure.as_ref().unchecked_ref())?;
     closure.forget();
     Ok(())
 }
 
-fn register_touchend(canvas: &HtmlCanvasElement, app: RcApp, anim: RcClosure) -> std::result::Result<(), JsValue> {
+fn register_touchend(canvas: &HtmlCanvasElement, app: RcApp, after_events: RcFn) -> std::result::Result<(), JsValue> {
     let closure = Closure::<dyn Fn(_)>::new(move |event: TouchEvent| {
-        let mut app = app.as_ref().borrow_mut();
-        let changed = event.changed_touches();
-        for i in 0..changed.length() {
-            if let Some(touch) = changed.item(i) {
-                let (x,y) = app.with_ctx(|ctx|ctx.client_to_screen(touch.client_x(), touch.client_y()));
-                app.on_release(x, y, touch.identifier() as u64);
+        {
+            let mut app = app.as_ref().borrow_mut();
+            let changed = event.changed_touches();
+            for i in 0..changed.length() {
+                if let Some(touch) = changed.item(i) {
+                    let (x,y) = app.with_ctx(|ctx|ctx.client_to_screen(touch.client_x(), touch.client_y()));
+                    app.on_release(x, y, touch.identifier() as u64);
+                }
             }
+            event.prevent_default();
         }
-        event.prevent_default();
-        if app.should_redraw() {
-            request_animation_frame(anim.borrow().as_ref().unwrap());
-        }
+        after_events.as_ref().borrow_mut()();
     });
     canvas.add_event_listener_with_callback("touchend", closure.as_ref().unchecked_ref())?;
     canvas.add_event_listener_with_callback("touchcancel", closure.as_ref().unchecked_ref())?;

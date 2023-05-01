@@ -178,7 +178,7 @@ fn android_main(app: AndroidApp) {
     event_loop.run(move |event, event_loop, control_flow| {
         *control_flow = match app.should_redraw() {
             true => ControlFlow::Poll,
-            false => ControlFlow::Wait
+            false => app.next_timeout().map_or(ControlFlow::Wait, ControlFlow::WaitUntil)
         };
         match event {
             Event::WindowEvent { event, ..} => match event {
@@ -230,6 +230,7 @@ fn android_main(app: AndroidApp) {
                 if app.should_redraw() {
                     app.with_ctx(|ctx| ctx.request_redraw());
                 }
+                app.process_timeouts();
             },
             Event::Resumed => {
                 app.resume(|| GlutinContext::new(event_loop));
