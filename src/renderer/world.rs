@@ -8,7 +8,7 @@ use crate::opengl::*;
 use crate::renderer::TileRenderResources;
 use crate::types::Angle;
 use crate::util::OptionExt;
-use crate::world::{HexMap, TileConfig, World};
+use crate::world::{Direction, HexMap, TileConfig, World};
 
 pub struct RenderableWorld {
     resources: Rc<TileRenderResources>,
@@ -133,8 +133,8 @@ impl RenderableWorld {
         }
     }
 
-    pub fn try_rotate(&mut self, pos: HexPos) -> bool {
-        let result = self.world.try_rotate(pos);
+    pub fn try_rotate(&mut self, pos: HexPos, direction: Direction) -> bool {
+        let result = self.world.try_rotate(pos, direction);
         if result {
             let tc = self.world.tiles()[pos];
             self.instances[pos].update_target_rotation(tc.angle());

@@ -21,6 +21,29 @@ pub struct World {
     incomplete: HashSet<HexPos>
 }
 
+pub enum Direction {
+    CW,
+    CCW
+}
+
+impl Direction {
+    pub fn clockwise(clockwise: bool) -> Self {
+        match clockwise {
+            true => Self::CW,
+            false => Self::CCW
+        }
+    }
+}
+
+impl From<Direction> for u8 {
+    fn from(value: Direction) -> Self {
+        match value {
+            Direction::CW => 1,
+            Direction::CCW => 5
+        }
+    }
+}
+
 impl World {
 
     pub fn new(seed: u64) -> Self {
@@ -91,10 +114,10 @@ impl World {
         }
     }
 
-    pub fn try_rotate(&mut self, pos: HexPos) -> bool {
+    pub fn try_rotate(&mut self, pos: HexPos, direction: Direction) -> bool {
         let updated = self.elements
             .get_mut(pos)
-            .map(|t|t.update(t.rotate_by(1)))
+            .map(|t|t.update(t.rotate_by(direction.into())))
             .unwrap_or(false);
 
         if updated {

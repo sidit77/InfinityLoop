@@ -19,7 +19,7 @@ pub type Result<T> = anyhow::Result<T>;
 pub enum Event {
     Draw(Duration),
     Resize(u32, u32),
-    Click(Vec2),
+    Click(Vec2, bool),
     Drag(Vec2),
     Zoom(Vec2, f32, bool),
     TouchStart,
@@ -169,10 +169,10 @@ impl<G: Game, A: AppContext> Application<G, A> {
             match self.input_state {
                 InputState::Up => {
                     log_assert!(self.touches.len() == 1);
-                    self.input_state = InputState::Click(self.touches.center().unwrap());
+                    self.input_state = InputState::Click(self.touches.center().unwrap(), Instant::now());
                     self.call_event(Event::TouchStart)
                 }
-                InputState::Click(_) => {
+                InputState::Click(_, _) => {
                     log_assert!(self.touches.len() > 1);
                     self.input_state = InputState::Drag(self.touches.center().unwrap());
                 }
@@ -188,7 +188,10 @@ impl<G: Game, A: AppContext> Application<G, A> {
         if self.touches.len() == 0 {
             match self.input_state {
                 InputState::Up => log_unreachable!(),
-                InputState::Click(pos) => self.call_event(Event::Click(pos)),
+                InputState::Click(pos, start) => {
+                    let long = start.elapsed() >= Duration::from_millis(500);
+                    self.call_event(Event::Click(pos, long))
+                },
                 InputState::Drag(_) => {}
             }
             self.input_state = InputState::Up;
@@ -215,7 +218,7 @@ impl<G: Game, A: AppContext> Application<G, A> {
             }
             match self.input_state {
                 InputState::Up => log_unreachable!(),
-                InputState::Click(pos) => if pos.distance(npos) > 0.01 {
+                InputState::Click(pos, _) => if pos.distance(npos) > 0.01 {
                     self.input_state = InputState::Drag(npos);
                     self.call_event(Event::Drag(npos - pos));
                 }
@@ -317,7 +320,7 @@ pub trait Game: Sized {
 #[derive(Copy, Clone, Debug)]
 enum InputState {
     Up,
-    Click(Vec2),
+    Click(Vec2, Instant),
     Drag(Vec2)
 }
 

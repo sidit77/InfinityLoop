@@ -14,7 +14,7 @@ use serde::{Serialize, Deserialize};
 use crate::app::{AppContext, Event, EventResponse, Game, SaveRequest};
 use crate::camera::{AnimatedCamera, Camera};
 use crate::types::{Color, HexPos, Rgba};
-use crate::world::World;
+use crate::world::{Direction, World};
 use crate::renderer::{Anchor, GameRenderer, GameState, RenderableWorld, TextAlignment, TextBuffer, TextRenderer, TileRenderResources};
 
 pub mod export {
@@ -150,7 +150,7 @@ impl Game for InfinityLoop {
                 self.text_renderer.resize(ctx, width, height)?;
                 resp.request_redraw = true;
             },
-            Event::Click(pos) => match self.state{
+            Event::Click(pos, long) => match self.state{
                 GameState::Tutorial => {
                     //let pt = self.camera.to_world_coords(pos);
                     //if self.world.try_rotate(pt.into()) {
@@ -165,7 +165,7 @@ impl Game for InfinityLoop {
                 }
                 GameState::InProgress => {
                     let pt = self.camera.to_world_coords(pos);
-                    if self.world.try_rotate(pt.into()) {
+                    if self.world.try_rotate(pt.into(), Direction::clockwise(!long)) {
                         resp.request_save = SaveRequest::Later;
                     }
                     if self.world.is_completed() {
