@@ -5,7 +5,10 @@ dist = "dist"
 [watch]
 # Paths to watch. The `build.target`'s parent folder is watched by default.
 watch = [
-    "../.."
+    "../../src/",
+    "src"
 ]
 
-ignore =[]
+ignore = [
+   # "../../target/"
+]

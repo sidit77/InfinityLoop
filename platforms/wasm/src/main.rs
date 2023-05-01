@@ -1,4 +1,6 @@
-use std::cell::RefCell;
+mod bindings;
+
+use std::cell::{RefCell};
 use std::ops::{Deref};
 use std::panic;
 use std::rc::Rc;
@@ -9,6 +11,8 @@ use wasm_bindgen::JsCast;
 use web_sys::{Event, HtmlCanvasElement, MouseEvent, TouchEvent, WebGl2RenderingContext, WheelEvent};
 use infinity_loop::export::{AppContext, Application, Context, GlowContext, Result};
 use infinity_loop::InfinityLoop;
+
+use crate::bindings::set_js_callback;
 
 fn request_animation_frame(f: &Closure<dyn FnMut()>) {
     web_sys::window().unwrap()
@@ -76,9 +80,12 @@ struct InputState {
     mouse_down: bool
 }
 
+
 fn main() -> std::result::Result<(), JsValue> {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
     console_log::init_with_level(Level::Debug).expect("error initializing logger");
+
+    set_js_callback(|event| log::info!("{:?}", event));
 
     let save_key = "savestate";
 

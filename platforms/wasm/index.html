@@ -21,10 +21,5 @@
   <body>
     <canvas id="canvas"></canvas>
     <link data-trunk rel="rust" href="Cargo.toml" data-wasm-opt="z" data-bin="infinity_loop_wasm"/>
-    <script>
-      window.addEventListener('beforeunload', (event) => {
-        window.localStorage.setItem("test", "true");
-      });
-    </script>
   </body>
 </html>
