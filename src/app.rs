@@ -86,6 +86,8 @@ pub struct Application<G: Game, A: AppContext> {
     touches: TouchMap
 }
 
+const LONG_CLICK: Duration = Duration::from_millis(500);
+
 impl<G: Game, A: AppContext> Application<G, A> {
     pub fn new(save: Option<String>) -> Result<Self> {
         let bundle = match save {
@@ -169,7 +171,8 @@ impl<G: Game, A: AppContext> Application<G, A> {
             match self.input_state {
                 InputState::Up => {
                     log_assert!(self.touches.len() == 1);
-                    self.input_state = InputState::Click(self.touches.center().unwrap(), Instant::now());
+                    let now = Instant::now();
+                    self.input_state = InputState::Click(self.touches.center().unwrap(), now);
                     self.call_event(Event::TouchStart)
                 }
                 InputState::Click(_, _) => {
@@ -187,11 +190,11 @@ impl<G: Game, A: AppContext> Application<G, A> {
         self.touches.remove(id);
         if self.touches.len() == 0 {
             match self.input_state {
-                InputState::Up => log_unreachable!(),
                 InputState::Click(pos, start) => {
-                    let long = start.elapsed() >= Duration::from_millis(500);
-                    self.call_event(Event::Click(pos, long))
+                    let long = start.elapsed() >= LONG_CLICK;
+                    self.call_event(Event::Click(pos, long));
                 },
+                InputState::Up => log_unreachable!(),
                 InputState::Drag(_) => {}
             }
             self.input_state = InputState::Up;
@@ -255,6 +258,23 @@ impl<G: Game, A: AppContext> Application<G, A> {
         match self.next_save {
             None => false,
             Some(next_save) => next_save <= Instant::now()
+        }
+    }
+
+    pub fn next_timeout(&self) -> Option<Instant> {
+        match self.input_state {
+            InputState::Click(_, start) => Some(start + LONG_CLICK),
+            _ => None
+        }
+    }
+
+    pub fn process_timeouts(&mut self) {
+        if let InputState::Click(pos, start) = self.input_state {
+            if start.elapsed() >= LONG_CLICK {
+                log::info!("TIMEOUT");
+                self.call_event(Event::Click(pos, true));
+                self.input_state = InputState::Drag(self.touches.center().unwrap());
+            }
         }
     }
 

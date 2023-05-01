@@ -196,7 +196,7 @@ fn main() {
     event_loop.run(move |event, event_loop, control_flow| {
         *control_flow = match app.should_redraw() {
             true => ControlFlow::Poll,
-            false => ControlFlow::Wait
+            false => app.next_timeout().map_or(ControlFlow::Wait, ControlFlow::WaitUntil)
         };
         match event {
             Event::WindowEvent { event, ..} => match event {
@@ -276,6 +276,7 @@ fn main() {
                 if app.should_save() {
                     app.save(|s| Ok(std::fs::write(save_file, s)?)).unwrap();
                 }
+                app.process_timeouts();
             },
             Event::LoopDestroyed => {
                 app.suspend();
