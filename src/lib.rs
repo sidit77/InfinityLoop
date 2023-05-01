@@ -119,6 +119,7 @@ impl Game for InfinityLoop {
             Event::Draw(delta) => {
                 self.camera.update(delta);
                 let old_state = self.state;
+                //self.state = GameState::Ending(Vec2::ZERO, 0.5);
                 self.state.update(delta, self.world.update_required());
                 self.world.update(delta / self.state.update_speed());
                 if matches!(self.state, GameState::Shuffeling) {

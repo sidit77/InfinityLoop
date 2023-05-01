@@ -27,13 +27,23 @@ float opSmoothSubtraction( float d1, float d2, float k ) {
 }
 
 void main() {
+    //float sd = (texture(tex, tex_coords).r - 0.5) * 10.0;
+//
+    float f = length(world_pos - center) - radius;
+//
+    //float final_opacity = abs(min(opSmoothSubtraction(sd, (f + 0.1) * pxRange, 12.0), opSmoothSubtraction(sd, -(f - 0.1) * pxRange, 12.0))) - 0.25;
+    //final_opacity = abs(final_opacity) - 0.15;
+//
+    //finalColor = mix(mix(background1, background2, smoothstep(-0.1, 0.1, f)), foreground, 1.0 - clamp(final_opacity, 0.0, 1.0));
     float sd = (texture(tex, tex_coords).r - 0.5) * 10.0;
 
-    float f = length(world_pos - center) - radius;
+    float opa_out = abs(sd + 1.5) - 0.3;
+    float opa_in = sd + 1.5;
+    float mix_fac = smoothstep(-4.0, 4.0, f * pxRange);
 
-    float final_opacity = abs(min(opSmoothSubtraction(sd, (f + 0.1) * pxRange, 12.0), opSmoothSubtraction(sd, -(f - 0.1) * pxRange, 12.0))) - 0.25;
-    final_opacity = abs(final_opacity) - 0.15;
+    float final_opacity = mix(opa_in, opa_out, mix_fac);
 
-    finalColor = mix(mix(background1, background2, smoothstep(-0.1, 0.1, f)), foreground, 1.0 - clamp(final_opacity, 0.0, 1.0));
+
+    finalColor = mix(background2, mix(background1, foreground, mix_fac), 1.0 - clamp(final_opacity, 0.0, 1.0));
 
 }
