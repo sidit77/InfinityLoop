@@ -1,5 +1,7 @@
+use std::cell::Cell;
 use glam::{Mat3, Mat4, Vec2};
 use glow::HasContext;
+use hashbrown::HashMap;
 use crate::opengl::{Context, GlResult};
 use crate::types::Rgba;
 
@@ -65,7 +67,8 @@ impl Drop for Shader {
 
 pub struct ShaderProgram {
     ctx: Context,
-    id: GlowProgram
+    id: GlowProgram,
+    cache: Cell<Option<HashMap<String, Option<UniformLocation>>>>
 }
 
 impl ShaderProgram {
@@ -84,7 +87,8 @@ impl ShaderProgram {
             match gl.get_program_link_status(id) {
                 true => Ok(Self {
                     ctx: ctx.clone(),
-                    id
+                    id,
+                    cache: Cell::new(Some(HashMap::new())),
                 }),
                 false => Err(gl.get_program_info_log(id).into())
             }
@@ -93,10 +97,13 @@ impl ShaderProgram {
 
     pub fn get_uniform(&self, name: &str) -> GlResult<UniformLocation>  {
         let gl = self.ctx.raw();
-        unsafe {
+        let mut cache = self.cache.take().expect("The cache is missing");
+        let result = cache.entry_ref(name).or_insert_with(|| unsafe {
+            log::trace!("Querying location of uniform \"{}\"", name);
             gl.get_uniform_location(self.id, name)
-                .ok_or_else(|| format!("Could not find uniform: {}", name).into())
-        }
+        }).clone();
+        self.cache.set(Some(cache));
+        result.ok_or_else(|| format!("Could not find uniform: {}", name).into())
     }
 
     pub fn raw(&self) -> GlowProgram {
