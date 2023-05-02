@@ -2,6 +2,7 @@ mod bindings;
 
 use std::ops::{Deref};
 use std::panic;
+use instant::Instant;
 use log::Level;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
@@ -9,7 +10,7 @@ use web_sys::{HtmlCanvasElement,WebGl2RenderingContext};
 use infinity_loop::export::{AppContext, Application, Context, GlowContext, Result};
 use infinity_loop::InfinityLoop;
 
-use crate::bindings::{JsEvent, request_redraw, set_js_callback, TouchPhase};
+use crate::bindings::{clear_timeout, JsEvent, request_redraw, set_js_callback, set_timeout, TouchPhase};
 
 /*
 fn request_animation_frame(f: &Closure<dyn FnMut()>) {
@@ -96,9 +97,14 @@ fn main() -> std::result::Result<(), JsValue> {
     app.resume(|| WasmContext::new(&canvas));
 
     let mut input = InputState::default();
+    let mut redraw_queued = false;
+    let mut current_timeout: Option<(i32, Instant)> = None;
     set_js_callback(move |event| {
         match event {
-            JsEvent::Redraw => app.redraw(),
+            JsEvent::Redraw => {
+                app.redraw();
+                redraw_queued = false;
+            },
             JsEvent::Resize { width, height } => app.set_screen_size((width, height)),
             JsEvent::MouseMove { x, y } => {
                 input.mouse_x = x as f32;
@@ -121,13 +127,28 @@ fn main() -> std::result::Result<(), JsValue> {
                 TouchPhase::Move => app.on_move(x as f32, y as f32, id as u64),
                 TouchPhase::End | TouchPhase::Cancel => app.on_release(x as f32, y as f32, id as u64),
             }
-            JsEvent::Unloading => app.save(|s| Ok(storage.set_item(&save_key, &s).unwrap())).unwrap()
+            JsEvent::Unloading => app.save(|s| Ok(storage.set_item(&save_key, &s).unwrap())).unwrap(),
+            JsEvent::Timeout => {
+                app.process_timeouts();
+                current_timeout = None;
+            }
         }
         if app.should_save() {
             app.save(|s| Ok(storage.set_item(save_key, &s).unwrap())).unwrap();
         }
-        if app.should_redraw() {
+        if app.should_redraw() && !redraw_queued {
             request_redraw();
+            redraw_queued = true;
+        }
+        let next_timeout = app.next_timeout();
+        if current_timeout.map(|(_, i)| i) != next_timeout {
+            if let Some((id, _)) = current_timeout.take() {
+                clear_timeout(id);
+            }
+            current_timeout = next_timeout.map(|end|{
+                let millis = end.saturating_duration_since(Instant::now()).as_millis() as i32;
+                (set_timeout(millis), end)
+            });
         }
     });
     request_redraw();

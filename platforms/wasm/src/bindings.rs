@@ -9,6 +9,8 @@ use wasm_bindgen::prelude::*;
 extern "C" {
     fn set_callback(callback: JsValue);
     pub fn request_redraw();
+    pub fn set_timeout(millis: i32) -> i32;
+    pub fn clear_timeout(handle: i32);
 }
 
 #[derive(Debug, Copy, Clone, Deserialize)]
@@ -33,7 +35,8 @@ pub enum JsEvent {
         id: u32
     },
     Redraw,
-    Unloading
+    Unloading,
+    Timeout
 }
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Deserialize)]

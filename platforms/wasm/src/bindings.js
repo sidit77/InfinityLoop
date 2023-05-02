@@ -9,6 +9,14 @@ export function request_redraw() {
     window.requestAnimationFrame(e => callback('Redraw'));
 }
 
+export function set_timeout(millis) {
+    return window.setTimeout(e => callback('Timeout'), millis);
+}
+
+export function clear_timeout(handle) {
+    window.clearTimeout(handle);
+}
+
 window.addEventListener('resize', e => {
     let dpi = window.devicePixelRatio;
     let width = canvas.clientWidth * dpi;
