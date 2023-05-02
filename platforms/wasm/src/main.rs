@@ -1,24 +1,23 @@
 mod bindings;
 
-use std::cell::{RefCell};
 use std::ops::{Deref};
 use std::panic;
-use std::rc::Rc;
-use instant::Instant;
 use log::Level;
 use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use web_sys::{Event, HtmlCanvasElement, MouseEvent, TouchEvent, WebGl2RenderingContext, WheelEvent};
+use web_sys::{HtmlCanvasElement,WebGl2RenderingContext};
 use infinity_loop::export::{AppContext, Application, Context, GlowContext, Result};
 use infinity_loop::InfinityLoop;
 
-use crate::bindings::set_js_callback;
+use crate::bindings::{JsEvent, request_redraw, set_js_callback, TouchPhase};
 
+/*
 fn request_animation_frame(f: &Closure<dyn FnMut()>) {
     web_sys::window().unwrap()
         .request_animation_frame(f.as_ref().unchecked_ref())
         .expect("should register `requestAnimationFrame` OK");
 }
+*/
 
 struct WasmContext(HtmlCanvasElement, Context);
 
@@ -34,6 +33,7 @@ impl WasmContext {
         Ok(result)
     }
 
+    /*
     fn client_to_screen(&self, x: i32, y: i32) -> (f32, f32) {
         //let rect = self
         //    .get_bounding_client_rect();
@@ -44,7 +44,7 @@ impl WasmContext {
         let dpi = web_sys::window().unwrap().device_pixel_ratio() as f32;
         (x as f32 * dpi, y as f32 * dpi)
     }
-
+*/
     fn resize(&self) {
         let dpi = web_sys::window().unwrap().device_pixel_ratio() as f32;
         let width = (self.0.client_width() as f32 * dpi) as u32;
@@ -85,8 +85,53 @@ fn main() -> std::result::Result<(), JsValue> {
     panic::set_hook(Box::new(console_error_panic_hook::hook));
     console_log::init_with_level(Level::Debug).expect("error initializing logger");
 
-    set_js_callback(|event| log::info!("{:?}", event));
+    let save_key = "savestate";
 
+    let window = web_sys::window().unwrap();
+    let storage = window.local_storage().unwrap().unwrap();
+    let canvas = window.document().unwrap()
+        .get_element_by_id("canvas").unwrap()
+        .dyn_into::<HtmlCanvasElement>().unwrap();
+    let mut app = Application::<InfinityLoop, WasmContext>::new(storage.get_item(save_key).unwrap()).unwrap();
+    app.resume(|| WasmContext::new(&canvas));
+
+    let mut input = InputState::default();
+    set_js_callback(move |event| {
+        match event {
+            JsEvent::Redraw => app.redraw(),
+            JsEvent::Resize { width, height } => app.set_screen_size((width, height)),
+            JsEvent::MouseMove { x, y } => {
+                input.mouse_x = x as f32;
+                input.mouse_y = y as f32;
+                if input.mouse_down {
+                    app.on_move(x as f32, y as f32, 0);
+                }
+            }
+            JsEvent::MouseDown => {
+                input.mouse_down = true;
+                app.on_press(input.mouse_x, input.mouse_y, 0);
+            }
+            JsEvent::MouseUp => {
+                input.mouse_down = false;
+                app.on_release(input.mouse_x, input.mouse_y, 0);
+            }
+            JsEvent::MouseWheel { amt } => app.on_mouse_wheel(input.mouse_x, input.mouse_y, amt),
+            JsEvent::Touch { phase, x, y, id } => match phase {
+                TouchPhase::Start => app.on_press(x as f32, y as f32, id as u64),
+                TouchPhase::Move => app.on_move(x as f32, y as f32, id as u64),
+                TouchPhase::End | TouchPhase::Cancel => app.on_release(x as f32, y as f32, id as u64),
+            }
+            JsEvent::Unloading => app.save(|s| Ok(storage.set_item(&save_key, &s).unwrap())).unwrap()
+        }
+        if app.should_save() {
+            app.save(|s| Ok(storage.set_item(save_key, &s).unwrap())).unwrap();
+        }
+        if app.should_redraw() {
+            request_redraw();
+        }
+    });
+    request_redraw();
+    /*
     let save_key = "savestate";
 
     let window = web_sys::window().unwrap();
@@ -130,11 +175,12 @@ fn main() -> std::result::Result<(), JsValue> {
     }));
 
     request_animation_frame(g.borrow().as_ref().unwrap());
-
+    */
     Ok(())
 
 }
 
+/*
 type RcApp = Rc<RefCell<Application<InfinityLoop, WasmContext>>>;
 type RcInput = Rc<RefCell<InputState>>;
 type RcClosure = Rc<RefCell<Option<Closure<dyn FnMut()>>>>;
@@ -330,7 +376,7 @@ fn register_touchend(canvas: &HtmlCanvasElement, app: RcApp, after_events: RcFn)
     closure.forget();
     Ok(())
 }
-
+*/
 //{
 //    let app = app.clone();
 //    let closure = Closure::wrap(Box::new(move |event: web_sys::MouseEvent| {

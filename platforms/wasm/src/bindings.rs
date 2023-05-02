@@ -8,10 +8,15 @@ use wasm_bindgen::prelude::*;
 #[wasm_bindgen(module = "/src/bindings.js")]
 extern "C" {
     fn set_callback(callback: JsValue);
+    pub fn request_redraw();
 }
 
 #[derive(Debug, Copy, Clone, Deserialize)]
 pub enum JsEvent {
+    Resize {
+        width: u32,
+        height: u32
+    },
     MouseMove {
         x: i32,
         y: i32
@@ -20,7 +25,27 @@ pub enum JsEvent {
     MouseUp,
     MouseWheel {
         amt: f32
-    }
+    },
+    Touch {
+        phase: TouchPhase,
+        x: i32,
+        y: i32,
+        id: u32
+    },
+    Redraw,
+    Unloading
+}
+
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Deserialize)]
+pub enum TouchPhase {
+    #[serde(rename = "touchstart")]
+    Start,
+    #[serde(rename = "touchmove")]
+    Move,
+    #[serde(rename = "touchend")]
+    End,
+    #[serde(rename = "touchcancel")]
+    Cancel
 }
 
 pub fn set_js_callback<F: FnMut(JsEvent) + 'static>(mut f: F) {
